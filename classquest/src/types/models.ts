@@ -1,65 +1,56 @@
 export type ID = string;
 
-export type Badge = {
-  id: ID;
-  name: string;
-  icon?: string;
-  description?: string;
-};
-
-export type Student = {
+export interface Student {
   id: ID;
   alias: string;
   xp: number;
   level: number;
-  streaks: Record<ID, number>;
-  lastAwardedDay: Record<ID, string>;
-  badges: Badge[];
   teamId?: ID;
-};
+  streaks: { [questId: ID]: number };
+  lastAwardedDay: { [questId: ID]: string };
+  awardedBadgeIds: ID[];
+}
 
-export type Team = {
+export interface Team {
   id: ID;
   name: string;
-  memberIds: ID[];
-};
+}
 
-export type QuestType = 'daily' | 'repeatable' | 'oneoff';
-export type QuestTarget = 'individual' | 'team';
-
-export type Quest = {
+export interface Quest {
   id: ID;
   name: string;
-  description?: string;
   xp: number;
-  type: QuestType;
-  target: QuestTarget;
-  isPersonalTo?: ID;
+  type: 'daily' | 'repeatable' | 'oneoff';
   active: boolean;
-};
+}
 
-export type LogEntry = {
+export interface Badge {
+  id: ID;
+  name: string;
+  description: string;
+  imageFile: string;
+}
+
+export interface LogEntry {
   id: ID;
   timestamp: number;
   studentId: ID;
   questId: ID;
   questName: string;
-  xp: number;
-  note?: string;
-};
+  xpAwarded: number;
+}
 
-export type Settings = {
+export interface Settings {
   className: string;
   xpPerLevel: number;
   streakThresholdForBadge: number;
-  allowNegativeXP?: boolean;
-};
+}
 
-export type AppState = {
+export interface AppState {
   students: Student[];
   teams: Team[];
   quests: Quest[];
-  logs: LogEntry[];
+  badges: Badge[];
+  log: LogEntry[];
   settings: Settings;
-  version: number;
-};
+}

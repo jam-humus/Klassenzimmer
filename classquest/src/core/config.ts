@@ -1,6 +1,7 @@
-export const DEFAULT_SETTINGS = {
+import type { Settings } from '../types/models';
+
+export const DEFAULT_SETTINGS: Settings = {
   className: 'Meine Klasse',
   xpPerLevel: 100,
-  streakThresholdForBadge: 5,
-  allowNegativeXP: false,
-} as const;
+  streakThresholdForBadge: 5
+};
