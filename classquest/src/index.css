@@ -1,0 +1,22 @@
+:root {
+  --color-primary: #5b8def;
+  --color-success: #2ecc71;
+  --color-warning: #f1c40f;
+  --color-danger: #e74c3c;
+  --color-xp: #00c2ff;
+  --radius-lg: 16px;
+  --font-size-lg: 1.125rem;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+}
