@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useReducer, useRef } from 'react';
+import React, 'react';
 import type { AppState, ID, LogEntry, Quest, Settings } from '~/types/models';
 import { DEFAULT_SETTINGS } from '~/core/config';
 import { createStorageAdapter } from '~/services/storage';
@@ -166,14 +166,14 @@ function reducer(state: AppState, action: Action): AppState {
   }
 }
 
-const Ctx = createContext<{ state: AppState; dispatch: React.Dispatch<Action> } | null>(null);
+const Ctx = React.createContext<{ state: AppState; dispatch: React.Dispatch<Action> } | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const storage = useMemo(createStorageAdapter, []);
-  const [state, dispatch] = useReducer(reducer, normalizeState(createInitialState(undefined, 1)));
-  const hydratedRef = useRef(false);
+  const storage = React.useMemo(createStorageAdapter, []);
+  const [state, dispatch] = React.useReducer(reducer, normalizeState(createInitialState(undefined, 1)));
+  const hydratedRef = React.useRef(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
@@ -192,7 +192,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [storage]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!hydratedRef.current) return;
     (async () => {
       await storage.saveState(state);
@@ -203,7 +203,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useApp = () => {
-  const value = useContext(Ctx);
+  const value = React.useContext(Ctx);
   if (!value) throw new Error('AppContext missing');
   return value;
 };
