@@ -1,9 +1,11 @@
-import React, { createContext, useContext, useEffect, useMemo, useReducer, useRef } from 'react';
-import type { AppState, ID, Quest } from '~/types/models';
+import React, 'react';
+import type { AppState, ID, LogEntry, Quest, Settings } from '~/types/models';
 import { DEFAULT_SETTINGS } from '~/core/config';
-import { processAward } from '~/core/gameLogic';
 import { createStorageAdapter } from '~/services/storage';
 import { levelFromXP } from '~/core/xp';
+import { addQuest, addStudent, awardQuest, createInitialState, setQuestActive } from '~/core/state';
+
+type AwardPayload = { questId: ID; studentId?: ID; teamId?: ID; note?: string };
 
 type Action =
   | { type: 'INIT'; state: AppState }
@@ -14,67 +16,120 @@ type Action =
   | { type: 'UPDATE_QUEST'; id: ID; updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active'>> }
   | { type: 'REMOVE_QUEST'; id: ID }
   | { type: 'TOGGLE_QUEST'; id: ID }
-  | { type: 'AWARD'; studentId: ID; quest: Quest }
+  | { type: 'AWARD'; payload: AwardPayload }
   | { type: 'UNDO_LAST' }
+  | { type: 'UPDATE_SETTINGS'; updates: Partial<AppState['settings']> }
   | { type: 'IMPORT'; json: string };
 
-function reducer(state: AppState, a: Action): AppState {
-  switch (a.type) {
-    case 'INIT': {
-      const s = a.state;
-      // migration hook if version changes later
-      return s;
-    }
+const createId = () => globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+
+function normalizeSettings(settings?: Partial<Settings>): Settings {
+  const merged: Settings = {
+    ...DEFAULT_SETTINGS,
+    ...(settings ?? {}),
+  };
+  if (merged.onboardingCompleted == null) {
+    merged.onboardingCompleted = false;
+  }
+  return merged;
+}
+
+function sortLogs(logs: LogEntry[]): LogEntry[] {
+  return [...logs].sort((a, b) => b.timestamp - a.timestamp);
+}
+
+function normalizeState(raw: AppState): AppState {
+  const students = raw.students ?? [];
+  const quests = raw.quests ?? [];
+  const logs = sortLogs(raw.logs ?? []);
+  const teams = raw.teams ?? [];
+  const hasData = students.length > 0 || quests.length > 0 || logs.length > 0;
+  const settings = normalizeSettings({
+    ...raw.settings,
+    onboardingCompleted: hasData ? true : raw.settings?.onboardingCompleted,
+  });
+  return {
+    students,
+    quests,
+    logs,
+    teams,
+    settings,
+    version: raw.version ?? 1,
+  };
+}
+
+function markOnboardingComplete(state: AppState): AppState {
+  if (state.settings.onboardingCompleted) {
+    return state;
+  }
+  const hasData = state.students.length > 0 || state.quests.length > 0 || state.logs.length > 0;
+  if (!hasData) {
+    return state;
+  }
+  return {
+    ...state,
+    settings: { ...state.settings, onboardingCompleted: true },
+  };
+}
+
+function reducer(state: AppState, action: Action): AppState {
+  switch (action.type) {
+    case 'INIT':
+      return normalizeState(action.state);
     case 'ADD_STUDENT': {
-      const id = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
-      return {
-        ...state,
-        students: [
-          ...state.students,
-          { id, alias: a.alias, xp: 0, level: 1, streaks: {}, lastAwardedDay: {}, badges: [] },
-        ],
-      };
+      const alias = action.alias.trim();
+      if (!alias) return state;
+      const next = addStudent(state, { id: createId(), alias, xp: 0 });
+      return markOnboardingComplete(next);
     }
     case 'UPDATE_STUDENT_ALIAS':
       return {
         ...state,
         students: state.students.map((student) =>
-          student.id === a.id ? { ...student, alias: a.alias } : student,
+          student.id === action.id ? { ...student, alias: action.alias.trim() || student.alias } : student,
         ),
       };
-    case 'REMOVE_STUDENT':
+    case 'REMOVE_STUDENT': {
+      const students = state.students.filter((student) => student.id !== action.id);
+      const teams = state.teams.map((team) => ({
+        ...team,
+        memberIds: team.memberIds.filter((memberId) => memberId !== action.id),
+      }));
       return {
         ...state,
-        students: state.students.filter((s) => s.id !== a.id),
-        logs: state.logs.filter((l) => l.studentId !== a.id),
+        students,
+        teams,
+        logs: state.logs.filter((log) => log.studentId !== action.id),
       };
-    case 'ADD_QUEST':
-      return { ...state, quests: [...state.quests, a.quest] };
+    }
+    case 'ADD_QUEST': {
+      const quest = action.quest;
+      if (!quest.name.trim()) return state;
+      const next = addQuest(state, quest);
+      return markOnboardingComplete(next);
+    }
     case 'UPDATE_QUEST':
       return {
         ...state,
         quests: state.quests.map((quest) =>
-          quest.id === a.id ? { ...quest, ...a.updates } : quest,
+          quest.id === action.id ? { ...quest, ...action.updates } : quest,
         ),
       };
     case 'REMOVE_QUEST':
       return {
         ...state,
-        quests: state.quests.filter((quest) => quest.id !== a.id),
-        logs: state.logs.filter((log) => log.questId !== a.id),
+        quests: state.quests.filter((quest) => quest.id !== action.id),
+        logs: state.logs.filter((log) => log.questId !== action.id),
       };
-    case 'TOGGLE_QUEST':
-      return {
-        ...state,
-        quests: state.quests.map((q) => (q.id === a.id ? { ...q, active: !q.active } : q)),
-      };
+    case 'TOGGLE_QUEST': {
+      const quest = state.quests.find((q) => q.id === action.id);
+      if (!quest) return state;
+      return setQuestActive(state, action.id, !quest.active);
+    }
     case 'AWARD': {
-      const next = processAward(state, a.studentId, a.quest);
+      const next = awardQuest(state, action.payload);
       if (next === state || next.logs === state.logs) return next;
-      const latest = next.logs[next.logs.length - 1];
-      if (!latest) return next;
-      const logs = [latest, ...next.logs.slice(0, -1)];
-      return { ...next, logs };
+      return { ...next, logs: sortLogs(next.logs) };
     }
     case 'UNDO_LAST': {
       const [last, ...rest] = state.logs;
@@ -92,28 +147,33 @@ function reducer(state: AppState, a: Action): AppState {
       });
       return { ...state, students, logs: rest };
     }
-    case 'IMPORT':
-      return JSON.parse(a.json) as AppState;
+    case 'UPDATE_SETTINGS':
+      return {
+        ...state,
+        settings: normalizeSettings({ ...state.settings, ...action.updates }),
+      };
+    case 'IMPORT': {
+      try {
+        const parsed = JSON.parse(action.json) as AppState;
+        return normalizeState(parsed);
+      } catch (error) {
+        console.error('Failed to import state', error);
+        return state;
+      }
+    }
     default:
       return state;
   }
 }
 
-const Ctx = createContext<{ state: AppState; dispatch: React.Dispatch<Action> } | null>(null);
+const Ctx = React.createContext<{ state: AppState; dispatch: React.Dispatch<Action> } | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const storage = useMemo(createStorageAdapter, []);
-  const [state, dispatch] = useReducer(reducer, {
-    students: [],
-    teams: [],
-    quests: [],
-    logs: [],
-    settings: { ...DEFAULT_SETTINGS },
-    version: 1,
-  });
-  const hydratedRef = useRef(false);
+  const storage = React.useMemo(createStorageAdapter, []);
+  const [state, dispatch] = React.useReducer(reducer, normalizeState(createInitialState(undefined, 1)));
+  const hydratedRef = React.useRef(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
@@ -131,7 +191,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [storage]);
-  useEffect(() => {
+
+  React.useEffect(() => {
     if (!hydratedRef.current) return;
     (async () => {
       await storage.saveState(state);
@@ -142,7 +203,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useApp = () => {
-  const v = useContext(Ctx);
-  if (!v) throw new Error('AppContext missing');
-  return v;
+  const value = React.useContext(Ctx);
+  if (!value) throw new Error('AppContext missing');
+  return value;
 };

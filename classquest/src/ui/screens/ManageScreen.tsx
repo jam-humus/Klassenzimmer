@@ -1,16 +1,26 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from '~/app/AppContext';
-import type { Quest } from '~/types/models';
+import type { Quest, QuestType } from '~/types/models';
+
+const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
 
 function makeId() {
   return globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
 }
+
 function newQuest(
   name: string,
   xp: number,
   type: 'daily' | 'repeatable' | 'oneoff' = 'daily',
 ): Quest {
-  return { id: makeId(), name, xp, type, target: 'individual', active: true };
+  return {
+    id: makeId(),
+    name: name.trim() || 'Neue Quest',
+    xp: Number.isFinite(xp) ? Math.max(0, Math.round(xp)) : 0,
+    type,
+    target: 'individual',
+    active: true,
+  };
 }
 
 type StudentRowProps = {
@@ -62,7 +72,6 @@ const StudentRow = React.memo(function StudentRow({ id, alias, onSave, onRemove 
     </li>
   );
 });
-
 StudentRow.displayName = 'StudentRow';
 
 type QuestRowProps = {
@@ -120,9 +129,11 @@ const QuestRow = React.memo(function QuestRow({ quest, onSave, onRemove }: Quest
         aria-label={`Questtyp für ${quest.name}`}
         style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid #d0d7e6' }}
       >
-        <option value="daily">daily</option>
-        <option value="repeatable">repeatable</option>
-        <option value="oneoff">oneoff</option>
+        {questTypes.map((qt) => (
+          <option key={qt} value={qt}>
+            {qt}
+          </option>
+        ))}
       </select>
       <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <input
@@ -153,7 +164,6 @@ const QuestRow = React.memo(function QuestRow({ quest, onSave, onRemove }: Quest
     </li>
   );
 });
-
 QuestRow.displayName = 'QuestRow';
 
 export default function ManageScreen() {
@@ -254,9 +264,11 @@ export default function ManageScreen() {
             onChange={(e) => setQType(e.target.value as typeof qType)}
             style={{ minWidth: 140, padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
           >
-            <option value="daily">daily</option>
-            <option value="repeatable">repeatable</option>
-            <option value="oneoff">oneoff</option>
+            {questTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
           </select>
           <button type="button" onClick={addQuest} style={{ padding: '10px 16px' }}>
             Quest anlegen

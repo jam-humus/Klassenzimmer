@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import './App.css'; // Stellt sicher, dass du eine App.css Datei für das Styling hast
 import { useApp } from '~/app/AppContext';
 import FirstRunWizard from '~/ui/screens/FirstRunWizard';
 import AwardScreen from '~/ui/screens/AwardScreen';
@@ -8,59 +9,80 @@ import ManageScreen from '~/ui/screens/ManageScreen';
 
 type Tab = 'award' | 'leaderboard' | 'log' | 'manage';
 
-const TAB_LABELS: Record<Tab, string> = {
-  award: 'Vergeben',
-  leaderboard: 'Leaderboard',
-  log: 'Protokoll',
-  manage: 'Verwalten',
-};
+// Ein Array von Objekten für die Tabs, was für mehr Flexibilität sorgt (z.B. für aria-labels)
+const TABS: Array<{ id: Tab; label: string; aria: string }> = [
+  { id: 'award', label: 'Vergeben', aria: 'XP vergeben' },
+  { id: 'leaderboard', label: 'Leaderboard', aria: 'Leaderboard anzeigen' },
+  { id: 'log', label: 'Protokoll', aria: 'Aktivitätsprotokoll öffnen' },
+  { id: 'manage', label: 'Verwalten', aria: 'Schüler und Quests verwalten' },
+];
 
-export default function App(){
-  const { state } = useApp();
+export default function App() {
+  const { state, dispatch } = useApp();
   const [tab, setTab] = useState<Tab>('award');
-  const isFirstRun = state.students.length===0 && state.quests.length===0 && state.logs.length===0;
+
+  // Eine robustere Prüfung, ob bereits Daten verwaltet werden
+  const hasManagedData = useMemo(
+    () => state.students.length > 0 || state.quests.length > 0 || state.logs.length > 0,
+    [state.students, state.quests, state.logs],
+  );
+
+  // Effekt, um das Onboarding automatisch als abgeschlossen zu markieren, wenn Daten vorhanden sind
+  useEffect(() => {
+    if (!state.settings.onboardingCompleted && hasManagedData) {
+      dispatch({ type: 'UPDATE_SETTINGS', updates: { onboardingCompleted: true } });
+    }
+  }, [dispatch, hasManagedData, state.settings.onboardingCompleted]);
+
+  // Bestimmt, ob der Einrichtungs-Assistent (FirstRunWizard) angezeigt werden soll
+  const shouldShowFirstRun = !state.settings.onboardingCompleted && !hasManagedData;
+
+  // Setzt den Tab zurück auf 'award', falls der FirstRunWizard wieder aktiv wird
+  useEffect(() => {
+    if (shouldShowFirstRun) {
+      setTab('award');
+    }
+  }, [shouldShowFirstRun]);
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: 16 }}>
-      <header style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
-        <h1 style={{ margin:0 }}>{state.settings.className || 'ClassQuest'}</h1>
-        <nav role="tablist" aria-label="Hauptnavigation" style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-          {(['award', 'leaderboard', 'log', 'manage'] as Tab[]).map((t) => (
+    <div className="app-shell">
+      <header className="app-header">
+        <h1 className="app-brand">{state.settings.className || 'ClassQuest'}</h1>
+        <nav role="tablist" aria-label="Hauptnavigation" className="app-tabs">
+          {TABS.map((item) => (
             <button
-              key={t}
+              key={item.id}
               type="button"
               role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              style={{
-                padding: '10px 16px',
-                borderRadius: 999,
-                border: tab === t ? '2px solid var(--color-primary)' : '1px solid transparent',
-                background: tab === t ? 'rgba(91,141,239,0.15)' : 'rgba(148,163,184,0.12)',
-                fontWeight: 600,
-                cursor: 'pointer',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-              }}
+              aria-selected={tab === item.id}
+              aria-label={item.aria}
+              className="app-tab"
+              onClick={() => setTab(item.id)}
             >
-              {TAB_LABELS[t]}
+              {item.label}
             </button>
           ))}
         </nav>
       </header>
 
-      {isFirstRun ? (
-        <FirstRunWizard onDone={()=>setTab('manage')} />
+      {shouldShowFirstRun ? (
+        <FirstRunWizard
+          onDone={() => {
+            // Nach Abschluss des Wizards zum "Verwalten"-Tab wechseln
+            setTab('manage');
+          }}
+        />
       ) : (
         <>
-          {tab==='award' && <AwardScreen />}
-          {tab==='leaderboard' && <LeaderboardScreen />}
-          {tab==='log' && <LogScreen />}
-          {tab==='manage' && <ManageScreen />}
+          {tab === 'award' && <AwardScreen />}
+          {tab === 'leaderboard' && <LeaderboardScreen />}
+          {tab === 'log' && <LogScreen />}
+          {tab === 'manage' && <ManageScreen />}
         </>
       )}
 
-      <div aria-live="polite" aria-atomic="true" id="toast-region" />
+      {/* Region für Benachrichtigungen (Toasts) */}
+      <div className="toast-region" aria-live="polite" aria-atomic="true" id="toast-region" />
     </div>
   );
 }
