@@ -18,7 +18,7 @@ const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
   return (
     <div
       ref={ref}
-      role="button"
+      role="checkbox"
       tabIndex={0}
       onClick={() => onSelect(id)}
       onKeyDown={(e) => {
@@ -28,7 +28,7 @@ const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
         }
       }}
       onFocus={onFocus}
-      aria-pressed={selected}
+      aria-checked={selected}
       aria-label={`Schüler ${alias}, ${xp} XP, Level ${level}${selected ? ', ausgewählt' : ''}`}
       style={{
         border: selected ? '2px solid var(--color-primary)' : '1px solid #e2e8f0',

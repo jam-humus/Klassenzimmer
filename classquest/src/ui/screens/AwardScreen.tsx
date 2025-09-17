@@ -86,7 +86,7 @@ export default function AwardScreen() {
 
   const awardStudent = useCallback(
     (studentId: string, quest: Quest) => {
-      dispatch({ type: 'AWARD', studentId, quest });
+      dispatch({ type: 'AWARD', payload: { questId: quest.id, studentId } });
     },
     [dispatch],
   );
@@ -266,7 +266,11 @@ export default function AwardScreen() {
                 <button
                   type="button"
                   key={q.id}
-                  onClick={() => awardSingle(s.id, q)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    awardSingle(s.id, q);
+                  }}
+                  onMouseDown={(event) => event.stopPropagation()}
                   style={{
                     padding: '8px 10px',
                     borderRadius: 999,

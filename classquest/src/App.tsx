@@ -22,7 +22,7 @@ export default function App() {
 
   const hasManagedData = useMemo(
     () => state.students.length > 0 || state.quests.length > 0 || state.logs.length > 0,
-    [state.students.length, state.quests.length, state.logs.length],
+    [state.students, state.quests, state.logs],
   );
 
   useEffect(() => {

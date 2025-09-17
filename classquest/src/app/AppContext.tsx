@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useEffect, useMemo, useReducer, useRef } from 'react';
-import type { AppState, ID, Quest, Settings } from '~/types/models';
+import type { AppState, ID, LogEntry, Quest, Settings } from '~/types/models';
 import { DEFAULT_SETTINGS } from '~/core/config';
-import { processAward } from '~/core/gameLogic';
 import { createStorageAdapter } from '~/services/storage';
 import { levelFromXP } from '~/core/xp';
+import { addQuest, addStudent, awardQuest, createInitialState, setQuestActive } from '~/core/state';
+
+type AwardPayload = { questId: ID; studentId?: ID; teamId?: ID; note?: string };
 
 type Action =
   | { type: 'INIT'; state: AppState }
@@ -14,7 +16,7 @@ type Action =
   | { type: 'UPDATE_QUEST'; id: ID; updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active'>> }
   | { type: 'REMOVE_QUEST'; id: ID }
   | { type: 'TOGGLE_QUEST'; id: ID }
-  | { type: 'AWARD'; studentId: ID; quest: Quest }
+  | { type: 'AWARD'; payload: AwardPayload }
   | { type: 'UNDO_LAST' }
   | { type: 'UPDATE_SETTINGS'; updates: Partial<AppState['settings']> }
   | { type: 'IMPORT'; json: string };
@@ -32,13 +34,20 @@ function normalizeSettings(settings?: Partial<Settings>): Settings {
   return merged;
 }
 
+function sortLogs(logs: LogEntry[]): LogEntry[] {
+  return [...logs].sort((a, b) => b.timestamp - a.timestamp);
+}
+
 function normalizeState(raw: AppState): AppState {
   const students = raw.students ?? [];
   const quests = raw.quests ?? [];
-  const logs = raw.logs ?? [];
+  const logs = sortLogs(raw.logs ?? []);
   const teams = raw.teams ?? [];
   const hasData = students.length > 0 || quests.length > 0 || logs.length > 0;
-  const settings = normalizeSettings({ ...raw.settings, onboardingCompleted: hasData ? true : raw.settings?.onboardingCompleted });
+  const settings = normalizeSettings({
+    ...raw.settings,
+    onboardingCompleted: hasData ? true : raw.settings?.onboardingCompleted,
+  });
   return {
     students,
     quests,
@@ -68,31 +77,37 @@ function reducer(state: AppState, action: Action): AppState {
     case 'INIT':
       return normalizeState(action.state);
     case 'ADD_STUDENT': {
-      const id = createId();
-      const next: AppState = {
-        ...state,
-        students: [
-          ...state.students,
-          { id, alias: action.alias, xp: 0, level: 1, streaks: {}, lastAwardedDay: {}, badges: [] },
-        ],
-      };
+      const alias = action.alias.trim();
+      if (!alias) return state;
+      const next = addStudent(state, { id: createId(), alias, xp: 0 });
       return markOnboardingComplete(next);
     }
     case 'UPDATE_STUDENT_ALIAS':
       return {
         ...state,
         students: state.students.map((student) =>
-          student.id === action.id ? { ...student, alias: action.alias } : student,
+          student.id === action.id ? { ...student, alias: action.alias.trim() || student.alias } : student,
         ),
       };
-    case 'REMOVE_STUDENT':
+    case 'REMOVE_STUDENT': {
+      const students = state.students.filter((student) => student.id !== action.id);
+      const teams = state.teams.map((team) => ({
+        ...team,
+        memberIds: team.memberIds.filter((memberId) => memberId !== action.id),
+      }));
       return {
         ...state,
-        students: state.students.filter((student) => student.id !== action.id),
+        students,
+        teams,
         logs: state.logs.filter((log) => log.studentId !== action.id),
       };
-    case 'ADD_QUEST':
-      return markOnboardingComplete({ ...state, quests: [...state.quests, action.quest] });
+    }
+    case 'ADD_QUEST': {
+      const quest = action.quest;
+      if (!quest.name.trim()) return state;
+      const next = addQuest(state, quest);
+      return markOnboardingComplete(next);
+    }
     case 'UPDATE_QUEST':
       return {
         ...state,
@@ -106,20 +121,15 @@ function reducer(state: AppState, action: Action): AppState {
         quests: state.quests.filter((quest) => quest.id !== action.id),
         logs: state.logs.filter((log) => log.questId !== action.id),
       };
-    case 'TOGGLE_QUEST':
-      return {
-        ...state,
-        quests: state.quests.map((quest) =>
-          quest.id === action.id ? { ...quest, active: !quest.active } : quest,
-        ),
-      };
+    case 'TOGGLE_QUEST': {
+      const quest = state.quests.find((q) => q.id === action.id);
+      if (!quest) return state;
+      return setQuestActive(state, action.id, !quest.active);
+    }
     case 'AWARD': {
-      const next = processAward(state, action.studentId, action.quest);
+      const next = awardQuest(state, action.payload);
       if (next === state || next.logs === state.logs) return next;
-      const latest = next.logs[next.logs.length - 1];
-      if (!latest) return next;
-      const logs = [latest, ...next.logs.slice(0, -1)];
-      return { ...next, logs };
+      return { ...next, logs: sortLogs(next.logs) };
     }
     case 'UNDO_LAST': {
       const [last, ...rest] = state.logs;
@@ -160,14 +170,7 @@ const Ctx = createContext<{ state: AppState; dispatch: React.Dispatch<Action> } 
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const storage = useMemo(createStorageAdapter, []);
-  const [state, dispatch] = useReducer(reducer, {
-    students: [],
-    teams: [],
-    quests: [],
-    logs: [],
-    settings: normalizeSettings(DEFAULT_SETTINGS),
-    version: 1,
-  });
+  const [state, dispatch] = useReducer(reducer, normalizeState(createInitialState(undefined, 1)));
   const hydratedRef = useRef(false);
 
   useEffect(() => {
