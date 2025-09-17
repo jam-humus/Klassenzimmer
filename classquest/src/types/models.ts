@@ -22,7 +22,11 @@ export type LogEntry = {
 };
 
 export type Settings = {
-  className: string; xpPerLevel: number; streakThresholdForBadge: number; allowNegativeXP?: boolean;
+  className: string;
+  xpPerLevel: number;
+  streakThresholdForBadge: number;
+  allowNegativeXP?: boolean;
+  onboardingCompleted?: boolean;
 };
 
 export type AppState = {

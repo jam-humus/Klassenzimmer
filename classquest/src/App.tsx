@@ -1,165 +1,73 @@
-import { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '~/app/AppContext';
-import type { ID, Quest } from '~/types/models';
+import FirstRunWizard from '~/ui/screens/FirstRunWizard';
+import AwardScreen from '~/ui/screens/AwardScreen';
+import LeaderboardScreen from '~/ui/screens/LeaderboardScreen';
+import LogScreen from '~/ui/screens/LogScreen';
+import ManageScreen from '~/ui/screens/ManageScreen';
 
-type SimpleQuestType = 'daily' | 'repeatable' | 'oneoff';
+type Tab = 'award' | 'leaderboard' | 'log' | 'manage';
 
-function newQuest(name: string, xp: number, type: SimpleQuestType = 'daily'): Quest {
-  const trimmed = name.trim();
-  const id = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
-  return { id, name: trimmed || 'Neue Quest', xp, type, target: 'individual', active: true };
-}
+const TAB_LABELS: Record<Tab, string> = {
+  award: 'Vergeben',
+  leaderboard: 'Leaderboard',
+  log: 'Protokoll',
+  manage: 'Verwalten',
+};
 
-export default function App() {
-  const { state, dispatch } = useApp();
-  const [alias, setAlias] = useState('');
-  const [qName, setQName] = useState('Hausaufgaben');
-  const [qXP, setQXP] = useState(10);
-  const [qType, setQType] = useState<SimpleQuestType>('daily');
-
-  const activeQuests = useMemo(() => state.quests.filter((q) => q.active), [state.quests]);
-  const studentAliasById = useMemo(
-    () =>
-      Object.fromEntries(state.students.map((student) => [student.id, student.alias])) as Record<
-        ID,
-        string
-      >,
-    [state.students],
-  );
-
-  const handleAddQuest = () => {
-    const trimmed = qName.trim();
-    if (!trimmed) return;
-    dispatch({ type: 'ADD_QUEST', quest: newQuest(trimmed, qXP, qType) });
-    setQName('');
-  };
+export default function App(){
+  const { state } = useApp();
+  const [tab, setTab] = useState<Tab>('award');
+  const shouldShowFirstRun =
+    !state.settings.onboardingCompleted &&
+    state.students.length === 0 &&
+    state.quests.length === 0 &&
+    state.logs.length === 0;
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', padding: 16 }}>
-      <h1 style={{ marginBottom: 8 }}>{state.settings.className || 'ClassQuest'}</h1>
-
-      {/* Students */}
-      <section style={{ padding: 12, background: '#fff', borderRadius: 12, marginBottom: 16 }}>
-        <h2>Students</h2>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <input
-            aria-label="Alias"
-            placeholder="Alias"
-            value={alias}
-            onChange={(event) => setAlias(event.target.value)}
-          />
-          <button
-            onClick={() => {
-              if (alias.trim()) {
-                dispatch({ type: 'ADD_STUDENT', alias: alias.trim() });
-                setAlias('');
-              }
-            }}
-          >
-            Add
-          </button>
-        </div>
-        <ul>
-          {state.students.map((student) => (
-            <li key={student.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <strong>{student.alias}</strong> — {student.xp} XP (Lvl {student.level})
-              <button onClick={() => dispatch({ type: 'REMOVE_STUDENT', id: student.id })}>
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* Quests */}
-      <section style={{ padding: 12, background: '#fff', borderRadius: 12, marginBottom: 16 }}>
-        <h2>Quests</h2>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-          <input
-            aria-label="Quest name"
-            placeholder="Quest name"
-            value={qName}
-            onChange={(event) => setQName(event.target.value)}
-          />
-          <input
-            aria-label="XP"
-            type="number"
-            min={0}
-            value={qXP}
-            onChange={(event) => setQXP(Number.parseInt(event.target.value || '0', 10))}
-          />
-          <select
-            aria-label="Type"
-            value={qType}
-            onChange={(event) => setQType(event.target.value as SimpleQuestType)}
-          >
-            <option value="daily">daily</option>
-            <option value="repeatable">repeatable</option>
-            <option value="oneoff">oneoff</option>
-          </select>
-          <button onClick={handleAddQuest}>Add quest</button>
-        </div>
-        <ul>
-          {state.quests.map((quest) => (
-            <li key={quest.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>
-                {quest.name} — {quest.xp} XP [{quest.type}]
-              </span>
-              <button onClick={() => dispatch({ type: 'TOGGLE_QUEST', id: quest.id })}>
-                {quest.active ? 'Disable' : 'Enable'}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* Award */}
-      <section style={{ padding: 12, background: '#fff', borderRadius: 12, marginBottom: 16 }}>
-        <h2>Award</h2>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: 8,
-          }}
-        >
-          {state.students.map((student) => (
-            <div
-              key={student.id}
-              style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 8 }}
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: 16 }}>
+      <header style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+        <h1 style={{ margin:0 }}>{state.settings.className || 'ClassQuest'}</h1>
+        <nav role="tablist" aria-label="Hauptnavigation" style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+          {(['award', 'leaderboard', 'log', 'manage'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 999,
+                border: tab === t ? '2px solid var(--color-primary)' : '1px solid transparent',
+                background: tab === t ? 'rgba(91,141,239,0.15)' : 'rgba(148,163,184,0.12)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}
             >
-              <strong>{student.alias}</strong>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                {activeQuests.length === 0 && <em>No active quests</em>}
-                {activeQuests.map((quest) => (
-                  <button
-                    key={quest.id}
-                    onClick={() => dispatch({ type: 'AWARD', studentId: student.id, quest })}
-                  >
-                    +{quest.xp} {quest.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+              {TAB_LABELS[t]}
+            </button>
           ))}
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <button onClick={() => dispatch({ type: 'UNDO_LAST' })}>Undo last award</button>
-        </div>
-      </section>
+        </nav>
+      </header>
+      {shouldShowFirstRun ? (
+        <FirstRunWizard
+          onDone={() => {
+            setTab('manage');
+          }}
+        />
+      ) : (
+        <>
+          {tab==='award' && <AwardScreen />}
+          {tab==='leaderboard' && <LeaderboardScreen />}
+          {tab==='log' && <LogScreen />}
+          {tab==='manage' && <ManageScreen />}
+        </>
+      )}
 
-      {/* Log */}
-      <section style={{ padding: 12, background: '#fff', borderRadius: 12 }}>
-        <h2>Recent Log</h2>
-        <ol>
-          {state.logs.slice(0, 10).map((log) => (
-            <li key={log.id}>
-              {new Date(log.timestamp).toLocaleTimeString()} — {log.questName} →{' '}
-              {studentAliasById[log.studentId] ?? log.studentId} (+{log.xp} XP)
-            </li>
-          ))}
-        </ol>
-      </section>
+      <div aria-live="polite" aria-atomic="true" id="toast-region" />
     </div>
   );
 }

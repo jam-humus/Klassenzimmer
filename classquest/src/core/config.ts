@@ -3,4 +3,5 @@ export const DEFAULT_SETTINGS = {
   xpPerLevel: 100,
   streakThresholdForBadge: 5,
   allowNegativeXP: false,
+  onboardingCompleted: false,
 } as const;

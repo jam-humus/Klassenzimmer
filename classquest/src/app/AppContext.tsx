@@ -8,19 +8,32 @@ import { levelFromXP } from '~/core/xp';
 type Action =
   | { type: 'INIT'; state: AppState }
   | { type: 'ADD_STUDENT'; alias: string }
+  | { type: 'UPDATE_STUDENT_ALIAS'; id: ID; alias: string }
   | { type: 'REMOVE_STUDENT'; id: ID }
   | { type: 'ADD_QUEST'; quest: Quest }
+  | { type: 'UPDATE_QUEST'; id: ID; updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active'>> }
+  | { type: 'REMOVE_QUEST'; id: ID }
   | { type: 'TOGGLE_QUEST'; id: ID }
   | { type: 'AWARD'; studentId: ID; quest: Quest }
   | { type: 'UNDO_LAST' }
+  | { type: 'UPDATE_SETTINGS'; updates: Partial<AppState['settings']> }
   | { type: 'IMPORT'; json: string };
 
 function reducer(state: AppState, a: Action): AppState {
   switch (a.type) {
     case 'INIT': {
       const s = a.state;
-      // migration hook if version changes later
-      return s;
+      const onboardingCompleted =
+        s.settings.onboardingCompleted ??
+        (s.students.length > 0 || s.quests.length > 0 || s.logs.length > 0);
+      return {
+        ...s,
+        settings: {
+          ...DEFAULT_SETTINGS,
+          ...s.settings,
+          onboardingCompleted,
+        },
+      };
     }
     case 'ADD_STUDENT': {
       const id = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
@@ -32,6 +45,13 @@ function reducer(state: AppState, a: Action): AppState {
         ],
       };
     }
+    case 'UPDATE_STUDENT_ALIAS':
+      return {
+        ...state,
+        students: state.students.map((student) =>
+          student.id === a.id ? { ...student, alias: a.alias } : student,
+        ),
+      };
     case 'REMOVE_STUDENT':
       return {
         ...state,
@@ -40,6 +60,19 @@ function reducer(state: AppState, a: Action): AppState {
       };
     case 'ADD_QUEST':
       return { ...state, quests: [...state.quests, a.quest] };
+    case 'UPDATE_QUEST':
+      return {
+        ...state,
+        quests: state.quests.map((quest) =>
+          quest.id === a.id ? { ...quest, ...a.updates } : quest,
+        ),
+      };
+    case 'REMOVE_QUEST':
+      return {
+        ...state,
+        quests: state.quests.filter((quest) => quest.id !== a.id),
+        logs: state.logs.filter((log) => log.questId !== a.id),
+      };
     case 'TOGGLE_QUEST':
       return {
         ...state,
@@ -69,8 +102,19 @@ function reducer(state: AppState, a: Action): AppState {
       });
       return { ...state, students, logs: rest };
     }
+    case 'UPDATE_SETTINGS':
+      return {
+        ...state,
+        settings: { ...state.settings, ...a.updates },
+      };
     case 'IMPORT':
-      return JSON.parse(a.json) as AppState;
+      return reducer(
+        state,
+        {
+          type: 'INIT',
+          state: JSON.parse(a.json) as AppState,
+        },
+      );
     default:
       return state;
   }
