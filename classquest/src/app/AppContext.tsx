@@ -8,8 +8,11 @@ import { levelFromXP } from '~/core/xp';
 type Action =
   | { type: 'INIT'; state: AppState }
   | { type: 'ADD_STUDENT'; alias: string }
+  | { type: 'UPDATE_STUDENT_ALIAS'; id: ID; alias: string }
   | { type: 'REMOVE_STUDENT'; id: ID }
   | { type: 'ADD_QUEST'; quest: Quest }
+  | { type: 'UPDATE_QUEST'; id: ID; updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active'>> }
+  | { type: 'REMOVE_QUEST'; id: ID }
   | { type: 'TOGGLE_QUEST'; id: ID }
   | { type: 'AWARD'; studentId: ID; quest: Quest }
   | { type: 'UNDO_LAST' }
@@ -32,6 +35,13 @@ function reducer(state: AppState, a: Action): AppState {
         ],
       };
     }
+    case 'UPDATE_STUDENT_ALIAS':
+      return {
+        ...state,
+        students: state.students.map((student) =>
+          student.id === a.id ? { ...student, alias: a.alias } : student,
+        ),
+      };
     case 'REMOVE_STUDENT':
       return {
         ...state,
@@ -40,6 +50,19 @@ function reducer(state: AppState, a: Action): AppState {
       };
     case 'ADD_QUEST':
       return { ...state, quests: [...state.quests, a.quest] };
+    case 'UPDATE_QUEST':
+      return {
+        ...state,
+        quests: state.quests.map((quest) =>
+          quest.id === a.id ? { ...quest, ...a.updates } : quest,
+        ),
+      };
+    case 'REMOVE_QUEST':
+      return {
+        ...state,
+        quests: state.quests.filter((quest) => quest.id !== a.id),
+        logs: state.logs.filter((log) => log.questId !== a.id),
+      };
     case 'TOGGLE_QUEST':
       return {
         ...state,
