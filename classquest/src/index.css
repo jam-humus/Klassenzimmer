@@ -24,6 +24,48 @@ body {
   background: #f8fafc;
   color: #0f172a;
 }
+
+button,
+.button,
+.tile {
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+button:focus-visible,
+.button:focus-visible,
+.tile:focus-visible {
+  outline: 3px solid var(--color-xp);
+  outline-offset: 2px;
+}
+
+button:hover,
+.button:hover,
+.tile:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+button:active,
+.button:active,
+.tile:active {
+  transform: scale(0.98);
+}
+
+.pulse {
+  animation: pulse 0.28s ease;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.985);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
 .sr-only {
   position: absolute;
   width: 1px;

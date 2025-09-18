@@ -26,6 +26,8 @@ export type Settings = {
   xpPerLevel: number;
   streakThresholdForBadge: number;
   allowNegativeXP?: boolean;
+  sfxEnabled?: boolean;
+  compactMode?: boolean;
   onboardingCompleted?: boolean;
 };
 

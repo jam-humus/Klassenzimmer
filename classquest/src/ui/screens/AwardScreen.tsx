@@ -3,6 +3,7 @@ import { useApp } from '~/app/AppContext';
 import { StudentTile } from '~/ui/components/StudentTile';
 import { useSelection } from '~/ui/hooks/useSelection';
 import { useUndoToast } from '~/ui/hooks/useUndoToast';
+import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import type { Quest, Team } from '~/types/models';
 
 const TILE_MIN_WIDTH = 240;
@@ -43,13 +44,18 @@ GroupChip.displayName = 'GroupChip';
 
 export default function AwardScreen() {
   const { state, dispatch } = useApp();
+  const feedback = useFeedback();
+  const containerRef = useRef<HTMLDivElement>(null);
   const quests = useMemo(() => state.quests.filter((q) => q.active), [state.quests]);
   const { selected, isSelected, toggle, clear, setMany } = useSelection<string>([]);
   const [focusedIdx, setFocusedIdx] = useState(0);
   const [activeQuestId, setActiveQuestId] = useState<string | null>(null);
   const [columns, setColumns] = useState(3);
+  const [scrolled, setScrolled] = useState(false);
+  const [pulseId, setPulseId] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const tileRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const pulseTimeoutRef = useRef<number | null>(null);
   const { message, setMessage, clear: clearToast } = useUndoToast();
 
   const students = state.students;
@@ -105,6 +111,21 @@ export default function AwardScreen() {
     tileRefs.current = tileRefs.current.slice(0, students.length);
   }, [students.length]);
 
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    const handle = () => setScrolled(node.scrollTop > 0);
+    handle();
+    node.addEventListener('scroll', handle);
+    return () => node.removeEventListener('scroll', handle);
+  }, []);
+
+  useEffect(() => () => {
+    if (pulseTimeoutRef.current != null) {
+      window.clearTimeout(pulseTimeoutRef.current);
+    }
+  }, []);
+
   const setFocus = useCallback(
     (updater: (current: number) => number) => {
       setFocusedIdx((prev) => {
@@ -122,6 +143,17 @@ export default function AwardScreen() {
     [setMessage],
   );
 
+  const triggerPulse = useCallback((studentId: string) => {
+    setPulseId(studentId);
+    if (pulseTimeoutRef.current != null) {
+      window.clearTimeout(pulseTimeoutRef.current);
+    }
+    pulseTimeoutRef.current = window.setTimeout(() => {
+      setPulseId(null);
+      pulseTimeoutRef.current = null;
+    }, 320);
+  }, []);
+
   const awardStudent = useCallback(
     (studentId: string, quest: Quest) => {
       dispatch({ type: 'AWARD', payload: { questId: quest.id, studentId } });
@@ -136,16 +168,19 @@ export default function AwardScreen() {
     ids.forEach((id) => awardStudent(id, activeQuest));
     const target = ids.length === 1 ? aliasById.get(ids[0]) ?? 'Schüler' : `${ids.length} Schüler`;
     showUndoToast(activeQuest, target);
-  }, [activeQuest, students, selected, awardStudent, aliasById, showUndoToast]);
+    feedback.success('Aktive Quest an Auswahl vergeben');
+  }, [activeQuest, students, selected, awardStudent, aliasById, showUndoToast, feedback]);
 
   const awardSingle = useCallback(
     (studentId: string) => {
       if (!activeQuest) return;
       awardStudent(studentId, activeQuest);
+      triggerPulse(studentId);
       const target = aliasById.get(studentId) ?? 'Schüler';
+      feedback.success(`+${activeQuest.xp} XP an ${target}`);
       showUndoToast(activeQuest, target);
     },
-    [activeQuest, awardStudent, aliasById, showUndoToast],
+    [activeQuest, awardStudent, aliasById, showUndoToast, feedback, triggerPulse],
   );
 
   const groups = useMemo(() => {
@@ -164,6 +199,7 @@ export default function AwardScreen() {
       if (activeQuest.target === 'team') {
         dispatch({ type: 'AWARD', payload: { questId: activeQuest.id, teamId: team.id } });
         showUndoToast(activeQuest, team.name);
+        feedback.success(`${activeQuest.name} an ${team.name}`);
         return;
       }
       const members = team.memberIds;
@@ -171,8 +207,9 @@ export default function AwardScreen() {
       members.forEach((memberId) => awardStudent(memberId, activeQuest));
       const label = members.length > 1 ? `${team.name} (${members.length})` : team.name;
       showUndoToast(activeQuest, label);
+      feedback.success(`${activeQuest.name} an ${label}`);
     },
-    [activeQuest, groups, dispatch, awardStudent, showUndoToast],
+    [activeQuest, groups, dispatch, awardStudent, showUndoToast, feedback],
   );
 
   const onKeyDown = useCallback(
@@ -210,11 +247,12 @@ export default function AwardScreen() {
             e.preventDefault();
             dispatch({ type: 'UNDO_LAST' });
             clearToast();
+            feedback.info('Letzte Aktion rückgängig gemacht');
           }
           break;
       }
     },
-    [students, columns, activeQuest, awardSingle, focusedIdx, dispatch, setFocus, clearToast],
+    [students, columns, activeQuest, awardSingle, focusedIdx, dispatch, setFocus, clearToast, feedback],
   );
 
   const selectAll = useCallback(() => setMany(students.map((s) => s.id)), [students, setMany]);
@@ -222,8 +260,8 @@ export default function AwardScreen() {
   const selectedCount = selected.size;
 
   return (
-    <div onKeyDown={onKeyDown}>
-      <div style={{ position: 'sticky', top: 0, background: '#f8fafc', padding: '12px 0', zIndex: 1 }}>
+    <div ref={containerRef} onKeyDown={onKeyDown} style={{ height: '100%', overflowY: 'auto', padding: '0 0 24px' }}>
+      <div style={{ position: 'sticky', top: 0, background: '#f8fafc', padding: '12px 0', zIndex: 1, boxShadow: scrolled ? '0 8px 24px rgba(15, 23, 42, 0.12)' : 'none' }}>
         <div style={{ display: 'grid', gap: 12 }}>
           <div
             role="radiogroup"
@@ -305,6 +343,7 @@ export default function AwardScreen() {
               onClick={() => {
                 dispatch({ type: 'UNDO_LAST' });
                 clearToast();
+                feedback.info('Letzte Aktion rückgängig gemacht');
               }}
               aria-label="Letzte Vergabe rückgängig machen"
             >
@@ -328,6 +367,7 @@ export default function AwardScreen() {
           <div
             key={s.id}
             onFocusCapture={() => setFocusedIdx(idx)}
+            className={pulseId === s.id ? 'pulse' : undefined}
             style={{
               outline: idx === focusedIdx ? '3px solid rgba(0,194,255,0.6)' : 'none',
               borderRadius: 16,
@@ -378,6 +418,7 @@ export default function AwardScreen() {
             onClick={() => {
               dispatch({ type: 'UNDO_LAST' });
               clearToast();
+              feedback.info('Letzte Aktion rückgängig gemacht');
             }}
             style={{
               background: '#fff',

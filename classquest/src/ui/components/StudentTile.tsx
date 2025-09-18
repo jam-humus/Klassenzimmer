@@ -20,6 +20,7 @@ const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
     <div
       ref={ref}
       role="button"
+      className="tile"
       tabIndex={0}
       onClick={() => {
         if (!disabled) {

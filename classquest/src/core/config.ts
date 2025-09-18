@@ -3,5 +3,7 @@ export const DEFAULT_SETTINGS = {
   xpPerLevel: 100,
   streakThresholdForBadge: 5,
   allowNegativeXP: false,
+  sfxEnabled: false,
+  compactMode: false,
   onboardingCompleted: false,
 } as const;
