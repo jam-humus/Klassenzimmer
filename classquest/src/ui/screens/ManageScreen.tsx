@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '~/app/AppContext';
 import type { AppState, ID, Quest, QuestType, Student, Team } from '~/types/models';
+import AsyncButton from '~/ui/feedback/AsyncButton';
+import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
 
@@ -58,9 +60,14 @@ const StudentRow = React.memo(function StudentRow({ id, alias, onSave, onRemove 
         aria-label={`Alias für ${alias} bearbeiten`}
         style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid #d0d7e6' }}
       />
-      <button type="button" onClick={commit} aria-label={`Alias von ${alias} speichern`} style={{ padding: '6px 12px' }}>
+      <AsyncButton
+        type="button"
+        onClick={commit}
+        aria-label={`Alias von ${alias} speichern`}
+        style={{ padding: '6px 12px' }}
+      >
         Speichern
-      </button>
+      </AsyncButton>
       <button
         type="button"
         onClick={() => onRemove(id)}
@@ -149,9 +156,14 @@ const QuestRow = React.memo(function QuestRow({ quest, onSave, onRemove }: Quest
         Aktiv
       </label>
       <div style={{ display: 'flex', gap: 6 }}>
-        <button type="button" onClick={commit} aria-label={`Quest ${quest.name} speichern`} style={{ padding: '6px 12px' }}>
+        <AsyncButton
+          type="button"
+          onClick={commit}
+          aria-label={`Quest ${quest.name} speichern`}
+          style={{ padding: '6px 12px' }}
+        >
           Speichern
-        </button>
+        </AsyncButton>
         <button
           type="button"
           onClick={() => onRemove(quest.id)}
@@ -273,6 +285,7 @@ const isAppStateLike = (value: unknown): value is Partial<AppState> => {
 
 export default function ManageScreen() {
   const { state, dispatch } = useApp();
+  const feedback = useFeedback();
   const [alias, setAlias] = useState('');
   const [qName, setQName] = useState('Hausaufgaben');
   const [qXP, setQXP] = useState(10);
@@ -282,48 +295,92 @@ export default function ManageScreen() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const addStudent = useCallback(() => {
-    if (!alias.trim()) return;
-    dispatch({ type: 'ADD_STUDENT', alias: alias.trim() });
+    const trimmed = alias.trim();
+    if (!trimmed) return;
+    dispatch({ type: 'ADD_STUDENT', alias: trimmed });
     setAlias('');
-  }, [alias, dispatch]);
+    feedback.success('Schüler gespeichert');
+  }, [alias, dispatch, feedback]);
 
   const populateStudents = useCallback(() => {
     for (let i = 1; i <= 30; i++) {
       dispatch({ type: 'ADD_STUDENT', alias: `S${String(i).padStart(2, '0')}` });
     }
-  }, [dispatch]);
+    feedback.info('30 Demo-Schüler hinzugefügt');
+  }, [dispatch, feedback]);
 
   const addQuest = useCallback(() => {
-    if (!qName.trim()) return;
-    dispatch({ type: 'ADD_QUEST', quest: newQuest(qName.trim(), qXP, qType) });
-  }, [dispatch, qName, qXP, qType]);
+    const trimmed = qName.trim();
+    if (!trimmed) return;
+    dispatch({ type: 'ADD_QUEST', quest: newQuest(trimmed, qXP, qType) });
+    feedback.success('Quest gespeichert');
+  }, [dispatch, feedback, qName, qXP, qType]);
 
   const populateQuests = useCallback(() => {
     const presets = Array.from({ length: 15 }, (_, i) =>
       newQuest(`Quest ${i + 1}`, 5 + ((i * 5) % 30), (i % 3 === 0 ? 'daily' : i % 3 === 1 ? 'repeatable' : 'oneoff')),
     );
     presets.forEach((quest) => dispatch({ type: 'ADD_QUEST', quest }));
-  }, [dispatch]);
+    feedback.info('15 Demo-Quests hinzugefügt');
+  }, [dispatch, feedback]);
 
   const onUpdateStudent = useCallback(
-    (id: string, nextAlias: string) => dispatch({ type: 'UPDATE_STUDENT_ALIAS', id, alias: nextAlias }),
-    [dispatch],
+    (id: string, nextAlias: string) => {
+      dispatch({ type: 'UPDATE_STUDENT_ALIAS', id, alias: nextAlias });
+      feedback.success('Schüler aktualisiert');
+    },
+    [dispatch, feedback],
   );
-  const onRemoveStudent = useCallback((id: string) => dispatch({ type: 'REMOVE_STUDENT', id }), [dispatch]);
+  const onRemoveStudent = useCallback(
+    (id: string) => {
+      dispatch({ type: 'REMOVE_STUDENT', id });
+      feedback.success('Schüler entfernt');
+    },
+    [dispatch, feedback],
+  );
   const onUpdateQuest = useCallback(
-    (id: string, updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active'>>) =>
-      dispatch({ type: 'UPDATE_QUEST', id, updates }),
-    [dispatch],
+    (id: string, updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active'>>) => {
+      dispatch({ type: 'UPDATE_QUEST', id, updates });
+      feedback.success('Quest aktualisiert');
+    },
+    [dispatch, feedback],
   );
-  const onRemoveQuest = useCallback((id: string) => dispatch({ type: 'REMOVE_QUEST', id }), [dispatch]);
+  const onRemoveQuest = useCallback(
+    (id: string) => {
+      dispatch({ type: 'REMOVE_QUEST', id });
+      feedback.success('Quest gelöscht');
+    },
+    [dispatch, feedback],
+  );
 
   const addGroup = useCallback(() => {
-    dispatch({ type: 'ADD_GROUP', name: groupName.trim() });
+    const trimmed = groupName.trim();
+    if (!trimmed) return;
+    dispatch({ type: 'ADD_GROUP', name: trimmed });
     setGroupName('');
-  }, [dispatch, groupName]);
-  const onRenameGroup = useCallback((id: ID, name: string) => dispatch({ type: 'RENAME_GROUP', id, name }), [dispatch]);
-  const onRemoveGroup = useCallback((id: ID) => dispatch({ type: 'REMOVE_GROUP', id }), [dispatch]);
-  const onSetGroupMembers = useCallback((id: ID, memberIds: ID[]) => dispatch({ type: 'SET_GROUP_MEMBERS', id, memberIds }), [dispatch]);
+    feedback.success('Gruppe erstellt');
+  }, [dispatch, feedback, groupName]);
+  const onRenameGroup = useCallback(
+    (id: ID, name: string) => {
+      dispatch({ type: 'RENAME_GROUP', id, name });
+      feedback.success('Gruppe umbenannt');
+    },
+    [dispatch, feedback],
+  );
+  const onRemoveGroup = useCallback(
+    (id: ID) => {
+      dispatch({ type: 'REMOVE_GROUP', id });
+      feedback.success('Gruppe gelöscht');
+    },
+    [dispatch, feedback],
+  );
+  const onSetGroupMembers = useCallback(
+    (id: ID, memberIds: ID[]) => {
+      dispatch({ type: 'SET_GROUP_MEMBERS', id, memberIds });
+      feedback.info('Gruppenzugehörigkeit aktualisiert');
+    },
+    [dispatch, feedback],
+  );
 
   const sortedStudents = useMemo(() => [...state.students].sort((a, b) => a.alias.localeCompare(b.alias)), [state.students]);
   const sortedQuests = useMemo(() => [...state.quests].sort((a, b) => a.name.localeCompare(b.name)), [state.quests]);
@@ -345,7 +402,8 @@ export default function ManageScreen() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [state]);
+    feedback.success('Daten exportiert');
+  }, [state, feedback]);
 
   const onImportFile = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -371,9 +429,11 @@ export default function ManageScreen() {
           }
           dispatch({ type: 'IMPORT', json: JSON.stringify(parsed) });
           setImportError(null);
+          feedback.success('Daten importiert');
         } catch (error) {
           console.error('Import fehlgeschlagen', error);
           setImportError('Import fehlgeschlagen. Bitte überprüfe die Datei.');
+          feedback.error('Import fehlgeschlagen. Bitte überprüfe die Datei.');
         } finally {
           input.value = '';
         }
@@ -381,11 +441,12 @@ export default function ManageScreen() {
       reader.onerror = () => {
         console.error('Datei konnte nicht gelesen werden', reader.error);
         setImportError('Datei konnte nicht gelesen werden.');
+        feedback.error('Datei konnte nicht gelesen werden.');
         input.value = '';
       };
       reader.readAsText(file);
     },
-    [dispatch],
+    [dispatch, feedback],
   );
 
   return (
@@ -403,9 +464,9 @@ export default function ManageScreen() {
             }}
             style={{ flex: 1, minWidth: 180, padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
           />
-          <button type="button" onClick={addStudent} style={{ padding: '10px 16px' }}>
+          <AsyncButton type="button" onClick={() => addStudent()} style={{ padding: '10px 16px' }}>
             Hinzufügen
-          </button>
+          </AsyncButton>
           <button type="button" onClick={populateStudents} style={{ padding: '10px 16px' }}>
             Demo: 30 Schüler
           </button>
@@ -446,9 +507,9 @@ export default function ManageScreen() {
               </option>
             ))}
           </select>
-          <button type="button" onClick={addQuest} style={{ padding: '10px 16px' }}>
+          <AsyncButton type="button" onClick={() => addQuest()} style={{ padding: '10px 16px' }}>
             Quest anlegen
-          </button>
+          </AsyncButton>
           <button type="button" onClick={populateQuests} style={{ padding: '10px 16px' }}>
             Demo: 15 Quests
           </button>
@@ -476,9 +537,9 @@ export default function ManageScreen() {
             }}
             style={{ flex: 1, minWidth: 180, padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
           />
-          <button type="button" onClick={addGroup} style={{ padding: '10px 16px' }}>
+          <AsyncButton type="button" onClick={() => addGroup()} style={{ padding: '10px 16px' }}>
             Gruppe anlegen
-          </button>
+          </AsyncButton>
         </div>
         <ul style={{ display: 'grid', gap: 12, margin: 0, padding: 0, listStyle: 'none' }}>
           {sortedTeams.map((team) => (
@@ -495,6 +556,45 @@ export default function ManageScreen() {
         </ul>
       </section>
 
+
+      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
+        <h2>Einstellungen</h2>
+        <div style={{ display: 'grid', gap: 8 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={Boolean(state.settings.allowNegativeXP)}
+              onChange={(e) => {
+                dispatch({ type: 'UPDATE_SETTINGS', updates: { allowNegativeXP: e.target.checked } });
+                feedback.success('Einstellung gespeichert');
+              }}
+            />
+            Negative XP erlauben (Shop kann unter 0 gehen)
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={Boolean(state.settings.sfxEnabled)}
+              onChange={(e) => {
+                dispatch({ type: 'UPDATE_SETTINGS', updates: { sfxEnabled: e.target.checked } });
+                feedback.info(e.target.checked ? 'Soundeffekte aktiviert' : 'Soundeffekte deaktiviert');
+              }}
+            />
+            Soundeffekte aktivieren
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={Boolean(state.settings.compactMode)}
+              onChange={(e) => {
+                dispatch({ type: 'UPDATE_SETTINGS', updates: { compactMode: e.target.checked } });
+                feedback.info(e.target.checked ? 'Kompakte Ansicht aktiviert' : 'Kompakte Ansicht deaktiviert');
+              }}
+            />
+            Kompakte Ansicht
+          </label>
+        </div>
+      </section>
       <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
         <h2>Backup &amp; Restore</h2>
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
@@ -502,19 +602,27 @@ export default function ManageScreen() {
           bestehenden Daten überschrieben.
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button type="button" onClick={onExport} style={{ padding: '10px 16px' }}>
+          <AsyncButton
+            type="button"
+            onClick={() => onExport()}
+            style={{ padding: '10px 16px' }}
+            busyLabel="Exportiere…"
+            doneLabel="Exportiert"
+          >
             Daten exportieren
-          </button>
-          <button
+          </AsyncButton>
+          <AsyncButton
             type="button"
             onClick={() => {
               setImportError(null);
               fileInputRef.current?.click();
             }}
             style={{ padding: '10px 16px' }}
+            busyLabel="Öffne…"
+            doneLabel="Bereit"
           >
             Daten importieren
-          </button>
+          </AsyncButton>
           <input
             ref={fileInputRef}
             type="file"
