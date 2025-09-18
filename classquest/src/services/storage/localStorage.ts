@@ -1,4 +1,6 @@
 import type { AppState } from '~/types/models';
+import { sanitizeState } from '~/core/schema/appState';
+import { migrateState } from '~/core/schema/migrate';
 
 export const STORAGE_KEY = 'classquest:state';
 
@@ -14,16 +16,22 @@ const getStorage = (): Storage => {
 };
 
 const parseState = (json: string): AppState => {
-  const parsed = JSON.parse(json) as AppState | null;
-  if (!parsed || typeof parsed !== 'object') {
+  const parsed = JSON.parse(json);
+  const clean = sanitizeState(parsed);
+  if (!clean) {
     throw new Error('Invalid state payload');
   }
-  return parsed;
+  const migrated = migrateState(clean);
+  return migrated as AppState;
 };
 
 export class LocalStorageAdapter {
   async saveState(state: AppState): Promise<void> {
-    const payload = JSON.stringify(state);
+    const clean = sanitizeState(state);
+    if (!clean) {
+      throw new Error('State failed validation; not saved.');
+    }
+    const payload = JSON.stringify(clean);
     getStorage().setItem(STORAGE_KEY, payload);
   }
 
@@ -41,7 +49,11 @@ export class LocalStorageAdapter {
   }
 
   async exportState(state: AppState): Promise<string> {
-    return JSON.stringify(state);
+    const clean = sanitizeState(state);
+    if (!clean) {
+      throw new Error('State failed validation; cannot export.');
+    }
+    return JSON.stringify(clean, null, 2);
   }
 
   async importState(json: string): Promise<AppState> {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useApp } from '~/app/AppContext';
 import { LogItem } from '~/ui/components/LogItem';
 
