@@ -43,7 +43,7 @@ export default function LogScreen() {
             </option>
           ))}
         </select>
-        <select aria-label="Zeitraum" value={period} onChange={(event) => setPeriod(event.target.value as any)}>
+        <select aria-label="Zeitraum" value={period} onChange={(event) => setPeriod(event.target.value as 'today' | 'week' | 'all')}>
           <option value='today'>Heute</option>
           <option value='week'>Diese Woche</option>
           <option value='all'>Gesamt</option>

@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '~/app/AppContext';
-import type { Quest, QuestType } from '~/types/models';
+import type { AppState, ID, Quest, QuestType, Student, Team } from '~/types/models';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
 
@@ -166,12 +166,120 @@ const QuestRow = React.memo(function QuestRow({ quest, onSave, onRemove }: Quest
 });
 QuestRow.displayName = 'QuestRow';
 
+type GroupRowProps = {
+  team: Team;
+  students: Student[];
+  onRename: (id: ID, name: string) => void;
+  onRemove: (id: ID) => void;
+  onSetMembers: (id: ID, memberIds: ID[]) => void;
+};
+
+const GroupRow = React.memo(function GroupRow({ team, students, onRename, onRemove, onSetMembers }: GroupRowProps) {
+  const [name, setName] = useState(team.name);
+  useEffect(() => setName(team.name), [team.name]);
+
+  const commitName = useCallback(() => {
+    const trimmed = name.trim();
+    const nextName = trimmed || 'Gruppe';
+    if (nextName === team.name) {
+      if (name !== team.name) {
+        setName(team.name);
+      }
+      return;
+    }
+    setName(nextName);
+    onRename(team.id, nextName);
+  }, [name, team.id, team.name, onRename]);
+
+  const membersSet = useMemo(() => new Set(team.memberIds), [team.memberIds]);
+
+  const toggleMember = useCallback(
+    (studentId: ID) => {
+      const hasMember = team.memberIds.includes(studentId);
+      const nextMembers = hasMember
+        ? team.memberIds.filter((id) => id !== studentId)
+        : [...team.memberIds, studentId];
+      onSetMembers(team.id, nextMembers);
+    },
+    [team.memberIds, team.id, onSetMembers],
+  );
+
+  return (
+    <li style={{ display: 'grid', gap: 12, padding: 12, border: '1px solid #d0d7e6', borderRadius: 12 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={commitName}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commitName();
+            }
+          }}
+          aria-label={`${team.name} umbenennen`}
+          style={{ flex: 1, minWidth: 160, padding: '6px 8px', borderRadius: 8, border: '1px solid #d0d7e6' }}
+        />
+        <span style={{ fontSize: 12, opacity: 0.7 }}>Mitglieder: {team.memberIds.length}</span>
+        <button type="button" onClick={() => onRemove(team.id)} aria-label={`${team.name} löschen`} style={{ padding: '6px 12px' }}>
+          Löschen
+        </button>
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+          gap: 8,
+          alignItems: 'center',
+        }}
+      >
+        {students.length === 0 ? (
+          <em>Keine Schüler vorhanden</em>
+        ) : (
+          students.map((student) => (
+            <label key={student.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="checkbox"
+                checked={membersSet.has(student.id)}
+                onChange={() => toggleMember(student.id)}
+                aria-label={`${student.alias} ${membersSet.has(student.id) ? 'aus Gruppe entfernen' : 'zur Gruppe hinzufügen'}`}
+              />
+              <span>{student.alias}</span>
+            </label>
+          ))
+        )}
+      </div>
+    </li>
+  );
+});
+GroupRow.displayName = 'GroupRow';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isAppStateLike = (value: unknown): value is Partial<AppState> => {
+  if (!isRecord(value)) return false;
+  if (!Array.isArray(value.students) || !Array.isArray(value.quests) || !Array.isArray(value.logs)) {
+    return false;
+  }
+  if (value.teams != null && !Array.isArray(value.teams)) {
+    return false;
+  }
+  if (value.settings != null && !isRecord(value.settings)) {
+    return false;
+  }
+  return true;
+};
+
 export default function ManageScreen() {
   const { state, dispatch } = useApp();
   const [alias, setAlias] = useState('');
   const [qName, setQName] = useState('Hausaufgaben');
   const [qXP, setQXP] = useState(10);
   const [qType, setQType] = useState<'daily' | 'repeatable' | 'oneoff'>('daily');
+  const [groupName, setGroupName] = useState('Team A');
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const addStudent = useCallback(() => {
     if (!alias.trim()) return;
@@ -209,8 +317,76 @@ export default function ManageScreen() {
   );
   const onRemoveQuest = useCallback((id: string) => dispatch({ type: 'REMOVE_QUEST', id }), [dispatch]);
 
-  const sortedQuests = useMemo(() => [...state.quests].sort((a, b) => a.name.localeCompare(b.name)), [state.quests]);
+  const addGroup = useCallback(() => {
+    dispatch({ type: 'ADD_GROUP', name: groupName.trim() });
+    setGroupName('');
+  }, [dispatch, groupName]);
+  const onRenameGroup = useCallback((id: ID, name: string) => dispatch({ type: 'RENAME_GROUP', id, name }), [dispatch]);
+  const onRemoveGroup = useCallback((id: ID) => dispatch({ type: 'REMOVE_GROUP', id }), [dispatch]);
+  const onSetGroupMembers = useCallback((id: ID, memberIds: ID[]) => dispatch({ type: 'SET_GROUP_MEMBERS', id, memberIds }), [dispatch]);
+
   const sortedStudents = useMemo(() => [...state.students].sort((a, b) => a.alias.localeCompare(b.alias)), [state.students]);
+  const sortedQuests = useMemo(() => [...state.quests].sort((a, b) => a.name.localeCompare(b.name)), [state.quests]);
+  const sortedTeams = useMemo(() => [...state.teams].sort((a, b) => a.name.localeCompare(b.name)), [state.teams]);
+
+  const onExport = useCallback(() => {
+    if (typeof window === 'undefined') {
+      console.warn('Export is only available in the browser.');
+      return;
+    }
+    const data = JSON.stringify(state, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `classquest-backup-${date}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [state]);
+
+  const onImportFile = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const input = event.target;
+      const file = input.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const text = typeof reader.result === 'string' ? reader.result : '';
+          if (!text.trim()) {
+            throw new Error('Leere Datei');
+          }
+          const parsed = JSON.parse(text);
+          if (!isAppStateLike(parsed)) {
+            throw new Error('Ungültige Datenstruktur');
+          }
+          const shouldOverwrite = typeof window === 'undefined' ? true : window.confirm('Bestehende Daten überschreiben?');
+          if (!shouldOverwrite) {
+            setImportError(null);
+            return;
+          }
+          dispatch({ type: 'IMPORT', json: JSON.stringify(parsed) });
+          setImportError(null);
+        } catch (error) {
+          console.error('Import fehlgeschlagen', error);
+          setImportError('Import fehlgeschlagen. Bitte überprüfe die Datei.');
+        } finally {
+          input.value = '';
+        }
+      };
+      reader.onerror = () => {
+        console.error('Datei konnte nicht gelesen werden', reader.error);
+        setImportError('Datei konnte nicht gelesen werden.');
+        input.value = '';
+      };
+      reader.readAsText(file);
+    },
+    [dispatch],
+  );
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
@@ -282,6 +458,72 @@ export default function ManageScreen() {
             <QuestRow key={quest.id} quest={quest} onSave={onUpdateQuest} onRemove={onRemoveQuest} />
           ))}
         </ul>
+      </section>
+
+      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
+        <h2>Gruppen verwalten</h2>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          <input
+            aria-label="Gruppenname"
+            placeholder="z. B. Team Alpha"
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addGroup();
+              }
+            }}
+            style={{ flex: 1, minWidth: 180, padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
+          />
+          <button type="button" onClick={addGroup} style={{ padding: '10px 16px' }}>
+            Gruppe anlegen
+          </button>
+        </div>
+        <ul style={{ display: 'grid', gap: 12, margin: 0, padding: 0, listStyle: 'none' }}>
+          {sortedTeams.map((team) => (
+            <GroupRow
+              key={team.id}
+              team={team}
+              students={sortedStudents}
+              onRename={onRenameGroup}
+              onRemove={onRemoveGroup}
+              onSetMembers={onSetGroupMembers}
+            />
+          ))}
+          {sortedTeams.length === 0 && <em>Noch keine Gruppen angelegt.</em>}
+        </ul>
+      </section>
+
+      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
+        <h2>Backup &amp; Restore</h2>
+        <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
+          Exportiere den aktuellen Klassenstand als JSON-Datei oder importiere eine Sicherung. Beim Import werden alle
+          bestehenden Daten überschrieben.
+        </p>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button type="button" onClick={onExport} style={{ padding: '10px 16px' }}>
+            Daten exportieren
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setImportError(null);
+              fileInputRef.current?.click();
+            }}
+            style={{ padding: '10px 16px' }}
+          >
+            Daten importieren
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json"
+            style={{ display: 'none' }}
+            onChange={onImportFile}
+          />
+          {importError && <span style={{ color: '#b91c1c', fontWeight: 600 }}>{importError}</span>}
+        </div>
       </section>
     </div>
   );

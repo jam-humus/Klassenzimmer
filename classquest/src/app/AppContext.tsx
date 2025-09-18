@@ -1,5 +1,5 @@
-import React, 'react';
-import type { AppState, ID, LogEntry, Quest, Settings } from '~/types/models';
+import React from 'react';
+import type { AppState, ID, LogEntry, Quest, Settings, Student, Team } from '~/types/models';
 import { DEFAULT_SETTINGS } from '~/core/config';
 import { createStorageAdapter } from '~/services/storage';
 import { levelFromXP } from '~/core/xp';
@@ -18,10 +18,16 @@ type Action =
   | { type: 'TOGGLE_QUEST'; id: ID }
   | { type: 'AWARD'; payload: AwardPayload }
   | { type: 'UNDO_LAST' }
+  | { type: 'ADD_GROUP'; name: string }
+  | { type: 'REMOVE_GROUP'; id: ID }
+  | { type: 'RENAME_GROUP'; id: ID; name: string }
+  | { type: 'SET_GROUP_MEMBERS'; id: ID; memberIds: ID[] }
   | { type: 'UPDATE_SETTINGS'; updates: Partial<AppState['settings']> }
   | { type: 'IMPORT'; json: string };
 
 const createId = () => globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+
+const unique = <T,>(values: Iterable<T>) => Array.from(new Set(values));
 
 function normalizeSettings(settings?: Partial<Settings>): Settings {
   const merged: Settings = {
@@ -38,18 +44,70 @@ function sortLogs(logs: LogEntry[]): LogEntry[] {
   return [...logs].sort((a, b) => b.timestamp - a.timestamp);
 }
 
+function normalizeTeams(rawTeams: Team[] | undefined, students: Student[]): Team[] {
+  if (!rawTeams?.length) {
+    return [];
+  }
+  const knownStudentIds = new Set(students.map((student) => student.id));
+  return rawTeams.map((team) => {
+    const safeMembers = unique((team.memberIds ?? []).filter((id) => knownStudentIds.has(id)));
+    return {
+      id: team.id,
+      name: team.name?.trim() || 'Gruppe',
+      memberIds: safeMembers,
+    } satisfies Team;
+  });
+}
+
+function syncStudentsWithTeams(students: Student[], teams: Team[]): Student[] {
+  if (!teams.length) {
+    let changed = false;
+    const normalized = students.map((student) => {
+      if (student.teamId == null) {
+        return student;
+      }
+      changed = true;
+      return { ...student, teamId: undefined };
+    });
+    return changed ? normalized : students;
+  }
+
+  const membership = new Map<ID, ID>();
+  teams.forEach((team) => {
+    team.memberIds.forEach((memberId) => {
+      membership.set(memberId, team.id);
+    });
+  });
+
+  let changed = false;
+  const normalized = students.map((student) => {
+    const teamId = membership.get(student.id);
+    if (teamId !== student.teamId) {
+      changed = true;
+      return { ...student, teamId };
+    }
+    if (!teamId && student.teamId) {
+      changed = true;
+      return { ...student, teamId: undefined };
+    }
+    return student;
+  });
+  return changed ? normalized : students;
+}
+
 function normalizeState(raw: AppState): AppState {
   const students = raw.students ?? [];
   const quests = raw.quests ?? [];
   const logs = sortLogs(raw.logs ?? []);
-  const teams = raw.teams ?? [];
-  const hasData = students.length > 0 || quests.length > 0 || logs.length > 0;
+  const teams = normalizeTeams(raw.teams, students);
+  const syncedStudents = syncStudentsWithTeams(students, teams);
+  const hasData = syncedStudents.length > 0 || quests.length > 0 || logs.length > 0;
   const settings = normalizeSettings({
     ...raw.settings,
     onboardingCompleted: hasData ? true : raw.settings?.onboardingCompleted,
   });
   return {
-    students,
+    students: syncedStudents,
     quests,
     logs,
     teams,
@@ -70,6 +128,25 @@ function markOnboardingComplete(state: AppState): AppState {
     ...state,
     settings: { ...state.settings, onboardingCompleted: true },
   };
+}
+
+const arraysEqual = (a: ID[], b: ID[]) => a.length === b.length && a.every((value, index) => value === b[index]);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+function isValidImportedState(value: unknown): value is AppState {
+  if (!isRecord(value)) return false;
+  if (!Array.isArray(value.students) || !Array.isArray(value.quests) || !Array.isArray(value.logs)) {
+    return false;
+  }
+  if (value.teams != null && !Array.isArray(value.teams)) {
+    return false;
+  }
+  if (value.settings != null && !isRecord(value.settings)) {
+    return false;
+  }
+  return true;
 }
 
 function reducer(state: AppState, action: Action): AppState {
@@ -147,6 +224,75 @@ function reducer(state: AppState, action: Action): AppState {
       });
       return { ...state, students, logs: rest };
     }
+    case 'ADD_GROUP': {
+      const name = action.name.trim() || `Gruppe ${state.teams.length + 1}`;
+      const team: Team = { id: createId(), name, memberIds: [] };
+      return { ...state, teams: [...state.teams, team] };
+    }
+    case 'REMOVE_GROUP': {
+      const teams = state.teams.filter((team) => team.id !== action.id);
+      if (teams.length === state.teams.length) return state;
+      const students = state.students.map((student) =>
+        student.teamId === action.id ? { ...student, teamId: undefined } : student,
+      );
+      return { ...state, teams, students };
+    }
+    case 'RENAME_GROUP': {
+      const name = action.name.trim() || 'Gruppe';
+      let changed = false;
+      const teams = state.teams.map((team) => {
+        if (team.id !== action.id) return team;
+        if (team.name === name) return team;
+        changed = true;
+        return { ...team, name };
+      });
+      return changed ? { ...state, teams } : state;
+    }
+    case 'SET_GROUP_MEMBERS': {
+      const targetTeam = state.teams.find((team) => team.id === action.id);
+      if (!targetTeam) return state;
+      const validMembers = unique(
+        action.memberIds.filter((memberId) => state.students.some((student) => student.id === memberId)),
+      );
+      const memberSet = new Set(validMembers);
+      let teamsChanged = false;
+      const teams = state.teams.map((team) => {
+        if (team.id === action.id) {
+          if (arraysEqual(team.memberIds, validMembers)) {
+            return team;
+          }
+          teamsChanged = true;
+          return { ...team, memberIds: validMembers };
+        }
+        const filtered = team.memberIds.filter((memberId) => !memberSet.has(memberId));
+        if (filtered.length === team.memberIds.length) {
+          return team;
+        }
+        teamsChanged = true;
+        return { ...team, memberIds: filtered };
+      });
+
+      let studentsChanged = false;
+      const students = state.students.map((student) => {
+        const shouldBelong = memberSet.has(student.id);
+        if (shouldBelong && student.teamId !== action.id) {
+          studentsChanged = true;
+          return { ...student, teamId: action.id };
+        }
+        if (!shouldBelong && student.teamId === action.id) {
+          studentsChanged = true;
+          return { ...student, teamId: undefined };
+        }
+        return student;
+      });
+
+      if (!teamsChanged && !studentsChanged) return state;
+      return {
+        ...state,
+        teams,
+        students: studentsChanged ? students : state.students,
+      };
+    }
     case 'UPDATE_SETTINGS':
       return {
         ...state,
@@ -154,7 +300,10 @@ function reducer(state: AppState, action: Action): AppState {
       };
     case 'IMPORT': {
       try {
-        const parsed = JSON.parse(action.json) as AppState;
+        const parsed = JSON.parse(action.json);
+        if (!isValidImportedState(parsed)) {
+          throw new Error('Invalid data shape');
+        }
         return normalizeState(parsed);
       } catch (error) {
         console.error('Failed to import state', error);
@@ -202,6 +351,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return <Ctx.Provider value={{ state, dispatch }}>{children}</Ctx.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useApp = () => {
   const value = React.useContext(Ctx);
   if (!value) throw new Error('AppContext missing');
