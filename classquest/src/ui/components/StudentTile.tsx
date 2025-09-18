@@ -6,47 +6,86 @@ type Props = {
   xp: number;
   level: number;
   selected: boolean;
-  onSelect: (id: string) => void;
+  disabled?: boolean;
+  onToggleSelect: (id: string) => void;
+  onAward: (id: string) => void;
   onFocus?: () => void;
-  children?: React.ReactNode;
 };
 
 const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
-  { id, alias, xp, level, selected, onSelect, onFocus, children },
+  { id, alias, xp, level, selected, disabled, onToggleSelect, onAward, onFocus },
   ref,
 ) {
   return (
     <div
       ref={ref}
-      role="checkbox" // Korrekte Rolle für ein auswählbares Element
+      role="button"
       tabIndex={0}
-      onClick={() => onSelect(id)}
-      onKeyDown={(e) => {
-        if (e.key === ' ' || e.key === 'Enter') {
-          e.preventDefault();
-          onSelect(id);
+      onClick={() => {
+        if (!disabled) {
+          onAward(id);
+        }
+      }}
+      onKeyDown={(event) => {
+        if ((event.key === 'Enter' || event.key === ' ') && !disabled) {
+          event.preventDefault();
+          onAward(id);
+          return;
+        }
+        if (event.key.toLowerCase() === 's') {
+          event.preventDefault();
+          onToggleSelect(id);
         }
       }}
       onFocus={onFocus}
-      aria-checked={selected} // Passendes Attribut für role="checkbox"
-      aria-label={`Schüler ${alias}, ${xp} XP, Level ${level}${selected ? ', ausgewählt' : ''}`}
+      aria-pressed={selected}
+      aria-disabled={disabled || undefined}
+      aria-label={`Schüler ${alias}, ${xp} XP, Level ${level}${selected ? ', ausgewählt' : ''}${disabled ? '. Quest wählen' : ''}`}
       style={{
         border: selected ? '2px solid var(--color-primary)' : '1px solid #e2e8f0',
         borderRadius: 12,
-        padding: 14,
+        padding: 16,
         background: '#fff',
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
-        minHeight: 140,
-        cursor: 'pointer',
+        gap: 12,
+        minHeight: 150,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.7 : 1,
+        boxShadow: selected ? '0 0 0 4px rgba(91,141,239,0.15)' : 'none',
+        transition: 'box-shadow 0.15s ease, border 0.15s ease',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
         <strong style={{ fontSize: '1.1rem' }}>{alias}</strong>
-        <span style={{ fontSize: 12, opacity: 0.8 }}>{xp} XP · L{level}</span>
+        <span style={{ fontSize: 12, opacity: 0.75 }}>{xp} XP · L{level}</span>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>{children}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleSelect(id);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === ' ') {
+              event.preventDefault();
+            }
+          }}
+          aria-pressed={selected}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 999,
+            border: '1px solid #cbd5f5',
+            background: selected ? 'rgba(91,141,239,0.15)' : '#f8fbff',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          {selected ? 'Ausgewählt' : 'Auswählen'}
+        </button>
+        {disabled ? <span style={{ fontSize: 12, color: '#64748b' }}>Quest wählen</span> : <span style={{ fontSize: 12, color: '#64748b' }}>S = Auswahl</span>}
+      </div>
     </div>
   );
 });
