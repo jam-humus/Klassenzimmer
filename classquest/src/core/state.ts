@@ -67,7 +67,14 @@ export const createInitialState = (
   teams: [],
   quests: [],
   logs: [],
-  settings: { ...DEFAULT_SETTINGS, ...settings },
+  settings: {
+    ...DEFAULT_SETTINGS,
+    ...settings,
+    flags: {
+      ...(DEFAULT_SETTINGS.flags ?? {}),
+      ...((settings?.flags ?? {}) as Record<string, boolean>),
+    },
+  },
   version,
 });
 

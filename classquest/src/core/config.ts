@@ -6,4 +6,5 @@ export const DEFAULT_SETTINGS = {
   sfxEnabled: false,
   compactMode: false,
   onboardingCompleted: false,
+  flags: {} as Record<string, boolean>,
 } as const;

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import './App.css'; // Stellt sicher, dass du eine App.css Datei für das Styling hast
 import { useApp } from '~/app/AppContext';
 import FirstRunWizard from '~/ui/screens/FirstRunWizard';

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { LocalStorageAdapter, STORAGE_KEY } from '~/services/storage/localStorage';
 import type { AppState } from '~/types/models';
+import { sanitizeState } from '~/core/schema/appState';
 
 type GlobalWithStorage = typeof globalThis & { localStorage?: Storage };
 
@@ -54,14 +55,18 @@ describe('LocalStorageAdapter', () => {
     const s = sampleState();
     const json = await adapter.exportState(s);
     const restored = await adapter.importState(json);
-    expect(restored).toEqual(s);
+    const expected = sanitizeState(s);
+    expect(expected).not.toBeNull();
+    expect(restored).toEqual(expected as AppState);
   });
 
   it('saveState -> loadState roundtrip via localStorage', async () => {
     const s = sampleState();
     await adapter.saveState(s);
     const loaded = await adapter.loadState();
-    expect(loaded).toEqual(s);
+    const expected = sanitizeState(s);
+    expect(expected).not.toBeNull();
+    expect(loaded).toEqual(expected as AppState);
   });
 
   it('loadState returns null on corrupt JSON', async () => {

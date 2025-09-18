@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '~/app/AppContext';
-import type { AppState, ID, Quest, QuestType, Student, Team } from '~/types/models';
+import type { ID, Quest, QuestType, Student, Team } from '~/types/models';
 import AsyncButton from '~/ui/feedback/AsyncButton';
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 
@@ -266,23 +266,6 @@ const GroupRow = React.memo(function GroupRow({ team, students, onRename, onRemo
 });
 GroupRow.displayName = 'GroupRow';
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const isAppStateLike = (value: unknown): value is Partial<AppState> => {
-  if (!isRecord(value)) return false;
-  if (!Array.isArray(value.students) || !Array.isArray(value.quests) || !Array.isArray(value.logs)) {
-    return false;
-  }
-  if (value.teams != null && !Array.isArray(value.teams)) {
-    return false;
-  }
-  if (value.settings != null && !isRecord(value.settings)) {
-    return false;
-  }
-  return true;
-};
-
 export default function ManageScreen() {
   const { state, dispatch } = useApp();
   const feedback = useFeedback();
@@ -418,22 +401,18 @@ export default function ManageScreen() {
           if (!text.trim()) {
             throw new Error('Leere Datei');
           }
-          const parsed = JSON.parse(text);
-          if (!isAppStateLike(parsed)) {
-            throw new Error('Ungültige Datenstruktur');
-          }
           const shouldOverwrite = typeof window === 'undefined' ? true : window.confirm('Bestehende Daten überschreiben?');
           if (!shouldOverwrite) {
             setImportError(null);
             return;
           }
-          dispatch({ type: 'IMPORT', json: JSON.stringify(parsed) });
+          dispatch({ type: 'IMPORT', json: text });
           setImportError(null);
           feedback.success('Daten importiert');
         } catch (error) {
           console.error('Import fehlgeschlagen', error);
           setImportError('Import fehlgeschlagen. Bitte überprüfe die Datei.');
-          feedback.error('Import fehlgeschlagen. Bitte überprüfe die Datei.');
+          feedback.error('Import fehlgeschlagen: ungültige Datei.');
         } finally {
           input.value = '';
         }

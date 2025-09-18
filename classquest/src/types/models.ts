@@ -29,6 +29,7 @@ export type Settings = {
   sfxEnabled?: boolean;
   compactMode?: boolean;
   onboardingCompleted?: boolean;
+  flags?: Record<string, boolean>;
 };
 
 export type AppState = {

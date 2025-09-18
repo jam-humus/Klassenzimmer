@@ -4,6 +4,8 @@ import { DEFAULT_SETTINGS } from '~/core/config';
 import { createStorageAdapter } from '~/services/storage';
 import { levelFromXP } from '~/core/xp';
 import { addQuest, addStudent, awardQuest, createInitialState, setQuestActive } from '~/core/state';
+import { sanitizeState } from '~/core/schema/appState';
+import { migrateState } from '~/core/schema/migrate';
 
 type AwardPayload = { questId: ID; studentId?: ID; teamId?: ID; note?: string };
 
@@ -33,6 +35,10 @@ function normalizeSettings(settings?: Partial<Settings>): Settings {
   const merged: Settings = {
     ...DEFAULT_SETTINGS,
     ...(settings ?? {}),
+    flags: {
+      ...(DEFAULT_SETTINGS.flags ?? {}),
+      ...((settings?.flags ?? {}) as Record<string, boolean>),
+    },
   };
   if (merged.onboardingCompleted == null) {
     merged.onboardingCompleted = false;
@@ -131,23 +137,6 @@ function markOnboardingComplete(state: AppState): AppState {
 }
 
 const arraysEqual = (a: ID[], b: ID[]) => a.length === b.length && a.every((value, index) => value === b[index]);
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-function isValidImportedState(value: unknown): value is AppState {
-  if (!isRecord(value)) return false;
-  if (!Array.isArray(value.students) || !Array.isArray(value.quests) || !Array.isArray(value.logs)) {
-    return false;
-  }
-  if (value.teams != null && !Array.isArray(value.teams)) {
-    return false;
-  }
-  if (value.settings != null && !isRecord(value.settings)) {
-    return false;
-  }
-  return true;
-}
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -299,16 +288,13 @@ function reducer(state: AppState, action: Action): AppState {
         settings: normalizeSettings({ ...state.settings, ...action.updates }),
       };
     case 'IMPORT': {
-      try {
-        const parsed = JSON.parse(action.json);
-        if (!isValidImportedState(parsed)) {
-          throw new Error('Invalid data shape');
-        }
-        return normalizeState(parsed);
-      } catch (error) {
-        console.error('Failed to import state', error);
-        return state;
+      const parsed = JSON.parse(action.json);
+      const clean = sanitizeState(parsed);
+      if (!clean) {
+        throw new Error('Invalid data shape');
       }
+      const migrated = migrateState(clean) as AppState;
+      return normalizeState(migrated);
     }
     default:
       return state;
