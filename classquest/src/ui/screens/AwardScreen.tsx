@@ -4,6 +4,7 @@ import { StudentTile } from '~/ui/components/StudentTile';
 import { useSelection } from '~/ui/hooks/useSelection';
 import { useUndoToast } from '~/ui/hooks/useUndoToast';
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Quest, Team } from '~/types/models';
 
 const TILE_MIN_WIDTH = 240;
@@ -54,13 +55,24 @@ export default function AwardScreen() {
   const [scrolled, setScrolled] = useState(false);
   const [pulseId, setPulseId] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
-  const tileRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const tileRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const pulseTimeoutRef = useRef<number | null>(null);
   const { message, setMessage, clear: clearToast } = useUndoToast();
 
   const students = state.students;
+  const focusedStudent = students[focusedIdx];
   const studentIdSet = useMemo(() => new Set(students.map((student) => student.id)), [students]);
   const aliasById = useMemo(() => new Map(students.map((s) => [s.id, s.alias])), [students]);
+  const virtualize = Boolean(state.settings.flags?.virtualize);
+  const columnCount = Math.max(1, columns || 1);
+  const rowCount = Math.ceil(students.length / columnCount);
+  const rowVirtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => containerRef.current,
+    estimateSize: () => 220,
+    overscan: 5,
+    enabled: virtualize,
+  });
   const activeQuest = useMemo(
     () => quests.find((q) => q.id === activeQuestId) ?? quests[0] ?? null,
     [quests, activeQuestId],
@@ -101,15 +113,43 @@ export default function AwardScreen() {
   }, [students.length, focusedIdx]);
 
   useEffect(() => {
-    const node = tileRefs.current[focusedIdx];
-    if (node) {
-      node.focus({ preventScroll: true });
+    const student = focusedStudent;
+    if (!student) return;
+    const tryFocus = () => {
+      const node = tileRefs.current.get(student.id);
+      if (node) {
+        node.focus({ preventScroll: true });
+        return true;
+      }
+      return false;
+    };
+    if (tryFocus()) return;
+    if (virtualize) {
+      const rowIndex = Math.floor(focusedIdx / columnCount);
+      rowVirtualizer.scrollToIndex(rowIndex, { align: 'auto' });
+      if (typeof window !== 'undefined') {
+        const timeout = window.setTimeout(() => {
+          tryFocus();
+        }, 50);
+        return () => window.clearTimeout(timeout);
+      }
     }
-  }, [focusedIdx, students.length]);
+  }, [focusedStudent, focusedIdx, virtualize, rowVirtualizer, columnCount]);
 
   useEffect(() => {
-    tileRefs.current = tileRefs.current.slice(0, students.length);
-  }, [students.length]);
+    const map = tileRefs.current;
+    const validIds = new Set(students.map((student) => student.id));
+    Array.from(map.keys()).forEach((id) => {
+      if (!validIds.has(id)) {
+        map.delete(id);
+      }
+    });
+  }, [students]);
+
+  useEffect(() => {
+    if (!virtualize) return;
+    rowVirtualizer.measure();
+  }, [virtualize, columnCount, rowCount, rowVirtualizer]);
 
   useEffect(() => {
     const node = containerRef.current;
@@ -215,7 +255,7 @@ export default function AwardScreen() {
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (!students.length) return;
-      const rowLen = columns || 1;
+      const rowLen = columnCount;
       switch (e.key) {
         case 'ArrowRight':
           e.preventDefault();
@@ -252,7 +292,7 @@ export default function AwardScreen() {
           break;
       }
     },
-    [students, columns, activeQuest, awardSingle, focusedIdx, dispatch, setFocus, clearToast, feedback],
+    [students, columnCount, activeQuest, awardSingle, focusedIdx, dispatch, setFocus, clearToast, feedback],
   );
 
   const selectAll = useCallback(() => setMany(students.map((s) => s.id)), [students, setMany]);
@@ -353,43 +393,114 @@ export default function AwardScreen() {
         </div>
       </div>
 
-      <div
-        ref={gridRef}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${Math.max(1, columns)}, minmax(220px, 1fr))`,
-          gap: 14,
-          alignItems: 'stretch',
-          paddingTop: 12,
-        }}
-      >
-        {students.map((s, idx) => (
+      <div ref={gridRef} style={{ paddingTop: 12 }}>
+        {virtualize ? (
+          <div style={{ position: 'relative', height: rowVirtualizer.getTotalSize() }}>
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const startIndex = virtualRow.index * columnCount;
+              const rowStudents = students.slice(startIndex, startIndex + columnCount);
+              return (
+                <div
+                  key={virtualRow.key}
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    transform: `translateY(${virtualRow.start}px)`,
+                    paddingBottom: 14,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: `repeat(${columnCount}, minmax(220px, 1fr))`,
+                      gap: 14,
+                    }}
+                  >
+                    {rowStudents.map((s, idxInRow) => {
+                      const idx = startIndex + idxInRow;
+                      return (
+                        <div
+                          key={s.id}
+                          onFocusCapture={() => setFocusedIdx(idx)}
+                          className={pulseId === s.id ? 'pulse' : undefined}
+                          style={{
+                            outline: idx === focusedIdx ? '3px solid rgba(0,194,255,0.6)' : 'none',
+                            borderRadius: 16,
+                            transition: 'outline 0.1s ease-in-out',
+                          }}
+                        >
+                          <StudentTile
+                            ref={(node) => {
+                              if (node) {
+                                tileRefs.current.set(s.id, node);
+                              } else {
+                                tileRefs.current.delete(s.id);
+                              }
+                            }}
+                            id={s.id}
+                            alias={s.alias}
+                            xp={s.xp}
+                            level={s.level}
+                            selected={isSelected(s.id)}
+                            disabled={!activeQuest}
+                            onToggleSelect={toggle}
+                            onAward={awardSingle}
+                            onFocus={() => setFocusedIdx(idx)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
           <div
-            key={s.id}
-            onFocusCapture={() => setFocusedIdx(idx)}
-            className={pulseId === s.id ? 'pulse' : undefined}
             style={{
-              outline: idx === focusedIdx ? '3px solid rgba(0,194,255,0.6)' : 'none',
-              borderRadius: 16,
-              transition: 'outline 0.1s ease-in-out',
+              display: 'grid',
+              gridTemplateColumns: `repeat(${columnCount}, minmax(220px, 1fr))`,
+              gap: 14,
+              alignItems: 'stretch',
             }}
           >
-            <StudentTile
-              ref={(node) => {
-                tileRefs.current[idx] = node;
-              }}
-              id={s.id}
-              alias={s.alias}
-              xp={s.xp}
-              level={s.level}
-              selected={isSelected(s.id)}
-              disabled={!activeQuest}
-              onToggleSelect={toggle}
-              onAward={awardSingle}
-              onFocus={() => setFocusedIdx(idx)}
-            />
+            {students.map((s, idx) => (
+              <div
+                key={s.id}
+                onFocusCapture={() => setFocusedIdx(idx)}
+                className={pulseId === s.id ? 'pulse' : undefined}
+                style={{
+                  outline: idx === focusedIdx ? '3px solid rgba(0,194,255,0.6)' : 'none',
+                  borderRadius: 16,
+                  transition: 'outline 0.1s ease-in-out',
+                }}
+              >
+                <StudentTile
+                  ref={(node) => {
+                    if (node) {
+                      tileRefs.current.set(s.id, node);
+                    } else {
+                      tileRefs.current.delete(s.id);
+                    }
+                  }}
+                  id={s.id}
+                  alias={s.alias}
+                  xp={s.xp}
+                  level={s.level}
+                  selected={isSelected(s.id)}
+                  disabled={!activeQuest}
+                  onToggleSelect={toggle}
+                  onAward={awardSingle}
+                  onFocus={() => setFocusedIdx(idx)}
+                />
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
 
       {message && (

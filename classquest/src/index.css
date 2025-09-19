@@ -6,6 +6,10 @@
   --color-xp: #00c2ff;
   --radius-lg: 16px;
   --font-lg: 1.125rem;
+  --leaderboard-bar-bg: #eef2f7;
+  --leaderboard-bar-fill: var(--color-primary);
+  --leaderboard-muted: rgba(15, 23, 42, 0.6);
+  --leaderboard-rank-opacity: 0.7;
 }
 html,
 body,
@@ -76,4 +80,60 @@ button:active,
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.print-hide {}
+
+@media print {
+  :root {
+    --leaderboard-bar-bg: #e5e7eb;
+    --leaderboard-bar-fill: #1f2937;
+    --leaderboard-muted: #1f2937;
+    --leaderboard-rank-opacity: 0.9;
+  }
+
+  @page {
+    margin: 12mm;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  #root {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  nav,
+  header,
+  footer,
+  .print-hide,
+  button,
+  input,
+  select,
+  textarea,
+  .app-tabs,
+  [role='tablist'],
+  #toast-region {
+    display: none !important;
+  }
+
+  .leaderboard-print {
+    box-shadow: none !important;
+    border: 1px solid #1f2937;
+    background: #fff !important;
+    padding: 16px !important;
+  }
+
+  .leaderboard-print .leaderboard-row {
+    padding: 10px 0 !important;
+    border-bottom: 1px solid #d1d5db;
+    page-break-inside: avoid;
+  }
+
+  .leaderboard-print .leaderboard-row:last-child {
+    border-bottom: none;
+  }
 }
