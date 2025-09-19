@@ -14,6 +14,8 @@ type Action =
   | { type: 'ADD_STUDENT'; alias: string }
   | { type: 'UPDATE_STUDENT_ALIAS'; id: ID; alias: string }
   | { type: 'REMOVE_STUDENT'; id: ID }
+  | { type: 'ADD_STUDENTS_BULK'; aliases: string[] }
+  | { type: 'REMOVE_STUDENTS_BULK'; ids: ID[] }
   | { type: 'ADD_QUEST'; quest: Quest }
   | { type: 'UPDATE_QUEST'; id: ID; updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active'>> }
   | { type: 'REMOVE_QUEST'; id: ID }
@@ -148,6 +150,29 @@ function reducer(state: AppState, action: Action): AppState {
       const next = addStudent(state, { id: createId(), alias, xp: 0 });
       return markOnboardingComplete(next);
     }
+    case 'ADD_STUDENTS_BULK': {
+      const aliases = action.aliases ?? [];
+      if (!aliases.length) return state;
+
+      const existing = new Set(state.students.map((student) => student.alias.trim().toLowerCase()));
+      let next = state;
+      let changed = false;
+
+      for (const rawAlias of aliases) {
+        const alias = rawAlias.trim();
+        if (!alias) continue;
+        const normalized = alias.toLowerCase();
+        if (existing.has(normalized)) continue;
+        existing.add(normalized);
+        const previous = next;
+        next = addStudent(previous, { id: createId(), alias, xp: 0 });
+        if (next !== previous) {
+          changed = true;
+        }
+      }
+
+      return changed ? markOnboardingComplete(next) : state;
+    }
     case 'UPDATE_STUDENT_ALIAS':
       return {
         ...state,
@@ -166,6 +191,23 @@ function reducer(state: AppState, action: Action): AppState {
         students,
         teams,
         logs: state.logs.filter((log) => log.studentId !== action.id),
+      };
+    }
+    case 'REMOVE_STUDENTS_BULK': {
+      const ids = action.ids ?? [];
+      if (!ids.length) return state;
+      const removal = new Set(ids);
+      const students = state.students.filter((student) => !removal.has(student.id));
+      if (students.length === state.students.length) return state;
+      const teams = state.teams.map((team) => ({
+        ...team,
+        memberIds: team.memberIds.filter((memberId) => !removal.has(memberId)),
+      }));
+      return {
+        ...state,
+        students,
+        teams,
+        logs: state.logs.filter((log) => !removal.has(log.studentId)),
       };
     }
     case 'ADD_QUEST': {

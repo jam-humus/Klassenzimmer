@@ -276,6 +276,11 @@ export default function ManageScreen() {
   const [groupName, setGroupName] = useState('Team A');
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const csvInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingImportAliasesRef = useRef<string[] | null>(null);
+  const [lastImportedIds, setLastImportedIds] = useState<string[] | null>(null);
+  const [bulkUndoDeadline, setBulkUndoDeadline] = useState<number | null>(null);
+  const [undoTicker, setUndoTicker] = useState(0);
 
   const addStudent = useCallback(() => {
     const trimmed = alias.trim();
@@ -291,6 +296,53 @@ export default function ManageScreen() {
     }
     feedback.info('30 Demo-Schüler hinzugefügt');
   }, [dispatch, feedback]);
+
+  const onImportStudentsCsv = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const input = event.target;
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        pendingImportAliasesRef.current = null;
+        const text = await file.text();
+        const lines = text.split(/\r?\n/).map((line) => line.trim());
+        const nonEmpty = lines.filter((line) => line.length > 0);
+        if (!nonEmpty.length) {
+          feedback.error('CSV ist leer');
+          return;
+        }
+        const headerLike = nonEmpty[0].toLowerCase();
+        const rows = headerLike.includes('alias') && nonEmpty.length > 1 ? nonEmpty.slice(1) : nonEmpty;
+        const existing = new Set(state.students.map((student) => student.alias.trim().toLowerCase()));
+        const seen = new Set<string>();
+        const aliases: string[] = [];
+        for (const row of rows) {
+          if (!row) continue;
+          const firstCell = row.split(/[;,]/)[0]?.trim() ?? '';
+          if (!firstCell) continue;
+          const key = firstCell.toLowerCase();
+          if (seen.has(key) || existing.has(key)) {
+            continue;
+          }
+          seen.add(key);
+          existing.add(key);
+          aliases.push(firstCell);
+        }
+        if (!aliases.length) {
+          feedback.info('Keine neuen Schüler importiert');
+          return;
+        }
+        pendingImportAliasesRef.current = aliases.map((alias) => alias.toLowerCase());
+        dispatch({ type: 'ADD_STUDENTS_BULK', aliases });
+      } catch (error) {
+        console.error('CSV-Import fehlgeschlagen', error);
+        feedback.error('CSV konnte nicht gelesen werden');
+      } finally {
+        input.value = '';
+      }
+    },
+    [dispatch, feedback, state.students],
+  );
 
   const addQuest = useCallback(() => {
     const trimmed = qName.trim();
@@ -321,6 +373,15 @@ export default function ManageScreen() {
     },
     [dispatch, feedback],
   );
+
+  const handleUndoImport = useCallback(() => {
+    if (!lastImportedIds?.length) return;
+    dispatch({ type: 'REMOVE_STUDENTS_BULK', ids: lastImportedIds });
+    setLastImportedIds(null);
+    setBulkUndoDeadline(null);
+    setUndoTicker(0);
+    feedback.info('Import rückgängig gemacht');
+  }, [dispatch, feedback, lastImportedIds]);
   const onUpdateQuest = useCallback(
     (id: string, updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active'>>) => {
       dispatch({ type: 'UPDATE_QUEST', id, updates });
@@ -368,6 +429,51 @@ export default function ManageScreen() {
   const sortedStudents = useMemo(() => [...state.students].sort((a, b) => a.alias.localeCompare(b.alias)), [state.students]);
   const sortedQuests = useMemo(() => [...state.quests].sort((a, b) => a.name.localeCompare(b.name)), [state.quests]);
   const sortedTeams = useMemo(() => [...state.teams].sort((a, b) => a.name.localeCompare(b.name)), [state.teams]);
+
+  useEffect(() => {
+    const pending = pendingImportAliasesRef.current;
+    if (!pending || pending.length === 0) {
+      return;
+    }
+    const aliasMap = new Map(state.students.map((student) => [student.alias.trim().toLowerCase(), student.id]));
+    const addedIds = pending.map((alias) => aliasMap.get(alias)).filter((id): id is string => Boolean(id));
+    pendingImportAliasesRef.current = null;
+    if (addedIds.length > 0) {
+      setLastImportedIds(addedIds);
+      const expiresAt = Date.now() + 10_000;
+      setBulkUndoDeadline(expiresAt);
+      setUndoTicker(Date.now());
+      feedback.success(`${addedIds.length} Schüler importiert`);
+    } else {
+      setLastImportedIds(null);
+      setBulkUndoDeadline(null);
+      setUndoTicker(0);
+      feedback.info('Keine neuen Schüler importiert');
+    }
+  }, [state.students, feedback]);
+
+  useEffect(() => {
+    if (!bulkUndoDeadline) return;
+    if (typeof window === 'undefined') return;
+    const deadline = bulkUndoDeadline;
+    setUndoTicker(Date.now());
+    const interval = window.setInterval(() => {
+      if (Date.now() >= deadline) {
+        setLastImportedIds(null);
+        setBulkUndoDeadline(null);
+        setUndoTicker(0);
+        window.clearInterval(interval);
+        return;
+      }
+      setUndoTicker(Date.now());
+    }, 500);
+    return () => window.clearInterval(interval);
+  }, [bulkUndoDeadline]);
+
+  const remainingSeconds =
+    bulkUndoDeadline != null
+      ? Math.max(0, Math.ceil((bulkUndoDeadline - (undoTicker || Date.now())) / 1000))
+      : 0;
 
   const onExport = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -449,7 +555,29 @@ export default function ManageScreen() {
           <button type="button" onClick={populateStudents} style={{ padding: '10px 16px' }}>
             Demo: 30 Schüler
           </button>
+          <button
+            type="button"
+            onClick={() => csvInputRef.current?.click()}
+            style={{ padding: '10px 16px' }}
+          >
+            CSV importieren
+          </button>
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            style={{ display: 'none' }}
+            onChange={onImportStudentsCsv}
+          />
         </div>
+        {lastImportedIds && lastImportedIds.length > 0 && bulkUndoDeadline && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <button type="button" onClick={handleUndoImport} style={{ padding: '6px 12px' }}>
+              Import rückgängig
+            </button>
+            <span style={{ fontSize: 12, opacity: 0.7 }}>({remainingSeconds}s)</span>
+          </div>
+        )}
         <ul style={{ display: 'grid', gap: 8, margin: 0, padding: 0, listStyle: 'none' }}>
           {sortedStudents.map((s) => (
             <StudentRow key={s.id} id={s.id} alias={s.alias} onSave={onUpdateStudent} onRemove={onRemoveStudent} />
@@ -571,6 +699,21 @@ export default function ManageScreen() {
               }}
             />
             Kompakte Ansicht
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={Boolean(state.settings.flags?.virtualize)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                dispatch({
+                  type: 'UPDATE_SETTINGS',
+                  updates: { flags: { ...(state.settings.flags ?? {}), virtualize: checked } },
+                });
+                feedback.info(checked ? 'Virtualisierung aktiviert' : 'Virtualisierung deaktiviert');
+              }}
+            />
+            Listen virtualisieren (für große Klassen)
           </label>
         </div>
       </section>
