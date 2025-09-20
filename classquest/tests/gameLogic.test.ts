@@ -13,19 +13,24 @@ const createStudent = (overrides: Partial<Student> = {}): Student => ({
   ...overrides,
 });
 
-const createState = (studentOverrides: Partial<Student> = {}): AppState => ({
-  students: [createStudent(studentOverrides)],
-  teams: [],
-  quests: [],
-  logs: [],
-  settings: {
-    className: 'Demo',
-    xpPerLevel: 100,
-    streakThresholdForBadge: 2,
-    allowNegativeXP: false,
-  },
-  version: 1,
-});
+const createState = (studentOverrides: Partial<Student> = {}): AppState => {
+  const student = createStudent(studentOverrides);
+  const totalXP = Math.max(0, student.xp);
+  return {
+    students: [student],
+    teams: [],
+    quests: [],
+    logs: [],
+    settings: {
+      className: 'Demo',
+      xpPerLevel: 100,
+      streakThresholdForBadge: 2,
+      allowNegativeXP: false,
+    },
+    version: 1,
+    classProgress: { totalXP, stars: Math.floor(totalXP / 1000) },
+  };
+};
 
 const createQuest = (overrides: Partial<Quest> = {}): Quest => ({
   id: 'quest-1',

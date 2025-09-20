@@ -39,6 +39,7 @@ const sampleState = (): AppState => ({
   logs: [],
   settings: { className: '4a', xpPerLevel: 100, streakThresholdForBadge: 5, allowNegativeXP: false },
   version: 1,
+  classProgress: { totalXP: 10, stars: 0 },
 });
 
 describe('LocalStorageAdapter', () => {

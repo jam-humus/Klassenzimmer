@@ -9,6 +9,7 @@ type KeyScopeValue = {
   suspend: () => () => void;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const KeyScopeContext = React.createContext<KeyScopeValue | null>(null);
 
 export function KeyScopeProvider({ children }: { children: React.ReactNode }) {
@@ -54,6 +55,7 @@ export function KeyScopeProvider({ children }: { children: React.ReactNode }) {
   return <KeyScopeContext.Provider value={value}>{children}</KeyScopeContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useKeydown(handler: Handler) {
   const context = React.useContext(KeyScopeContext);
   React.useEffect(() => {
@@ -62,6 +64,7 @@ export function useKeydown(handler: Handler) {
   }, [context, handler]);
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useHotkeyLock(active: boolean) {
   const context = React.useContext(KeyScopeContext);
   React.useEffect(() => {

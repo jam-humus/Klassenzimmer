@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '~/app/AppContext';
 import { StudentTile } from '~/ui/components/StudentTile';
+import { ClassProgressBar } from '~/ui/components/ClassProgressBar';
 import { useSelection } from '~/ui/hooks/useSelection';
 import { useUndoToast } from '~/ui/hooks/useUndoToast';
 import { EVENT_CLEAR_SELECTION, EVENT_SELECT_ALL, EVENT_FOCUS_STUDENT, EVENT_SET_ACTIVE_QUEST, EVENT_TOGGLE_GROUP_FILTER, EVENT_UNDO_PERFORMED } from '~/ui/shortcut/events';
@@ -229,8 +230,7 @@ export default function AwardScreen() {
   const animationsAllowed = state.settings.animationsEnabled !== false;
   const kidModeEnabled = Boolean(state.settings.kidModeEnabled);
 
-  const handleLevelUp = useCallback(
-    (_info: { id: string; alias: string; level: number }) => {
+  const handleLevelUp = useCallback(() => {
       if (!kidModeEnabled || !animationsAllowed) {
         return;
       }
@@ -402,6 +402,7 @@ export default function AwardScreen() {
     <div ref={containerRef} onKeyDown={onKeyDown} style={{ height: '100%', overflowY: 'auto', padding: '0 0 24px' }}>
       <div style={{ position: 'sticky', top: 0, background: '#f8fafc', padding: '12px 0', zIndex: 1, boxShadow: scrolled ? '0 8px 24px rgba(15, 23, 42, 0.12)' : 'none' }}>
         <div style={{ display: 'grid', gap: 12 }}>
+          <ClassProgressBar />
           <div
             role="radiogroup"
             aria-label="Aktive Quest"

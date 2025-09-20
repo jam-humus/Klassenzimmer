@@ -59,6 +59,7 @@ const buildTeam = (team: Team, existingStudents: Student[]) => {
   } satisfies Team;
 };
 
+
 export const createInitialState = (
   settings?: Partial<Settings>,
   version = 1,
@@ -76,6 +77,7 @@ export const createInitialState = (
     },
   },
   version,
+  classProgress: { totalXP: 0, stars: 0 },
 });
 
 type StudentInput = {

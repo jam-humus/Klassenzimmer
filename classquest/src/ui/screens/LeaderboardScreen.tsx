@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '~/app/AppContext';
 import { useKeydown } from '~/ui/shortcut/KeyScope';
 import { LeaderboardRow } from '~/ui/components/LeaderboardRow';
+import { ClassProgressBar } from '~/ui/components/ClassProgressBar';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 export default function LeaderboardScreen() {
@@ -66,6 +67,7 @@ export default function LeaderboardScreen() {
 
   return (
     <div className="leaderboard-screen" style={{ display: 'grid', gap: 12 }}>
+      <ClassProgressBar />
       <div className="leaderboard-controls print-hide" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0 }}>Leaderboard</h2>
         <div role="group" aria-label="Sortierung" style={{ display: 'flex', gap: 6 }}>

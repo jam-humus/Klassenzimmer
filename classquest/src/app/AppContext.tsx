@@ -1,5 +1,14 @@
 import React from 'react';
-import type { AppState, ID, LogEntry, Quest, Settings, Student, Team } from '~/types/models';
+import type {
+  AppState,
+  ClassProgress,
+  ID,
+  LogEntry,
+  Quest,
+  Settings,
+  Student,
+  Team,
+} from '~/types/models';
 import { DEFAULT_SETTINGS } from '~/core/config';
 import { createStorageAdapter } from '~/services/storage';
 import { levelFromXP } from '~/core/xp';
@@ -37,7 +46,7 @@ const unique = <T,>(values: Iterable<T>) => Array.from(new Set(values));
 
 const AVATAR_STAGE_COUNT = 3;
 
-const normalizeAvatarPack = (pack?: Student['avatarPack']): Student['avatarPack'] => {
+const normalizeAvatarPack = (pack?: Student['avatarPack']): NonNullable<Student['avatarPack']> => {
   const rawKeys = Array.isArray(pack?.stageKeys) ? pack?.stageKeys ?? [] : [];
   const stageKeys = Array.from({ length: AVATAR_STAGE_COUNT }, (_, index) => {
     const candidate = rawKeys[index];
@@ -80,6 +89,14 @@ function normalizeSettings(settings?: Partial<Settings>): Settings {
   const rawStarKey =
     typeof merged.classStarIconKey === 'string' ? merged.classStarIconKey.trim() : merged.classStarIconKey;
   merged.classStarIconKey = rawStarKey && typeof rawStarKey === 'string' && rawStarKey.length > 0 ? rawStarKey : null;
+  const rawStep = Number.isFinite(Number(merged.classMilestoneStep)) ? Number(merged.classMilestoneStep) : undefined;
+  const normalizedStep = rawStep && rawStep > 0 ? Math.round(rawStep) : DEFAULT_SETTINGS.classMilestoneStep;
+  merged.classMilestoneStep = normalizedStep;
+  const starsName =
+    typeof merged.classStarsName === 'string' && merged.classStarsName.trim().length > 0
+      ? merged.classStarsName.trim()
+      : DEFAULT_SETTINGS.classStarsName;
+  merged.classStarsName = starsName;
   if (merged.onboardingCompleted == null) {
     merged.onboardingCompleted = false;
   }
@@ -153,6 +170,7 @@ function normalizeState(raw: AppState): AppState {
     ...raw.settings,
     onboardingCompleted: hasData ? true : raw.settings?.onboardingCompleted,
   });
+  const classProgress = computeClassProgress(normalizedStudents, settings);
   return {
     students: normalizedStudents,
     quests,
@@ -160,6 +178,7 @@ function normalizeState(raw: AppState): AppState {
     teams,
     settings,
     version: raw.version ?? 1,
+    classProgress,
   };
 }
 
@@ -178,6 +197,16 @@ function markOnboardingComplete(state: AppState): AppState {
 }
 
 const arraysEqual = (a: ID[], b: ID[]) => a.length === b.length && a.every((value, index) => value === b[index]);
+
+const computeClassProgress = (students: Student[], settings: Settings): ClassProgress => {
+  const step = Math.max(1, settings.classMilestoneStep ?? DEFAULT_SETTINGS.classMilestoneStep);
+  const totalXP = Math.max(
+    0,
+    students.reduce((sum, student) => sum + (Number.isFinite(student.xp) ? student.xp : 0), 0),
+  );
+  const stars = Math.floor(totalXP / step);
+  return { totalXP, stars };
+};
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -254,11 +283,14 @@ function reducer(state: AppState, action: Action): AppState {
         ...team,
         memberIds: team.memberIds.filter((memberId) => memberId !== action.id),
       }));
+      const logs = state.logs.filter((log) => log.studentId !== action.id);
+      const classProgress = computeClassProgress(students, state.settings);
       return {
         ...state,
         students,
         teams,
-        logs: state.logs.filter((log) => log.studentId !== action.id),
+        logs,
+        classProgress,
       };
     }
     case 'REMOVE_STUDENTS_BULK': {
@@ -271,11 +303,14 @@ function reducer(state: AppState, action: Action): AppState {
         ...team,
         memberIds: team.memberIds.filter((memberId) => !removal.has(memberId)),
       }));
+      const logs = state.logs.filter((log) => !removal.has(log.studentId));
+      const classProgress = computeClassProgress(students, state.settings);
       return {
         ...state,
         students,
         teams,
-        logs: state.logs.filter((log) => !removal.has(log.studentId)),
+        logs,
+        classProgress,
       };
     }
     case 'ADD_QUEST': {
@@ -321,7 +356,8 @@ function reducer(state: AppState, action: Action): AppState {
           level: Math.max(1, levelFromXP(Math.max(0, nextXP), state.settings.xpPerLevel)),
         };
       });
-      return { ...state, students, logs: rest };
+      const classProgress = computeClassProgress(students, state.settings);
+      return { ...state, students, logs: rest, classProgress };
     }
     case 'RESET_SEASON': {
       const baseLevel = Math.max(1, levelFromXP(0, state.settings.xpPerLevel));
@@ -337,6 +373,7 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         students,
         logs: [],
+        classProgress: { totalXP: 0, stars: 0 },
       };
     }
     case 'ADD_GROUP': {
@@ -408,11 +445,15 @@ function reducer(state: AppState, action: Action): AppState {
         students: studentsChanged ? students : state.students,
       };
     }
-    case 'UPDATE_SETTINGS':
+    case 'UPDATE_SETTINGS': {
+      const settings = normalizeSettings({ ...state.settings, ...action.updates });
+      const classProgress = computeClassProgress(state.students, settings);
       return {
         ...state,
-        settings: normalizeSettings({ ...state.settings, ...action.updates }),
+        settings,
+        classProgress,
       };
+    }
     case 'IMPORT': {
       const parsed = JSON.parse(action.json);
       const clean = sanitizeState(parsed);

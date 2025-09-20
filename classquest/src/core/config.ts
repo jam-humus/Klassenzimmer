@@ -11,4 +11,6 @@ export const DEFAULT_SETTINGS = {
   onboardingCompleted: false,
   flags: { virtualize: false } as Record<string, boolean>,
   classStarIconKey: null,
+  classMilestoneStep: 1000,
+  classStarsName: 'Stern',
 } as const;

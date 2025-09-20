@@ -28,6 +28,11 @@ export type LogEntry = {
   id: ID; timestamp: number; studentId: ID; questId: ID; questName: string; xp: number; note?: string;
 };
 
+export type ClassProgress = {
+  totalXP: number;
+  stars: number;
+};
+
 export type Settings = {
   className: string;
   xpPerLevel: number;
@@ -41,9 +46,11 @@ export type Settings = {
   kidModeEnabled?: boolean;
   flags?: Record<string, boolean>;
   classStarIconKey?: string | null;
+  classMilestoneStep?: number;
+  classStarsName?: string;
 };
 
 export type AppState = {
   students: Student[]; teams: Team[]; quests: Quest[]; logs: LogEntry[];
-  settings: Settings; version: number;
+  settings: Settings; version: number; classProgress: ClassProgress;
 };

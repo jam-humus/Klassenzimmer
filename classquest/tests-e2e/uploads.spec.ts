@@ -17,7 +17,7 @@ test.describe('Image uploads', () => {
       try {
         const request = indexedDB.deleteDatabase('classquest-blobs');
         request.onerror = () => undefined;
-      } catch (error) {
+      } catch {
         // ignore
       }
     });

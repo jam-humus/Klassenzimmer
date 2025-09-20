@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function InfoScreen() {
   return (
     <div style={{ display: 'grid', gap: 16 }}>

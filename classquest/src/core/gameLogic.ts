@@ -1,5 +1,17 @@
+import { DEFAULT_SETTINGS } from './config';
 import { todayKey, levelFromXP } from './xp';
 import type { Student, Quest, LogEntry, AppState, ID } from '~/types/models';
+
+const getClassMilestoneStep = (state: AppState) =>
+  Math.max(1, state.settings.classMilestoneStep ?? DEFAULT_SETTINGS.classMilestoneStep);
+
+const applyClassProgressDelta = (state: AppState, deltaXP: number) => {
+  const prev = Math.max(0, state.classProgress?.totalXP ?? 0);
+  const totalXP = Math.max(0, prev + deltaXP);
+  const step = getClassMilestoneStep(state);
+  const stars = Math.floor(totalXP / step);
+  return { totalXP, stars };
+};
 
 const awardStreak = (
   student: Student,
@@ -92,6 +104,9 @@ export function processAward(state: AppState, studentId: ID, quest: Quest, note?
     badges,
   };
 
+  const deltaXP = updatedStudent.xp - student.xp;
+  const classProgress = applyClassProgressDelta(state, deltaXP);
+
   const timestamp = Date.now();
   const log: LogEntry = buildLogEntry(
     {
@@ -111,5 +126,6 @@ export function processAward(state: AppState, studentId: ID, quest: Quest, note?
     ...state,
     students: state.students.map((s) => (s.id === studentId ? updatedStudent : s)),
     logs: [...state.logs, log],
+    classProgress,
   };
 }
