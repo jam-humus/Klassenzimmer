@@ -5,6 +5,7 @@ import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import FirstRunWizard from '~/ui/screens/FirstRunWizard';
 import AwardScreen from '~/ui/screens/AwardScreen';
 import LeaderboardScreen from '~/ui/screens/LeaderboardScreen';
+import ClassOverviewScreen from '~/ui/screens/ClassOverviewScreen';
 import LogScreen from '~/ui/screens/LogScreen';
 import ManageScreen from '~/ui/screens/ManageScreen';
 import InfoScreen from '~/ui/screens/InfoScreen';
@@ -14,11 +15,12 @@ import { useKeydown } from '~/ui/shortcut/KeyScope';
 import SeasonResetDialog from '~/ui/dialogs/SeasonResetDialog';
 import { EVENT_CLEAR_SELECTION, EVENT_SELECT_ALL, EVENT_UNDO_PERFORMED } from '~/ui/shortcut/events';
 
-type Tab = 'award' | 'leaderboard' | 'log' | 'manage' | 'info';
+type Tab = 'award' | 'leaderboard' | 'overview' | 'log' | 'manage' | 'info';
 
 const TABS: Array<{ id: Tab; label: string; aria: string }> = [
   { id: 'award', label: 'Vergeben', aria: 'XP vergeben' },
   { id: 'leaderboard', label: 'Leaderboard', aria: 'Leaderboard anzeigen' },
+  { id: 'overview', label: 'Überblick', aria: 'Klassenüberblick anzeigen' },
   { id: 'log', label: 'Protokoll', aria: 'Aktivitätsprotokoll öffnen' },
   { id: 'manage', label: 'Verwalten', aria: 'Schüler und Quests verwalten' },
   { id: 'info', label: 'Info', aria: 'Info & Hilfe anzeigen' },
@@ -103,9 +105,9 @@ export default function App() {
           return;
         }
 
-        if (!mod && /^[1-5]$/.test(key)) {
+        if (!mod && /^[1-6]$/.test(key)) {
           event.preventDefault();
-          const nextTabs: Tab[] = ['award', 'leaderboard', 'log', 'manage', 'info'];
+          const nextTabs: Tab[] = ['award', 'leaderboard', 'overview', 'log', 'manage', 'info'];
           setTab(nextTabs[Number(key) - 1]);
         }
       },
@@ -156,6 +158,7 @@ export default function App() {
         <>
           {tab === 'award' && <AwardScreen />}
           {tab === 'leaderboard' && <LeaderboardScreen />}
+          {tab === 'overview' && <ClassOverviewScreen />}
           {tab === 'log' && <LogScreen />}
           {tab === 'manage' && <ManageScreen onOpenSeasonReset={openSeasonReset} />}
           {tab === 'info' && <InfoScreen />}
