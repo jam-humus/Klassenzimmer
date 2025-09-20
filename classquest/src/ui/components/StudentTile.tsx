@@ -1,12 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Student } from '~/types/models';
 import { AvatarView } from '~/ui/avatar/AvatarView';
+import { BadgeIcon } from '~/ui/components/BadgeIcon';
 
 type Props = {
   id: string;
   alias: string;
   xp: number;
   level: number;
+  badges?: Student['badges'];
   avatarMode?: Student['avatarMode'];
   avatarPack?: Student['avatarPack'];
   selected: boolean;
@@ -23,6 +25,7 @@ const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
     alias,
     xp,
     level,
+    badges,
     avatarMode,
     avatarPack,
     selected,
@@ -37,6 +40,26 @@ const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
   const [evolved, setEvolved] = useState(false);
   const previousLevelRef = useRef(level);
   const resetTimeoutRef = useRef<number | null>(null);
+  const recentBadges = useMemo(() => {
+    if (!badges || badges.length === 0) {
+      return [] as Student['badges'];
+    }
+    const sorted = [...badges].sort((a, b) => {
+      const timeA = Date.parse(a.awardedAt);
+      const timeB = Date.parse(b.awardedAt);
+      if (Number.isNaN(timeA) && Number.isNaN(timeB)) {
+        return 0;
+      }
+      if (Number.isNaN(timeA)) {
+        return 1;
+      }
+      if (Number.isNaN(timeB)) {
+        return -1;
+      }
+      return timeB - timeA;
+    });
+    return sorted.slice(0, 2);
+  }, [badges]);
 
   useEffect(() => {
     const previousLevel = previousLevelRef.current;
@@ -106,7 +129,6 @@ const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
           gap: 12,
         }}
@@ -117,6 +139,7 @@ const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
             alignItems: 'center',
             gap: 12,
             minWidth: 0,
+            flex: '1 1 auto',
           }}
         >
           <AvatarView
@@ -136,7 +159,24 @@ const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
             {alias}
           </strong>
         </div>
-        <span style={{ fontSize: 12, opacity: 0.75, flexShrink: 0 }}>{xp} XP · L{level}</span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexShrink: 0,
+          }}
+        >
+          {recentBadges.map((badge) => (
+            <BadgeIcon
+              key={`${badge.id}-${badge.awardedAt}`}
+              name={badge.name}
+              iconKey={badge.iconKey}
+              size={36}
+            />
+          ))}
+          <span style={{ fontSize: 12, opacity: 0.75, flexShrink: 0 }}>{xp} XP · L{level}</span>
+        </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
         <button

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { LogEntry, Student } from '~/types/models';
 import { AvatarView } from '~/ui/avatar/AvatarView';
+import { BadgeIcon } from '~/ui/components/BadgeIcon';
 
 type StudentDetailScreenProps = {
   student: Pick<Student, 'id' | 'alias' | 'xp' | 'level' | 'badges' | 'avatarMode' | 'avatarPack'>;
@@ -101,7 +102,7 @@ export default function StudentDetailScreen({ student, logs, onClose }: StudentD
               <ul style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: 0, padding: 0, listStyle: 'none' }}>
                 {student.badges.map((badge) => (
                   <li
-                    key={badge.id}
+                    key={`${badge.id}-${badge.awardedAt}`}
                     style={{
                       padding: '6px 12px',
                       borderRadius: 999,
@@ -109,11 +110,11 @@ export default function StudentDetailScreen({ student, logs, onClose }: StudentD
                       background: '#f8fafc',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 6,
+                      gap: 8,
                       fontSize: 14,
                     }}
                   >
-                    {badge.iconKey ? <span aria-hidden="true">{badge.iconKey}</span> : null}
+                    <BadgeIcon name={badge.name} iconKey={badge.iconKey} size={36} />
                     <span>{badge.name}</span>
                   </li>
                 ))}
