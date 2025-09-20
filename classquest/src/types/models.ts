@@ -28,6 +28,7 @@ export type Settings = {
   allowNegativeXP?: boolean;
   sfxEnabled?: boolean;
   compactMode?: boolean;
+  shortcutsEnabled?: boolean;
   onboardingCompleted?: boolean;
   flags?: Record<string, boolean>;
 };

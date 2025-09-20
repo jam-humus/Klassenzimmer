@@ -31,7 +31,21 @@ test.describe('Core flows', () => {
     await page.getByRole('radio').first().click();
     await page.getByRole('button', { name: /lena/i }).click();
 
-    await page.getByRole('button', { name: selectors.undoButton }).click();
+    const undoToast = page.getByText(/drücke u/i);
+    await expect(undoToast).toBeVisible();
+    await page.keyboard.press('KeyU');
+    await expect(undoToast).toBeHidden({ timeout: 2000 });
+
+    const paletteShortcut = process.platform === 'darwin' ? 'Meta+K' : 'Control+K';
+    await page.keyboard.press(paletteShortcut);
+    const paletteDialog = page.getByRole('dialog');
+    await expect(paletteDialog).toBeVisible();
+    await paletteDialog.getByRole('textbox', { name: /befehl suchen/i }).fill('Verwalten');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('heading', { name: /schüler verwalten/i })).toBeVisible();
+
+    await page.keyboard.press('Digit1');
+    await expect(page.getByRole('tab', { name: selectors.awardTab })).toHaveAttribute('aria-selected', 'true');
 
     await page.getByRole('tab', { name: selectors.manageTab }).click();
     const [download] = await Promise.all([

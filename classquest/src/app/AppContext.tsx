@@ -22,6 +22,7 @@ type Action =
   | { type: 'TOGGLE_QUEST'; id: ID }
   | { type: 'AWARD'; payload: AwardPayload }
   | { type: 'UNDO_LAST' }
+  | { type: 'RESET_SEASON' }
   | { type: 'ADD_GROUP'; name: string }
   | { type: 'REMOVE_GROUP'; id: ID }
   | { type: 'RENAME_GROUP'; id: ID; name: string }
@@ -254,6 +255,22 @@ function reducer(state: AppState, action: Action): AppState {
         };
       });
       return { ...state, students, logs: rest };
+    }
+    case 'RESET_SEASON': {
+      const baseLevel = Math.max(1, levelFromXP(0, state.settings.xpPerLevel));
+      const students = state.students.map((student) => ({
+        ...student,
+        xp: 0,
+        level: baseLevel,
+        streaks: {},
+        lastAwardedDay: {},
+        badges: [],
+      }));
+      return {
+        ...state,
+        students,
+        logs: [],
+      };
     }
     case 'ADD_GROUP': {
       const name = action.name.trim() || `Gruppe ${state.teams.length + 1}`;

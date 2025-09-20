@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useApp } from '~/app/AppContext';
+import { useKeydown } from '~/ui/shortcut/KeyScope';
 import { LogItem } from '~/ui/components/LogItem';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
@@ -22,6 +23,8 @@ export default function LogScreen() {
   const [studentFilter, setStudentFilter] = useState<string>('');
   const [questFilter, setQuestFilter] = useState<string>('');
   const [period, setPeriod] = useState<'today' | 'week' | 'all'>('all');
+  const [textFilter, setTextFilter] = useState('');
+  const filterInputRef = useRef<HTMLInputElement | null>(null);
 
   const virtualize = Boolean(state.settings.flags?.virtualize);
   const studentsById = useMemo(
@@ -32,15 +35,22 @@ export default function LogScreen() {
     period === 'today' ? startOfDay().getTime() : period === 'week' ? startOfWeek().getTime() : 0;
 
   const entries = useMemo(() => {
+    const term = textFilter.trim().toLowerCase();
     return state.logs
-      .filter(
-        (log) =>
-          (!studentFilter || log.studentId === studentFilter) &&
-          (!questFilter || log.questId === questFilter) &&
-          log.timestamp >= tsMin,
-      )
+      .filter((log) => {
+        if (studentFilter && log.studentId !== studentFilter) return false;
+        if (questFilter && log.questId !== questFilter) return false;
+        if (log.timestamp < tsMin) return false;
+        if (term) {
+          const haystack = `${log.questName} ${studentsById[log.studentId] ?? ''}`.toLowerCase();
+          if (!haystack.includes(term)) {
+            return false;
+          }
+        }
+        return true;
+      })
       .slice(0, virtualize ? 10_000 : 500);
-  }, [state.logs, studentFilter, questFilter, tsMin, virtualize]);
+  }, [state.logs, studentFilter, questFilter, tsMin, virtualize, textFilter, studentsById]);
 
   const parentRef = useRef<HTMLDivElement | null>(null);
   const rowVirtualizer = useVirtualizer({
@@ -52,6 +62,22 @@ export default function LogScreen() {
   });
 
   const listStyles: CSSProperties = { margin: 0, padding: 0, listStyle: 'none' };
+
+  useKeydown(
+    useCallback(
+      (event: KeyboardEvent) => {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f') {
+          if (state.settings.shortcutsEnabled === false) {
+            return;
+          }
+          event.preventDefault();
+          filterInputRef.current?.focus();
+          filterInputRef.current?.select();
+        }
+      },
+      [state.settings.shortcutsEnabled],
+    ),
+  );
 
   return (
     <div>
@@ -90,6 +116,14 @@ export default function LogScreen() {
           <option value="week">Diese Woche</option>
           <option value="all">Gesamt</option>
         </select>
+        <input
+          ref={filterInputRef}
+          type="search"
+          value={textFilter}
+          onChange={(event) => setTextFilter(event.target.value)}
+          placeholder="Text durchsuchen"
+          style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #cbd5f5' }}
+        />
         <span aria-live="polite" style={{ fontWeight: 600 }}>
           <span className="sr-only">Anzahl Einträge:</span>
           {entries.length}

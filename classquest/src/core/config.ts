@@ -5,6 +5,7 @@ export const DEFAULT_SETTINGS = {
   allowNegativeXP: false,
   sfxEnabled: false,
   compactMode: false,
+  shortcutsEnabled: true,
   onboardingCompleted: false,
   flags: { virtualize: false } as Record<string, boolean>,
 } as const;
