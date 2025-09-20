@@ -12,7 +12,7 @@ import {
   EVENT_UNDO_PERFORMED,
 } from './events';
 
-type Tab = 'award' | 'leaderboard' | 'log' | 'manage' | 'info';
+type Tab = 'award' | 'leaderboard' | 'overview' | 'log' | 'manage' | 'info';
 
 type PaletteItem = {
   id: string;
@@ -52,6 +52,13 @@ export function createPaletteItems(
       group: 'Navigation',
       keywords: 'ranking',
       run: () => setTab('leaderboard'),
+    },
+    {
+      id: 'nav-overview',
+      label: 'Gehe zu: Überblick',
+      group: 'Navigation',
+      keywords: 'overview klasse klassenübersicht',
+      run: () => setTab('overview'),
     },
     { id: 'nav-log', label: 'Gehe zu: Protokoll', group: 'Navigation', keywords: 'log', run: () => setTab('log') },
     { id: 'nav-manage', label: 'Gehe zu: Verwalten', group: 'Navigation', keywords: 'manage', run: () => setTab('manage') },
