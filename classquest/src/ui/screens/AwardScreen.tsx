@@ -7,6 +7,7 @@ import { EVENT_CLEAR_SELECTION, EVENT_SELECT_ALL, EVENT_FOCUS_STUDENT, EVENT_SET
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Quest, Team } from '~/types/models';
+import { playLottieOverlay } from '~/ui/anim/playLottie';
 
 const TILE_MIN_WIDTH = 240;
 
@@ -60,6 +61,7 @@ export default function AwardScreen() {
   const gridRef = useRef<HTMLDivElement>(null);
   const tileRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const pulseTimeoutRef = useRef<number | null>(null);
+  const overlayCleanupRef = useRef<(() => void) | null>(null);
   const { message, setMessage, clear: clearToast } = useUndoToast();
 
   const allStudents = state.students;
@@ -190,6 +192,10 @@ export default function AwardScreen() {
     if (pulseTimeoutRef.current != null) {
       window.clearTimeout(pulseTimeoutRef.current);
     }
+    if (overlayCleanupRef.current) {
+      overlayCleanupRef.current();
+      overlayCleanupRef.current = null;
+    }
   }, []);
 
   const setFocus = useCallback(
@@ -219,6 +225,28 @@ export default function AwardScreen() {
       pulseTimeoutRef.current = null;
     }, 320);
   }, []);
+
+  const animationsAllowed = state.settings.animationsEnabled !== false;
+  const kidModeEnabled = Boolean(state.settings.kidModeEnabled);
+
+  const handleLevelUp = useCallback(
+    (_info: { id: string; alias: string; level: number }) => {
+      if (!kidModeEnabled || !animationsAllowed) {
+        return;
+      }
+      if (typeof document === 'undefined') {
+        return;
+      }
+      if (overlayCleanupRef.current) {
+        overlayCleanupRef.current();
+      }
+      overlayCleanupRef.current = playLottieOverlay('/anim/rocket-burst.json', {
+        scale: 1,
+        durationMs: 1400,
+      });
+    },
+    [animationsAllowed, kidModeEnabled],
+  );
 
   const awardStudent = useCallback(
     (studentId: string, quest: Quest) => {
@@ -538,6 +566,7 @@ export default function AwardScreen() {
                             onToggleSelect={toggle}
                             onAward={awardSingle}
                             onFocus={() => setFocusedIdx(idx)}
+                            onLevelUp={handleLevelUp}
                           />
                         </div>
                       );
@@ -584,6 +613,7 @@ export default function AwardScreen() {
                   onToggleSelect={toggle}
                   onAward={awardSingle}
                   onFocus={() => setFocusedIdx(idx)}
+                  onLevelUp={handleLevelUp}
                 />
               </div>
             ))}

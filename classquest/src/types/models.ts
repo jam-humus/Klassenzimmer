@@ -30,6 +30,8 @@ export type Settings = {
   compactMode?: boolean;
   shortcutsEnabled?: boolean;
   onboardingCompleted?: boolean;
+  animationsEnabled?: boolean;
+  kidModeEnabled?: boolean;
   flags?: Record<string, boolean>;
 };
 
