@@ -54,6 +54,7 @@ export const Settings = z.object({
   // non-breaking optional flags
   sfxEnabled: z.boolean().optional(),
   compactMode: z.boolean().optional(),
+  shortcutsEnabled: z.boolean().optional(),
   onboardingCompleted: z.boolean().optional(),
   flags: z.record(z.string(), z.boolean()).optional(),
 });
@@ -246,6 +247,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
     allowNegativeXP: asBoolean(settingsRecord.allowNegativeXP, false),
     sfxEnabled: asBoolean(settingsRecord.sfxEnabled, false),
     compactMode: asBoolean(settingsRecord.compactMode, false),
+    shortcutsEnabled: asBoolean(settingsRecord.shortcutsEnabled, true),
     onboardingCompleted: asBoolean(settingsRecord.onboardingCompleted, false),
     flags: sanitizeFlags(settingsRecord.flags),
   };

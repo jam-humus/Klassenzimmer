@@ -1,0 +1,10 @@
+export const EVENT_SELECT_ALL = 'cq:select-all-students';
+export const EVENT_CLEAR_SELECTION = 'cq:clear-selection';
+export const EVENT_FOCUS_STUDENT = 'cq:focus-student';
+export const EVENT_SET_ACTIVE_QUEST = 'cq:set-active-quest';
+export const EVENT_TOGGLE_GROUP_FILTER = 'cq:toggle-group-filter';
+export const EVENT_UNDO_PERFORMED = 'cq:undo-performed';
+export const EVENT_REQUEST_UNDO = 'cq:request-undo';
+export const EVENT_EXPORT_DATA = 'cq:export-data';
+export const EVENT_IMPORT_DATA = 'cq:import-data';
+export const EVENT_OPEN_SEASON_RESET = 'cq:open-season-reset';

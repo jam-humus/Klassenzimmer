@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '~/app/AppContext';
+import { useKeydown } from '~/ui/shortcut/KeyScope';
 import { LeaderboardRow } from '~/ui/components/LeaderboardRow';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
@@ -7,6 +8,8 @@ export default function LeaderboardScreen() {
   const { state } = useApp();
   const [sort, setSort] = useState<'name' | 'xp'>('xp');
   const [printing, setPrinting] = useState(false);
+  const [filter, setFilter] = useState('');
+  const filterInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -26,18 +29,40 @@ export default function LeaderboardScreen() {
     return list;
   }, [state.students, sort]);
 
-  const maxXp = rows[0]?.xp ?? 0;
+  const filteredRows = useMemo(() => {
+    const term = filter.trim().toLowerCase();
+    if (!term) return rows;
+    return rows.filter((row) => row.name.toLowerCase().includes(term));
+  }, [rows, filter]);
+
+  const maxXp = filteredRows[0]?.xp ?? 0;
   const virtualizeSetting = Boolean(state.settings.flags?.virtualize);
   const shouldVirtualize = virtualizeSetting && !printing;
   const parentRef = useRef<HTMLDivElement | null>(null);
   const rowVirtualizer = useVirtualizer({
-    count: rows.length,
+    count: filteredRows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 64,
     overscan: 6,
     enabled: shouldVirtualize,
   });
   const virtualItems = shouldVirtualize ? rowVirtualizer.getVirtualItems() : [];
+
+  useKeydown(
+    useCallback(
+      (event: KeyboardEvent) => {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f') {
+          if (state.settings.shortcutsEnabled === false) {
+            return;
+          }
+          event.preventDefault();
+          filterInputRef.current?.focus();
+          filterInputRef.current?.select();
+        }
+      },
+      [state.settings.shortcutsEnabled],
+    ),
+  );
 
   return (
     <div className="leaderboard-screen" style={{ display: 'grid', gap: 12 }}>
@@ -51,6 +76,14 @@ export default function LeaderboardScreen() {
             nach Name
           </button>
         </div>
+        <input
+          ref={filterInputRef}
+          type="search"
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
+          placeholder="Nach Namen filtern"
+          style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #cbd5f5' }}
+        />
         <button type="button" className="print-hide" onClick={() => window.print()} style={{ marginLeft: 'auto' }}>
           Drucken
         </button>
@@ -68,10 +101,12 @@ export default function LeaderboardScreen() {
       >
         {rows.length === 0 ? (
           <p style={{ margin: 0 }}>Noch keine Schüler angelegt.</p>
+        ) : filteredRows.length === 0 ? (
+          <p style={{ margin: 0 }}>Keine Treffer.</p>
         ) : shouldVirtualize ? (
           <div style={{ position: 'relative', height: rowVirtualizer.getTotalSize() }}>
             {virtualItems.map((virtualRow) => {
-              const row = rows[virtualRow.index];
+              const row = filteredRows[virtualRow.index];
               return (
                 <div
                   key={row.id}
@@ -89,7 +124,7 @@ export default function LeaderboardScreen() {
             })}
           </div>
         ) : (
-          rows.map((row, index) => (
+          filteredRows.map((row, index) => (
             <LeaderboardRow key={row.id} rank={index + 1} name={row.name} xp={row.xp} maxXp={maxXp} />
           ))
         )}

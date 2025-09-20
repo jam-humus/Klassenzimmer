@@ -3,8 +3,13 @@ import { useApp } from '~/app/AppContext';
 import type { ID, Quest, QuestType, Student, Team } from '~/types/models';
 import AsyncButton from '~/ui/feedback/AsyncButton';
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
+import { EVENT_EXPORT_DATA, EVENT_IMPORT_DATA, EVENT_OPEN_SEASON_RESET } from '~/ui/shortcut/events';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
+
+type ManageScreenProps = {
+  onOpenSeasonReset?: () => void;
+};
 
 function makeId() {
   return globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
@@ -266,9 +271,12 @@ const GroupRow = React.memo(function GroupRow({ team, students, onRename, onRemo
 });
 GroupRow.displayName = 'GroupRow';
 
-export default function ManageScreen() {
+export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = {}) {
   const { state, dispatch } = useApp();
   const feedback = useFeedback();
+  const triggerSeasonReset = useCallback(() => {
+    onOpenSeasonReset?.();
+  }, [onOpenSeasonReset]);
   const [alias, setAlias] = useState('');
   const [qName, setQName] = useState('Hausaufgaben');
   const [qXP, setQXP] = useState(10);
@@ -494,6 +502,23 @@ export default function ManageScreen() {
     feedback.success('Daten exportiert');
   }, [state, feedback]);
 
+  useEffect(() => {
+    const handleExport = () => onExport();
+    const handleImport = () => {
+      setImportError(null);
+      fileInputRef.current?.click();
+    };
+    const handleReset = () => triggerSeasonReset();
+    window.addEventListener(EVENT_EXPORT_DATA, handleExport as EventListener);
+    window.addEventListener(EVENT_IMPORT_DATA, handleImport as EventListener);
+    window.addEventListener(EVENT_OPEN_SEASON_RESET, handleReset as EventListener);
+    return () => {
+      window.removeEventListener(EVENT_EXPORT_DATA, handleExport as EventListener);
+      window.removeEventListener(EVENT_IMPORT_DATA, handleImport as EventListener);
+      window.removeEventListener(EVENT_OPEN_SEASON_RESET, handleReset as EventListener);
+    };
+  }, [onExport, triggerSeasonReset]);
+
   const onImportFile = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const input = event.target;
@@ -703,6 +728,18 @@ export default function ManageScreen() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input
               type="checkbox"
+              checked={state.settings.shortcutsEnabled !== false}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                dispatch({ type: 'UPDATE_SETTINGS', updates: { shortcutsEnabled: checked } });
+                feedback.info(checked ? 'Tastaturkürzel aktiviert' : 'Tastaturkürzel deaktiviert');
+              }}
+            />
+            Tastaturkürzel aktivieren
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
               checked={Boolean(state.settings.flags?.virtualize)}
               onChange={(e) => {
                 const checked = e.target.checked;
@@ -716,6 +753,15 @@ export default function ManageScreen() {
             Listen virtualisieren (für große Klassen)
           </label>
         </div>
+      </section>
+      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
+        <h2>Saison zurücksetzen</h2>
+        <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
+          Setzt XP, Level, Streaks und das Protokoll aller Schüler zurück. Schüler, Gruppen und Quests bleiben bestehen.
+        </p>
+        <button type="button" onClick={triggerSeasonReset} style={{ padding: '10px 18px', borderRadius: 12 }}>
+          Saison-Reset starten
+        </button>
       </section>
       <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
         <h2>Backup &amp; Restore</h2>

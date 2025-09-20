@@ -3,6 +3,7 @@ import { useApp } from '~/app/AppContext';
 import { StudentTile } from '~/ui/components/StudentTile';
 import { useSelection } from '~/ui/hooks/useSelection';
 import { useUndoToast } from '~/ui/hooks/useUndoToast';
+import { EVENT_CLEAR_SELECTION, EVENT_SELECT_ALL, EVENT_FOCUS_STUDENT, EVENT_SET_ACTIVE_QUEST, EVENT_TOGGLE_GROUP_FILTER, EVENT_UNDO_PERFORMED } from '~/ui/shortcut/events';
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Quest, Team } from '~/types/models';
@@ -51,6 +52,8 @@ export default function AwardScreen() {
   const { selected, isSelected, toggle, clear, setMany } = useSelection<string>([]);
   const [focusedIdx, setFocusedIdx] = useState(0);
   const [activeQuestId, setActiveQuestId] = useState<string | null>(null);
+  const [groupFilter, setGroupFilter] = useState<string | null>(null);
+  const pendingFocusRef = useRef<string | null>(null);
   const [columns, setColumns] = useState(3);
   const [scrolled, setScrolled] = useState(false);
   const [pulseId, setPulseId] = useState<string | null>(null);
@@ -59,10 +62,17 @@ export default function AwardScreen() {
   const pulseTimeoutRef = useRef<number | null>(null);
   const { message, setMessage, clear: clearToast } = useUndoToast();
 
-  const students = state.students;
+  const allStudents = state.students;
+  const students = useMemo(() => {
+    if (!groupFilter) return allStudents;
+    const team = state.teams.find((t) => t.id === groupFilter);
+    if (!team) return allStudents;
+    const allowed = new Set(team.memberIds);
+    return allStudents.filter((student) => allowed.has(student.id));
+  }, [allStudents, groupFilter, state.teams]);
   const focusedStudent = students[focusedIdx];
-  const studentIdSet = useMemo(() => new Set(students.map((student) => student.id)), [students]);
-  const aliasById = useMemo(() => new Map(students.map((s) => [s.id, s.alias])), [students]);
+  const studentIdSet = useMemo(() => new Set(allStudents.map((student) => student.id)), [allStudents]);
+  const aliasById = useMemo(() => new Map(allStudents.map((s) => [s.id, s.alias])), [allStudents]);
   const virtualize = Boolean(state.settings.flags?.virtualize);
   const columnCount = Math.max(1, columns || 1);
   const rowCount = Math.ceil(students.length / columnCount);
@@ -111,6 +121,22 @@ export default function AwardScreen() {
       setFocusedIdx(students.length ? students.length - 1 : 0);
     }
   }, [students.length, focusedIdx]);
+
+  useEffect(() => {
+    if (!pendingFocusRef.current) return;
+    const targetId = pendingFocusRef.current;
+    const index = students.findIndex((student) => student.id === targetId);
+    if (index >= 0) {
+      setFocusedIdx(index);
+      pendingFocusRef.current = null;
+    }
+  }, [students, setFocusedIdx]);
+
+  useEffect(() => {
+    if (groupFilter != null) {
+      setFocusedIdx((prev) => (students.length ? Math.min(prev, students.length - 1) : 0));
+    }
+  }, [groupFilter, students.length]);
 
   useEffect(() => {
     const student = focusedStudent;
@@ -203,13 +229,13 @@ export default function AwardScreen() {
 
   const awardSelected = useCallback(() => {
     if (!activeQuest) return;
-    const ids = students.filter((s) => selected.has(s.id)).map((s) => s.id);
+    const ids = allStudents.filter((student) => selected.has(student.id)).map((student) => student.id);
     if (!ids.length) return;
     ids.forEach((id) => awardStudent(id, activeQuest));
     const target = ids.length === 1 ? aliasById.get(ids[0]) ?? 'Schüler' : `${ids.length} Schüler`;
     showUndoToast(activeQuest, target);
     feedback.success('Aktive Quest an Auswahl vergeben');
-  }, [activeQuest, students, selected, awardStudent, aliasById, showUndoToast, feedback]);
+  }, [activeQuest, allStudents, selected, awardStudent, aliasById, showUndoToast, feedback]);
 
   const awardSingle = useCallback(
     (studentId: string) => {
@@ -230,6 +256,11 @@ export default function AwardScreen() {
       memberIds: team.memberIds.filter((memberId) => studentIdSet.has(memberId)),
     }));
   }, [state.teams, studentIdSet]);
+
+  const activeGroup = useMemo(() => {
+    if (!groupFilter) return null;
+    return state.teams.find((team) => team.id === groupFilter) ?? null;
+  }, [state.teams, groupFilter]);
 
   const awardGroup = useCallback(
     (teamId: string) => {
@@ -252,8 +283,56 @@ export default function AwardScreen() {
     [activeQuest, groups, dispatch, awardStudent, showUndoToast, feedback],
   );
 
+  useEffect(() => {
+    const handleSelectAll = () => {
+      if (!students.length) return;
+      setMany(students.map((student) => student.id));
+    };
+    const handleClearSelection = () => {
+      clear();
+    };
+    const handleFocusStudent = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      pendingFocusRef.current = id;
+      setGroupFilter((current) => {
+        if (!current) return current;
+        const team = state.teams.find((t) => t.id === current);
+        if (team && team.memberIds.includes(id)) {
+          return current;
+        }
+        return null;
+      });
+    };
+    const handleToggleGroup = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      setGroupFilter((current) => (current === id ? null : id));
+    };
+    const handleSetActiveQuest = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      setActiveQuestId(id);
+    };
+    const handleUndoPerformed = () => {
+      clearToast();
+    };
+    window.addEventListener(EVENT_SELECT_ALL, handleSelectAll as EventListener);
+    window.addEventListener(EVENT_CLEAR_SELECTION, handleClearSelection as EventListener);
+    window.addEventListener(EVENT_FOCUS_STUDENT, handleFocusStudent as EventListener);
+    window.addEventListener(EVENT_TOGGLE_GROUP_FILTER, handleToggleGroup as EventListener);
+    window.addEventListener(EVENT_SET_ACTIVE_QUEST, handleSetActiveQuest as EventListener);
+    window.addEventListener(EVENT_UNDO_PERFORMED, handleUndoPerformed as EventListener);
+    return () => {
+      window.removeEventListener(EVENT_SELECT_ALL, handleSelectAll as EventListener);
+      window.removeEventListener(EVENT_CLEAR_SELECTION, handleClearSelection as EventListener);
+      window.removeEventListener(EVENT_FOCUS_STUDENT, handleFocusStudent as EventListener);
+      window.removeEventListener(EVENT_TOGGLE_GROUP_FILTER, handleToggleGroup as EventListener);
+      window.removeEventListener(EVENT_SET_ACTIVE_QUEST, handleSetActiveQuest as EventListener);
+      window.removeEventListener(EVENT_UNDO_PERFORMED, handleUndoPerformed as EventListener);
+    };
+  }, [students, setMany, clear, state.teams, clearToast, setGroupFilter, setActiveQuestId]);
+
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       if (!students.length) return;
       const rowLen = columnCount;
       switch (e.key) {
@@ -282,17 +361,9 @@ export default function AwardScreen() {
             }
           }
           break;
-        default:
-          if (e.key.toLowerCase() === 'u') {
-            e.preventDefault();
-            dispatch({ type: 'UNDO_LAST' });
-            clearToast();
-            feedback.info('Letzte Aktion rückgängig gemacht');
-          }
-          break;
       }
     },
-    [students, columnCount, activeQuest, awardSingle, focusedIdx, dispatch, setFocus, clearToast, feedback],
+    [students, columnCount, activeQuest, awardSingle, focusedIdx, setFocus],
   );
 
   const selectAll = useCallback(() => setMany(students.map((s) => s.id)), [students, setMany]);
@@ -349,6 +420,22 @@ export default function AwardScreen() {
               ))}
             </div>
           )}
+          {activeGroup && (
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+                background: '#dbeafe',
+                padding: '6px 12px',
+                borderRadius: 999,
+                width: 'fit-content',
+              }}
+            >
+              <span>Gefiltert nach Gruppe: <strong>{activeGroup?.name}</strong></span>
+              <button type="button" onClick={() => setGroupFilter(null)} style={{ fontSize: 12 }}>Filter entfernen</button>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               type="button"
@@ -384,6 +471,7 @@ export default function AwardScreen() {
                 dispatch({ type: 'UNDO_LAST' });
                 clearToast();
                 feedback.info('Letzte Aktion rückgängig gemacht');
+                window.dispatchEvent(new Event(EVENT_UNDO_PERFORMED));
               }}
               aria-label="Letzte Vergabe rückgängig machen"
             >
@@ -530,6 +618,7 @@ export default function AwardScreen() {
               dispatch({ type: 'UNDO_LAST' });
               clearToast();
               feedback.info('Letzte Aktion rückgängig gemacht');
+              window.dispatchEvent(new Event(EVENT_UNDO_PERFORMED));
             }}
             style={{
               background: '#fff',
