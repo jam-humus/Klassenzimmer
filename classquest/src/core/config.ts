@@ -4,6 +4,8 @@ export const DEFAULT_SETTINGS = {
   streakThresholdForBadge: 5,
   allowNegativeXP: false,
   sfxEnabled: false,
+  animationsEnabled: true,
+  kidModeEnabled: false,
   compactMode: false,
   shortcutsEnabled: true,
   onboardingCompleted: false,

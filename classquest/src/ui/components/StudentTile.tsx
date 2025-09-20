@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 type Props = {
   id: string;
@@ -10,17 +10,46 @@ type Props = {
   onToggleSelect: (id: string) => void;
   onAward: (id: string) => void;
   onFocus?: () => void;
+  onLevelUp?: (info: { id: string; alias: string; level: number }) => void;
 };
 
 const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
-  { id, alias, xp, level, selected, disabled, onToggleSelect, onAward, onFocus },
+  { id, alias, xp, level, selected, disabled, onToggleSelect, onAward, onFocus, onLevelUp },
   ref,
 ) {
+  const [evolved, setEvolved] = useState(false);
+  const previousLevelRef = useRef(level);
+  const resetTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const previousLevel = previousLevelRef.current;
+    if (level > previousLevel) {
+      setEvolved(true);
+      onLevelUp?.({ id, alias, level });
+      if (typeof window !== 'undefined') {
+        if (resetTimeoutRef.current != null) {
+          window.clearTimeout(resetTimeoutRef.current);
+        }
+        resetTimeoutRef.current = window.setTimeout(() => {
+          setEvolved(false);
+          resetTimeoutRef.current = null;
+        }, 900);
+      }
+    }
+    previousLevelRef.current = level;
+    return () => {
+      if (resetTimeoutRef.current != null) {
+        window.clearTimeout(resetTimeoutRef.current);
+        resetTimeoutRef.current = null;
+      }
+    };
+  }, [alias, id, level, onLevelUp]);
+
   return (
     <div
       ref={ref}
       role="button"
-      className="tile"
+      className={`tile${evolved ? ' tile-evolved' : ''}`}
       tabIndex={0}
       onClick={() => {
         if (!disabled) {
