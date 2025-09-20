@@ -29,6 +29,7 @@ const createState = (studentOverrides: Partial<Student> = {}): AppState => {
     },
     version: 1,
     classProgress: { totalXP, stars: Math.floor(totalXP / 1000) },
+    badgeDefs: [],
   };
 };
 

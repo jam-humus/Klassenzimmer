@@ -113,7 +113,7 @@ export default function StudentDetailScreen({ student, logs, onClose }: StudentD
                       fontSize: 14,
                     }}
                   >
-                    {badge.icon ? <span aria-hidden="true">{badge.icon}</span> : null}
+                    {badge.iconKey ? <span aria-hidden="true">{badge.iconKey}</span> : null}
                     <span>{badge.name}</span>
                   </li>
                 ))}

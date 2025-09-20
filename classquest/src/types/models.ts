@@ -1,5 +1,16 @@
 export type ID = string;
-export type Badge = { id: ID; name: string; icon?: string; description?: string };
+
+export type BadgeRule =
+  | { type: 'category_xp'; category: string; threshold: number }
+  | { type: 'total_xp'; threshold: number };
+
+export type Badge = {
+  id: ID;
+  name: string;
+  iconKey?: string | null;
+  description?: string;
+  awardedAt: string;
+};
 
 export type StudentAvatarMode = 'procedural' | 'imagePack';
 export type StudentAvatarPack = {
@@ -22,10 +33,12 @@ export type QuestTarget = 'individual'|'team';
 export type Quest = {
   id: ID; name: string; description?: string; xp: number;
   type: QuestType; target: QuestTarget; isPersonalTo?: ID; active: boolean;
+  category?: string | null;
 };
 
 export type LogEntry = {
   id: ID; timestamp: number; studentId: ID; questId: ID; questName: string; xp: number; note?: string;
+  questCategory?: string | null;
 };
 
 export type ClassProgress = {
@@ -50,7 +63,17 @@ export type Settings = {
   classStarsName?: string;
 };
 
+export type BadgeDefinition = {
+  id: ID;
+  name: string;
+  description?: string;
+  category?: string | null;
+  iconKey?: string | null;
+  rule?: BadgeRule | null;
+};
+
 export type AppState = {
   students: Student[]; teams: Team[]; quests: Quest[]; logs: LogEntry[];
   settings: Settings; version: number; classProgress: ClassProgress;
+  badgeDefs: BadgeDefinition[];
 };

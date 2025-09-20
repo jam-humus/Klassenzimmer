@@ -27,7 +27,7 @@ type Action =
   | { type: 'ADD_STUDENTS_BULK'; aliases: string[] }
   | { type: 'REMOVE_STUDENTS_BULK'; ids: ID[] }
   | { type: 'ADD_QUEST'; quest: Quest }
-  | { type: 'UPDATE_QUEST'; id: ID; updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active'>> }
+  | { type: 'UPDATE_QUEST'; id: ID; updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active' | 'category'>> }
   | { type: 'REMOVE_QUEST'; id: ID }
   | { type: 'TOGGLE_QUEST'; id: ID }
   | { type: 'AWARD'; payload: AwardPayload }
@@ -179,6 +179,7 @@ function normalizeState(raw: AppState): AppState {
     settings,
     version: raw.version ?? 1,
     classProgress,
+    badgeDefs: raw.badgeDefs ?? [],
   };
 }
 

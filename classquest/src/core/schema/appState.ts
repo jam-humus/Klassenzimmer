@@ -3,10 +3,24 @@ import { DEFAULT_SETTINGS } from '../config';
 
 export const ID = z.string().min(1);
 
+const BadgeRule = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('category_xp'),
+    category: z.string().min(1),
+    threshold: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal('total_xp'),
+    threshold: z.number().int().nonnegative(),
+  }),
+]);
+
 export const Badge = z.object({
-  id: ID, name: z.string().min(1),
-  icon: z.string().optional(),
+  id: ID,
+  name: z.string().min(1),
+  iconKey: z.string().optional().nullable(),
   description: z.string().optional(),
+  awardedAt: z.string().min(1),
 });
 
 const AvatarPack = z.object({
@@ -41,6 +55,7 @@ export const Quest = z.object({
   target: z.enum(['individual','team']),
   isPersonalTo: ID.optional(),
   active: z.boolean(),
+  category: z.string().optional().nullable(),
 });
 
 export const LogEntry = z.object({
@@ -51,6 +66,7 @@ export const LogEntry = z.object({
   questName: z.string(),
   xp: z.number(), // can be negative for shop
   note: z.string().optional(),
+  questCategory: z.string().optional().nullable(),
 });
 
 export const Settings = z.object({
@@ -63,6 +79,8 @@ export const Settings = z.object({
   compactMode: z.boolean().optional(),
   shortcutsEnabled: z.boolean().optional(),
   onboardingCompleted: z.boolean().optional(),
+  animationsEnabled: z.boolean().optional(),
+  kidModeEnabled: z.boolean().optional(),
   flags: z.record(z.string(), z.boolean()).optional(),
   classStarIconKey: z.string().optional().nullable(),
   classMilestoneStep: z.number().int().positive().optional(),
@@ -74,6 +92,15 @@ export const ClassProgress = z.object({
   stars: z.number().min(0),
 });
 
+export const BadgeDefinition = z.object({
+  id: ID,
+  name: z.string().min(1),
+  description: z.string().optional(),
+  category: z.string().optional().nullable(),
+  iconKey: z.string().optional().nullable(),
+  rule: BadgeRule.optional().nullable(),
+});
+
 export const AppState = z.object({
   students: z.array(Student),
   teams: z.array(Team),
@@ -82,9 +109,14 @@ export const AppState = z.object({
   settings: Settings,
   version: z.number().int(),
   classProgress: ClassProgress,
+  badgeDefs: z.array(BadgeDefinition).default([]),
 });
 
 export type AppStateType = z.infer<typeof AppState>;
+
+type BadgeRuleType = z.infer<typeof BadgeRule>;
+
+type BadgeDefinitionType = z.infer<typeof BadgeDefinition>;
 
 /** Best-effort repair:
  * - fills defaults for missing objects/arrays
@@ -143,6 +175,16 @@ const sanitizeStringRecord = (value: unknown): Record<string, string> => {
   return Object.fromEntries(entries);
 };
 
+const DEFAULT_BADGE_AWARDED_AT = new Date(0).toISOString();
+
+const normalizeAwardedAt = (value: unknown): string => {
+  const str = asString(value);
+  if (str && !Number.isNaN(Date.parse(str))) {
+    return new Date(str).toISOString();
+  }
+  return DEFAULT_BADGE_AWARDED_AT;
+};
+
 const sanitizeBadges = (value: unknown): AppStateType['students'][number]['badges'] => {
   if (!Array.isArray(value)) return [];
   const items: AppStateType['students'][number]['badges'] = [];
@@ -150,9 +192,10 @@ const sanitizeBadges = (value: unknown): AppStateType['students'][number]['badge
     if (!isRecord(candidate)) return;
     const id = asId(candidate.id) ?? randomId();
     const name = asString(candidate.name) ?? 'Abzeichen';
-    const icon = asString(candidate.icon) ?? undefined;
+    const iconKey = asString((candidate.iconKey ?? candidate.icon)) ?? null;
     const description = asString(candidate.description) ?? undefined;
-    items.push({ id, name, icon, description });
+    const awardedAt = normalizeAwardedAt(candidate.awardedAt);
+    items.push({ id, name, iconKey, description, awardedAt });
   });
   return items;
 };
@@ -198,6 +241,37 @@ const isQuestTarget = (
   value: string | null,
 ): value is (typeof QUEST_TARGETS)[number] =>
   value != null && (QUEST_TARGETS as readonly string[]).includes(value);
+
+const sanitizeBadgeRule = (value: unknown): BadgeRuleType | null => {
+  if (!isRecord(value)) return null;
+  const type = asString(value.type);
+  const threshold = Math.max(0, Math.floor(asNumber(value.threshold, 0)));
+  if (type === 'total_xp') {
+    return { type: 'total_xp', threshold } satisfies BadgeRuleType;
+  }
+  if (type === 'category_xp') {
+    const category = asString(value.category);
+    if (!category) return null;
+    return { type: 'category_xp', category, threshold } satisfies BadgeRuleType;
+  }
+  return null;
+};
+
+const sanitizeBadgeDefs = (value: unknown): BadgeDefinitionType[] => {
+  if (!Array.isArray(value)) return [];
+  const items: BadgeDefinitionType[] = [];
+  value.forEach((candidate) => {
+    if (!isRecord(candidate)) return;
+    const id = asId(candidate.id) ?? randomId();
+    const name = asString(candidate.name) ?? 'Abzeichen';
+    const description = asString(candidate.description) ?? undefined;
+    const category = asString(candidate.category) ?? null;
+    const iconKey = asString((candidate.iconKey ?? candidate.icon)) ?? null;
+    const rule = sanitizeBadgeRule(candidate.rule);
+    items.push({ id, name, description, category, iconKey, rule } satisfies BadgeDefinitionType);
+  });
+  return items;
+};
 
 export function sanitizeState(raw: unknown): AppStateType | null {
   if (!isRecord(raw)) return null;
@@ -253,7 +327,8 @@ export function sanitizeState(raw: unknown): AppStateType | null {
       const target = isQuestTarget(targetRaw) ? targetRaw : 'individual';
       const isPersonalTo = asId(candidate.isPersonalTo) ?? undefined;
       const active = asBoolean(candidate.active, true);
-      quests.push({ id, name, description, xp, type, target, isPersonalTo, active });
+      const category = asString(candidate.category) ?? null;
+      quests.push({ id, name, description, xp, type, target, isPersonalTo, active, category });
     });
   }
 
@@ -269,7 +344,8 @@ export function sanitizeState(raw: unknown): AppStateType | null {
       const timestamp = Math.max(0, Math.floor(asNumber(candidate.timestamp, Date.now())));
       const xp = asNumber(candidate.xp, 0);
       const note = asString(candidate.note) ?? undefined;
-      logs.push({ id, timestamp, studentId, questId, questName, xp, note });
+      const questCategory = asString(candidate.questCategory) ?? null;
+      logs.push({ id, timestamp, studentId, questId, questName, xp, note, questCategory });
     });
   }
 
@@ -279,12 +355,18 @@ export function sanitizeState(raw: unknown): AppStateType | null {
     xpPerLevel: Math.max(1, Math.floor(asNumber(settingsRecord.xpPerLevel, 100)) || 1),
     streakThresholdForBadge: Math.max(1, Math.floor(asNumber(settingsRecord.streakThresholdForBadge, 5)) || 1),
     allowNegativeXP: asBoolean(settingsRecord.allowNegativeXP, false),
-    sfxEnabled: asBoolean(settingsRecord.sfxEnabled, false),
-    compactMode: asBoolean(settingsRecord.compactMode, false),
-    shortcutsEnabled: asBoolean(settingsRecord.shortcutsEnabled, true),
+    sfxEnabled: asBoolean(settingsRecord.sfxEnabled, DEFAULT_SETTINGS.sfxEnabled ?? false),
+    compactMode: asBoolean(settingsRecord.compactMode, DEFAULT_SETTINGS.compactMode ?? false),
+    shortcutsEnabled: asBoolean(settingsRecord.shortcutsEnabled, DEFAULT_SETTINGS.shortcutsEnabled ?? true),
     onboardingCompleted: asBoolean(settingsRecord.onboardingCompleted, false),
+    animationsEnabled: asBoolean(settingsRecord.animationsEnabled, DEFAULT_SETTINGS.animationsEnabled ?? true),
+    kidModeEnabled: asBoolean(settingsRecord.kidModeEnabled, DEFAULT_SETTINGS.kidModeEnabled ?? false),
     flags: sanitizeFlags(settingsRecord.flags),
-    classStarIconKey: asString(settingsRecord.classStarIconKey),
+    classStarIconKey: (() => {
+      const raw = settingsRecord.classStarIconKey;
+      const str = asString(raw);
+      return raw === null ? null : str;
+    })(),
     classMilestoneStep:
       Math.max(1, Math.floor(asNumber(settingsRecord.classMilestoneStep, DEFAULT_SETTINGS.classMilestoneStep)) || 1) ||
       DEFAULT_SETTINGS.classMilestoneStep,
@@ -302,6 +384,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
   };
 
   const version = Math.max(1, Math.trunc(asNumber(raw.version, 1)) || 1);
+  const badgeDefs = sanitizeBadgeDefs(raw.badgeDefs);
 
   const candidate = {
     students,
@@ -311,6 +394,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
     settings,
     version,
     classProgress,
+    badgeDefs,
   } satisfies AppStateType;
 
   const result = AppState.safeParse(candidate);
