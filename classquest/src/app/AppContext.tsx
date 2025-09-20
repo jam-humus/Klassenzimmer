@@ -1,6 +1,7 @@
 import React from 'react';
 import type {
   AppState,
+  BadgeDefinition,
   ClassProgress,
   ID,
   LogEntry,
@@ -30,6 +31,8 @@ type Action =
   | { type: 'UPDATE_QUEST'; id: ID; updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active' | 'category'>> }
   | { type: 'REMOVE_QUEST'; id: ID }
   | { type: 'TOGGLE_QUEST'; id: ID }
+  | { type: 'ADD_BADGE_DEF'; definition: BadgeDefinition }
+  | { type: 'REMOVE_BADGE_DEF'; id: ID }
   | { type: 'AWARD'; payload: AwardPayload }
   | { type: 'UNDO_LAST' }
   | { type: 'RESET_SEASON' }
@@ -333,6 +336,60 @@ function reducer(state: AppState, action: Action): AppState {
         quests: state.quests.filter((quest) => quest.id !== action.id),
         logs: state.logs.filter((log) => log.questId !== action.id),
       };
+    case 'ADD_BADGE_DEF': {
+      const definition = action.definition;
+      const name = typeof definition.name === 'string' ? definition.name.trim() : '';
+      if (!name) {
+        return state;
+      }
+      const rawDescription =
+        typeof definition.description === 'string' ? definition.description.trim() : '';
+      const description = rawDescription.length > 0 ? rawDescription : undefined;
+      const rawCategory =
+        typeof definition.category === 'string' ? definition.category.trim() : '';
+      const category = rawCategory.length > 0 ? rawCategory : null;
+      const rawIconKey =
+        typeof definition.iconKey === 'string' ? definition.iconKey.trim() : '';
+      const iconKey = rawIconKey.length > 0 ? rawIconKey : null;
+      let rule = definition.rule ?? null;
+      if (rule) {
+        const threshold = Number.isFinite(rule.threshold)
+          ? Math.max(0, Math.round(rule.threshold))
+          : 0;
+        if (rule.type === 'total_xp') {
+          rule = { type: 'total_xp', threshold };
+        } else if (rule.type === 'category_xp') {
+          const rawRuleCategory = typeof rule.category === 'string' ? rule.category.trim() : '';
+          const ruleCategory = rawRuleCategory.length > 0 ? rawRuleCategory : 'uncategorized';
+          rule = { type: 'category_xp', category: ruleCategory, threshold };
+        } else {
+          rule = null;
+        }
+      }
+      const sanitized: BadgeDefinition = {
+        ...definition,
+        name,
+        description,
+        category,
+        iconKey,
+        rule,
+      };
+      const existingIndex = state.badgeDefs.findIndex((entry) => entry.id === sanitized.id);
+      if (existingIndex >= 0) {
+        const badgeDefs = state.badgeDefs.map((entry, index) =>
+          index === existingIndex ? sanitized : entry,
+        );
+        return { ...state, badgeDefs };
+      }
+      return { ...state, badgeDefs: [...state.badgeDefs, sanitized] };
+    }
+    case 'REMOVE_BADGE_DEF': {
+      const badgeDefs = state.badgeDefs.filter((entry) => entry.id !== action.id);
+      if (badgeDefs.length === state.badgeDefs.length) {
+        return state;
+      }
+      return { ...state, badgeDefs };
+    }
     case 'TOGGLE_QUEST': {
       const quest = state.quests.find((q) => q.id === action.id);
       if (!quest) return state;
