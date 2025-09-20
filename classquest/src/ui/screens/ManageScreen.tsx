@@ -1,11 +1,100 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useApp } from '~/app/AppContext';
 import type { ID, Quest, QuestType, Student, Team } from '~/types/models';
 import AsyncButton from '~/ui/feedback/AsyncButton';
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import { EVENT_EXPORT_DATA, EVENT_IMPORT_DATA, EVENT_OPEN_SEASON_RESET } from '~/ui/shortcut/events';
+import { deleteBlob, getObjectURL, putBlob } from '~/services/blobStore';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
+
+const ACCEPTED_IMAGE_TYPES = new Set(['image/png', 'image/webp', 'image/jpeg', 'image/jpg']);
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const STAR_ICON_RECOMMENDED_BYTES = 512 * 1024;
+const AVATAR_STAGE_COUNT = 3;
+
+type FeedbackApi = ReturnType<typeof useFeedback>;
+
+const srOnly: React.CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+};
+
+const getStageKeys = (pack?: Student['avatarPack']): (string | null)[] => {
+  const raw = Array.isArray(pack?.stageKeys) ? pack?.stageKeys ?? [] : [];
+  return Array.from({ length: AVATAR_STAGE_COUNT }, (_, index) => {
+    const value = raw[index];
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+    return null;
+  });
+};
+
+function useBlobUrl(key: string | null | undefined) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!key) {
+      setUrl(null);
+      return;
+    }
+    (async () => {
+      try {
+        const objectUrl = await getObjectURL(key);
+        if (!cancelled) {
+          setUrl(objectUrl ?? null);
+        }
+      } catch (error) {
+        console.warn('Konnte Objekt-URL nicht laden', error);
+        if (!cancelled) {
+          setUrl(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [key]);
+  return url;
+}
+
+function validateImageFile(
+  file: File,
+  feedback: FeedbackApi,
+  { context, maxBytes, recommendBytes, recommendMessage }: {
+    context: string;
+    maxBytes: number;
+    recommendBytes?: number;
+    recommendMessage?: string;
+  },
+) {
+  const type = (file.type ?? '').toLowerCase();
+  if (!ACCEPTED_IMAGE_TYPES.has(type)) {
+    feedback.error(`${context}: Bitte PNG oder WebP verwenden (JPEG wird akzeptiert).`);
+    return false;
+  }
+  if (file.size > maxBytes) {
+    const maxSizeMb = (maxBytes / (1024 * 1024)).toFixed(1);
+    feedback.error(`${context}: Datei ist zu groß (max. ${maxSizeMb} MB).`);
+    return false;
+  }
+  if (type.includes('jpeg') || type.includes('jpg')) {
+    feedback.info('JPEG wird unterstützt, aber PNG/WebP wirken besser.');
+  }
+  if (recommendBytes && file.size > recommendBytes) {
+    feedback.info(recommendMessage ?? 'Tipp: Kleinere Dateien laden schneller.');
+  }
+  return true;
+}
 
 type ManageScreenProps = {
   onOpenSeasonReset?: () => void;
@@ -31,60 +120,444 @@ function newQuest(
 }
 
 type StudentRowProps = {
-  id: string;
-  alias: string;
-  onSave: (id: string, alias: string) => void;
-  onRemove: (id: string) => void;
+  student: Student;
+  onSaveAlias: (id: string, alias: string) => void;
+  onRemove: (id: string) => Promise<void>;
+  onAvatarModeChange: (student: Student, mode: Student['avatarMode']) => void;
+  onStageUpload: (student: Student, stageIndex: number, file: File) => Promise<void>;
+  onStageRemove: (student: Student, stageIndex: number) => Promise<void>;
 };
 
-const StudentRow = React.memo(function StudentRow({ id, alias, onSave, onRemove }: StudentRowProps) {
-  const [value, setValue] = useState(alias);
-  useEffect(() => setValue(alias), [alias]);
+const StudentRow = React.memo(function StudentRow({
+  student,
+  onSaveAlias,
+  onRemove,
+  onAvatarModeChange,
+  onStageUpload,
+  onStageRemove,
+}: StudentRowProps) {
+  const [value, setValue] = useState(student.alias);
+  useEffect(() => setValue(student.alias), [student.alias]);
 
   const commit = useCallback(() => {
     const trimmed = value.trim();
-    if (!trimmed || trimmed === alias) {
-      setValue(alias);
+    if (!trimmed || trimmed === student.alias) {
+      setValue(student.alias);
       return;
     }
-    onSave(id, trimmed);
-  }, [value, alias, onSave, id]);
+    onSaveAlias(student.id, trimmed);
+  }, [value, student.alias, student.id, onSaveAlias]);
+
+  const avatarMode = student.avatarMode === 'imagePack' ? 'imagePack' : 'procedural';
+  const stageKeys = useMemo(() => getStageKeys(student.avatarPack), [student.avatarPack]);
 
   return (
-    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-      <input
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            commit();
-          }
-        }}
-        aria-label={`Alias für ${alias} bearbeiten`}
-        style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid #d0d7e6' }}
-      />
-      <AsyncButton
-        type="button"
-        onClick={commit}
-        aria-label={`Alias von ${alias} speichern`}
-        style={{ padding: '6px 12px' }}
-      >
-        Speichern
-      </AsyncButton>
-      <button
-        type="button"
-        onClick={() => onRemove(id)}
-        aria-label={`${alias} entfernen`}
-        style={{ padding: '6px 12px' }}
-      >
-        Entfernen
-      </button>
+    <li
+      style={{
+        display: 'grid',
+        gap: 12,
+        padding: 12,
+        border: '1px solid #d0d7e6',
+        borderRadius: 12,
+        background: '#fff',
+      }}
+    >
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commit();
+            }
+          }}
+          aria-label={`Alias für ${student.alias} bearbeiten`}
+          style={{ flex: 1, minWidth: 160, padding: '6px 8px', borderRadius: 8, border: '1px solid #d0d7e6' }}
+        />
+        <AsyncButton
+          type="button"
+          onClick={commit}
+          aria-label={`Alias von ${student.alias} speichern`}
+          style={{ padding: '6px 12px' }}
+        >
+          Speichern
+        </AsyncButton>
+        <button
+          type="button"
+          onClick={() => {
+            void onRemove(student.id);
+          }}
+          aria-label={`${student.alias} entfernen`}
+          style={{ padding: '6px 12px' }}
+        >
+          Entfernen
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <strong>Avatar-Modus:</strong>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input
+            type="radio"
+            name={`avatar-mode-${student.id}`}
+            value="procedural"
+            checked={avatarMode !== 'imagePack'}
+            onChange={() => onAvatarModeChange(student, 'procedural')}
+          />
+          Procedural
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input
+            type="radio"
+            name={`avatar-mode-${student.id}`}
+            value="imagePack"
+            checked={avatarMode === 'imagePack'}
+            onChange={() => onAvatarModeChange(student, 'imagePack')}
+          />
+          Bildpaket
+        </label>
+        <span
+          role="img"
+          aria-label="Upload-Hinweis"
+          title="Transparentes WebP/PNG wirkt am besten."
+          style={{ fontSize: 18 }}
+        >
+          💡
+        </span>
+      </div>
+
+      {avatarMode === 'imagePack' && (
+        <div
+          style={{
+            display: 'grid',
+            gap: 12,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          }}
+        >
+          {stageKeys.map((key, index) => (
+            <AvatarStageSlot
+              key={index}
+              studentAlias={student.alias}
+              stageIndex={index}
+              blobKey={key}
+              onSelectFile={(file) => onStageUpload(student, index, file)}
+              onRemove={() => onStageRemove(student, index)}
+            />
+          ))}
+        </div>
+      )}
     </li>
   );
 });
 StudentRow.displayName = 'StudentRow';
+
+type AvatarStageSlotProps = {
+  studentAlias: string;
+  stageIndex: number;
+  blobKey: string | null;
+  onSelectFile: (file: File) => Promise<void>;
+  onRemove: () => Promise<void>;
+};
+
+const AvatarStageSlot = ({ studentAlias, stageIndex, blobKey, onSelectFile, onRemove }: AvatarStageSlotProps) => {
+  const url = useBlobUrl(blobKey);
+  const inputId = useId();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const dragCounter = useRef(0);
+
+  const resetInput = useCallback(() => {
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
+  }, []);
+
+  const handleFiles = useCallback(
+    (files: FileList | null) => {
+      const file = files?.[0];
+      if (!file) return;
+      void onSelectFile(file);
+      resetInput();
+    },
+    [onSelectFile, resetInput],
+  );
+
+  const handleDragEnter = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    dragCounter.current += 1;
+    setDragActive(true);
+  }, []);
+
+  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    dragCounter.current = Math.max(0, dragCounter.current - 1);
+    if (dragCounter.current === 0) {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dragCounter.current = 0;
+      setDragActive(false);
+      const files = event.dataTransfer?.files;
+      if (files?.length) {
+        handleFiles(files);
+      }
+    },
+    [handleFiles],
+  );
+
+  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+  }, []);
+
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      inputRef.current?.click();
+    }
+  }, []);
+
+  return (
+    <div
+      role="group"
+      aria-labelledby={`${inputId}-label`}
+      tabIndex={0}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      onKeyDown={handleKeyDown}
+      style={{
+        border: `2px dashed ${dragActive ? '#3b82f6' : '#cbd5e1'}`,
+        borderRadius: 12,
+        padding: 12,
+        background: dragActive ? '#eff6ff' : '#f8fafc',
+        display: 'grid',
+        gap: 12,
+        outline: 'none',
+      }}
+    >
+      <div id={`${inputId}-label`} style={{ fontWeight: 600 }}>
+        Stufe {stageIndex}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div
+          style={{
+            width: 80,
+            height: 80,
+            borderRadius: 16,
+            background: '#e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          {url ? (
+            <img
+              src={url}
+              alt={`Avatar-Stufe ${stageIndex} Vorschau für ${studentAlias}`}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <span style={{ fontSize: 12, color: '#64748b', textAlign: 'center', padding: '0 8px' }}>Kein Bild</span>
+          )}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label htmlFor={inputId} style={srOnly}>{`Avatar Stufe ${stageIndex} Bild wählen`}</label>
+          <input
+            ref={inputRef}
+            id={inputId}
+            type="file"
+            accept="image/png,image/webp,image/jpeg,image/jpg"
+            style={{ display: 'none' }}
+            onChange={(event) => handleFiles(event.currentTarget.files)}
+          />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <button type="button" onClick={() => inputRef.current?.click()} aria-label={`Avatar Stufe ${stageIndex} wählen`}>
+              Bild wählen
+            </button>
+            {blobKey && (
+              <button
+                type="button"
+                onClick={() => {
+                  void onRemove();
+                  resetInput();
+                }}
+                aria-label={`Avatar Stufe ${stageIndex} entfernen`}
+              >
+                Entfernen
+              </button>
+            )}
+          </div>
+          <span style={{ fontSize: 12, color: '#64748b' }}>Ziehen &amp; ablegen möglich</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+type StarIconUploaderProps = {
+  blobKey: string | null;
+  onSelect: (file: File) => Promise<void>;
+  onRemove: () => Promise<void>;
+};
+
+const StarIconUploader = ({ blobKey, onSelect, onRemove }: StarIconUploaderProps) => {
+  const url = useBlobUrl(blobKey);
+  const inputId = useId();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const dragCounter = useRef(0);
+
+  const resetInput = useCallback(() => {
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
+  }, []);
+
+  const handleFiles = useCallback(
+    (files: FileList | null) => {
+      const file = files?.[0];
+      if (!file) return;
+      void onSelect(file);
+      resetInput();
+    },
+    [onSelect, resetInput],
+  );
+
+  const handleDragEnter = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    dragCounter.current += 1;
+    setDragActive(true);
+  }, []);
+
+  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    dragCounter.current = Math.max(0, dragCounter.current - 1);
+    if (dragCounter.current === 0) {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dragCounter.current = 0;
+      setDragActive(false);
+      const files = event.dataTransfer?.files;
+      if (files?.length) {
+        handleFiles(files);
+      }
+    },
+    [handleFiles],
+  );
+
+  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+  }, []);
+
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      inputRef.current?.click();
+    }
+  }, []);
+
+  return (
+    <div
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      style={{
+        border: `2px dashed ${dragActive ? '#3b82f6' : '#cbd5e1'}`,
+        borderRadius: 12,
+        padding: 16,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+        background: dragActive ? '#eff6ff' : '#f8fafc',
+        flexWrap: 'wrap',
+      }}
+    >
+      <div
+        style={{
+          width: 72,
+          height: 72,
+          borderRadius: 18,
+          background: '#e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+        }}
+      >
+        {url ? (
+          <img
+            src={url}
+            alt="Stern-Icon Vorschau"
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
+        ) : (
+          <span style={{ fontSize: 12, color: '#64748b', textAlign: 'center', padding: '0 8px' }}>Kein Bild</span>
+        )}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minWidth: 200 }}>
+        <label htmlFor={inputId} style={srOnly}>Stern-Icon wählen</label>
+        <input
+          ref={inputRef}
+          id={inputId}
+          type="file"
+          accept="image/png,image/webp,image/jpeg,image/jpg"
+          style={{ display: 'none' }}
+          onChange={(event) => handleFiles(event.currentTarget.files)}
+        />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button type="button" onClick={() => inputRef.current?.click()} aria-label="Stern-Icon wählen">
+            Bild wählen
+          </button>
+          {blobKey && (
+            <button
+              type="button"
+              onClick={() => {
+                void onRemove();
+                resetInput();
+              }}
+              aria-label="Stern-Icon entfernen"
+            >
+              Entfernen
+            </button>
+          )}
+          <span
+            role="img"
+            aria-label="Upload-Hinweis"
+            title="Transparentes WebP/PNG wirkt am besten."
+            style={{ fontSize: 18 }}
+          >
+            💡
+          </span>
+        </div>
+        <span style={{ fontSize: 12, color: '#64748b' }}>Ziehen &amp; ablegen möglich</span>
+      </div>
+    </div>
+  );
+};
 
 type QuestRowProps = {
   quest: Quest;
@@ -289,6 +762,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const [lastImportedIds, setLastImportedIds] = useState<string[] | null>(null);
   const [bulkUndoDeadline, setBulkUndoDeadline] = useState<number | null>(null);
   const [undoTicker, setUndoTicker] = useState(0);
+  const starIconKey = state.settings.classStarIconKey ?? null;
 
   const addStudent = useCallback(() => {
     const trimmed = alias.trim();
@@ -375,12 +849,132 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     [dispatch, feedback],
   );
   const onRemoveStudent = useCallback(
-    (id: string) => {
+    async (id: string) => {
+      const student = state.students.find((entry) => entry.id === id);
+      if (student) {
+        const stageKeys = getStageKeys(student.avatarPack);
+        for (const key of stageKeys) {
+          if (!key) continue;
+          try {
+            await deleteBlob(key);
+          } catch (error) {
+            console.warn('Avatar-Bild konnte nicht entfernt werden', error);
+          }
+        }
+      }
       dispatch({ type: 'REMOVE_STUDENT', id });
       feedback.success('Schüler entfernt');
     },
+    [dispatch, feedback, state.students],
+  );
+  const onAvatarModeChange = useCallback(
+    (student: Student, mode: Student['avatarMode']) => {
+      const normalized: Student['avatarMode'] = mode === 'imagePack' ? 'imagePack' : 'procedural';
+      const updates: Partial<Student> = { avatarMode: normalized };
+      if (normalized === 'imagePack') {
+        updates.avatarPack = { stageKeys: getStageKeys(student.avatarPack) };
+      }
+      dispatch({ type: 'UPDATE_STUDENT_AVATAR', id: student.id, updates });
+      feedback.info(
+        normalized === 'imagePack'
+          ? `${student.alias}: Bildpaket aktiviert`
+          : `${student.alias}: prozeduraler Avatar aktiviert`,
+      );
+    },
     [dispatch, feedback],
   );
+  const onStageUpload = useCallback(
+    async (student: Student, stageIndex: number, file: File) => {
+      if (
+        !validateImageFile(file, feedback, {
+          context: 'Avatar',
+          maxBytes: MAX_IMAGE_BYTES,
+        })
+      ) {
+        return;
+      }
+      try {
+        const stageKeys = getStageKeys(student.avatarPack);
+        const previousKey = stageKeys[stageIndex];
+        if (previousKey) {
+          await deleteBlob(previousKey);
+        }
+        const id = await putBlob(file);
+        const nextKeys = [...stageKeys];
+        nextKeys[stageIndex] = id;
+        dispatch({
+          type: 'UPDATE_STUDENT_AVATAR',
+          id: student.id,
+          updates: { avatarMode: 'imagePack', avatarPack: { stageKeys: nextKeys } },
+        });
+        feedback.success(`Avatar-Stufe ${stageIndex} gespeichert`);
+      } catch (error) {
+        console.error('Avatar-Upload fehlgeschlagen', error);
+        feedback.error('Avatar konnte nicht gespeichert werden');
+      }
+    },
+    [dispatch, feedback],
+  );
+  const onStageRemove = useCallback(
+    async (student: Student, stageIndex: number) => {
+      const stageKeys = getStageKeys(student.avatarPack);
+      const nextKeys = [...stageKeys];
+      const key = nextKeys[stageIndex];
+      nextKeys[stageIndex] = null;
+      try {
+        if (key) {
+          await deleteBlob(key);
+        }
+      } catch (error) {
+        console.warn('Avatar-Bild konnte nicht entfernt werden', error);
+      }
+      const hasAny = nextKeys.some(Boolean);
+      dispatch({
+        type: 'UPDATE_STUDENT_AVATAR',
+        id: student.id,
+        updates: { avatarMode: hasAny ? 'imagePack' : 'procedural', avatarPack: { stageKeys: nextKeys } },
+      });
+      feedback.info(`Avatar-Stufe ${stageIndex} entfernt`);
+    },
+    [dispatch, feedback],
+  );
+  const onStarIconSelect = useCallback(
+    async (file: File) => {
+      if (
+        !validateImageFile(file, feedback, {
+          context: 'Stern-Icon',
+          maxBytes: MAX_IMAGE_BYTES,
+          recommendBytes: STAR_ICON_RECOMMENDED_BYTES,
+          recommendMessage: 'Empfohlen: ≤ 512 KB für schnelle Ladezeiten.',
+        })
+      ) {
+        return;
+      }
+      try {
+        if (starIconKey) {
+          await deleteBlob(starIconKey);
+        }
+        const id = await putBlob(file);
+        dispatch({ type: 'UPDATE_SETTINGS', updates: { classStarIconKey: id } });
+        feedback.success('Stern-Icon gespeichert');
+      } catch (error) {
+        console.error('Stern-Icon konnte nicht gespeichert werden', error);
+        feedback.error('Stern-Icon konnte nicht gespeichert werden');
+      }
+    },
+    [dispatch, feedback, starIconKey],
+  );
+  const onStarIconRemove = useCallback(async () => {
+    if (starIconKey) {
+      try {
+        await deleteBlob(starIconKey);
+      } catch (error) {
+        console.warn('Stern-Icon konnte nicht entfernt werden', error);
+      }
+    }
+    dispatch({ type: 'UPDATE_SETTINGS', updates: { classStarIconKey: null } });
+    feedback.info('Stern-Icon entfernt');
+  }, [dispatch, feedback, starIconKey]);
 
   const handleUndoImport = useCallback(() => {
     if (!lastImportedIds?.length) return;
@@ -604,10 +1198,29 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
           </div>
         )}
         <ul style={{ display: 'grid', gap: 8, margin: 0, padding: 0, listStyle: 'none' }}>
-          {sortedStudents.map((s) => (
-            <StudentRow key={s.id} id={s.id} alias={s.alias} onSave={onUpdateStudent} onRemove={onRemoveStudent} />
+          {sortedStudents.map((student) => (
+            <StudentRow
+              key={student.id}
+              student={student}
+              onSaveAlias={onUpdateStudent}
+              onRemove={onRemoveStudent}
+              onAvatarModeChange={onAvatarModeChange}
+              onStageUpload={onStageUpload}
+              onStageRemove={onStageRemove}
+            />
           ))}
         </ul>
+      </section>
+
+      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
+        <h2>Class Goals &amp; Rewards</h2>
+        <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+          <div style={{ display: 'grid', gap: 8 }}>
+            <h3 style={{ margin: 0 }}>Stern-Icon</h3>
+            <StarIconUploader blobKey={starIconKey} onSelect={onStarIconSelect} onRemove={onStarIconRemove} />
+            <small style={{ color: '#64748b' }}>Empfohlen: WebP/PNG, transparent, ~256–512px.</small>
+          </div>
+        </div>
       </section>
 
       <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>

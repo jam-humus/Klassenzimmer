@@ -13,6 +13,7 @@ type Action =
   | { type: 'INIT'; state: AppState }
   | { type: 'ADD_STUDENT'; alias: string }
   | { type: 'UPDATE_STUDENT_ALIAS'; id: ID; alias: string }
+  | { type: 'UPDATE_STUDENT_AVATAR'; id: ID; updates: Partial<Pick<Student, 'avatarMode' | 'avatarPack'>> }
   | { type: 'REMOVE_STUDENT'; id: ID }
   | { type: 'ADD_STUDENTS_BULK'; aliases: string[] }
   | { type: 'REMOVE_STUDENTS_BULK'; ids: ID[] }
@@ -34,6 +35,39 @@ const createId = () => globalThis.crypto?.randomUUID?.() ?? Math.random().toStri
 
 const unique = <T,>(values: Iterable<T>) => Array.from(new Set(values));
 
+const AVATAR_STAGE_COUNT = 3;
+
+const normalizeAvatarPack = (pack?: Student['avatarPack']): Student['avatarPack'] => {
+  const rawKeys = Array.isArray(pack?.stageKeys) ? pack?.stageKeys ?? [] : [];
+  const stageKeys = Array.from({ length: AVATAR_STAGE_COUNT }, (_, index) => {
+    const candidate = rawKeys[index];
+    if (typeof candidate === 'string') {
+      const trimmed = candidate.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+    return null;
+  });
+  return { stageKeys };
+};
+
+const stageKeysEqual = (a: (string | null)[], b: (string | null)[]) =>
+  a.length === b.length && a.every((value, index) => value === b[index]);
+
+const normalizeStudentAvatar = (student: Student): Student => {
+  const avatarMode: Student['avatarMode'] = student.avatarMode === 'imagePack' ? 'imagePack' : 'procedural';
+  const currentPack = normalizeAvatarPack(student.avatarPack);
+  const needsPackUpdate = !student.avatarPack || !stageKeysEqual(student.avatarPack.stageKeys ?? [], currentPack.stageKeys);
+  const needsModeUpdate = student.avatarMode !== avatarMode;
+  if (!needsPackUpdate && !needsModeUpdate) {
+    return student.avatarPack ? student : { ...student, avatarPack: currentPack };
+  }
+  return {
+    ...student,
+    avatarMode,
+    avatarPack: currentPack,
+  } satisfies Student;
+};
+
 function normalizeSettings(settings?: Partial<Settings>): Settings {
   const merged: Settings = {
     ...DEFAULT_SETTINGS,
@@ -43,6 +77,9 @@ function normalizeSettings(settings?: Partial<Settings>): Settings {
       ...((settings?.flags ?? {}) as Record<string, boolean>),
     },
   };
+  const rawStarKey =
+    typeof merged.classStarIconKey === 'string' ? merged.classStarIconKey.trim() : merged.classStarIconKey;
+  merged.classStarIconKey = rawStarKey && typeof rawStarKey === 'string' && rawStarKey.length > 0 ? rawStarKey : null;
   if (merged.onboardingCompleted == null) {
     merged.onboardingCompleted = false;
   }
@@ -110,13 +147,14 @@ function normalizeState(raw: AppState): AppState {
   const logs = sortLogs(raw.logs ?? []);
   const teams = normalizeTeams(raw.teams, students);
   const syncedStudents = syncStudentsWithTeams(students, teams);
-  const hasData = syncedStudents.length > 0 || quests.length > 0 || logs.length > 0;
+  const normalizedStudents = syncedStudents.map((student) => normalizeStudentAvatar(student));
+  const hasData = normalizedStudents.length > 0 || quests.length > 0 || logs.length > 0;
   const settings = normalizeSettings({
     ...raw.settings,
     onboardingCompleted: hasData ? true : raw.settings?.onboardingCompleted,
   });
   return {
-    students: syncedStudents,
+    students: normalizedStudents,
     quests,
     logs,
     teams,
@@ -181,6 +219,35 @@ function reducer(state: AppState, action: Action): AppState {
           student.id === action.id ? { ...student, alias: action.alias.trim() || student.alias } : student,
         ),
       };
+    case 'UPDATE_STUDENT_AVATAR': {
+      let changed = false;
+      const students = state.students.map((student) => {
+        if (student.id !== action.id) {
+          return student;
+        }
+        const base = normalizeStudentAvatar(student);
+        const nextMode = action.updates.avatarMode ?? base.avatarMode ?? 'procedural';
+        const requestedPack = action.updates.avatarPack
+          ? normalizeAvatarPack(action.updates.avatarPack)
+          : base.avatarPack ?? normalizeAvatarPack();
+        const currentPack = base.avatarPack ?? normalizeAvatarPack();
+        const packChanged = !stageKeysEqual(requestedPack.stageKeys, currentPack.stageKeys);
+        const modeChanged = nextMode !== base.avatarMode;
+        if (!packChanged && !modeChanged) {
+          if (base !== student) {
+            changed = true;
+          }
+          return base;
+        }
+        changed = true;
+        return {
+          ...base,
+          avatarMode: nextMode,
+          avatarPack: requestedPack,
+        } satisfies Student;
+      });
+      return changed ? { ...state, students } : state;
+    }
     case 'REMOVE_STUDENT': {
       const students = state.students.filter((student) => student.id !== action.id);
       const teams = state.teams.map((team) => ({
