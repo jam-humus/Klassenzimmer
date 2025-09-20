@@ -1,14 +1,29 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useApp } from '~/app/AppContext';
-import type { ID, Quest, QuestType, Student, Team } from '~/types/models';
+import type { BadgeDefinition, ID, Quest, QuestType, Student, Team } from '~/types/models';
 import AsyncButton from '~/ui/feedback/AsyncButton';
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import { EVENT_EXPORT_DATA, EVENT_IMPORT_DATA, EVENT_OPEN_SEASON_RESET } from '~/ui/shortcut/events';
 import { deleteBlob, getObjectURL, putBlob } from '~/services/blobStore';
 import { selectLogsForStudent, selectStudentById } from '~/core/selectors/student';
 import StudentDetailScreen from '~/ui/screens/StudentDetailScreen';
+import { BadgeIcon } from '~/ui/components/BadgeIcon';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
+
+const describeBadgeRule = (definition: BadgeDefinition) => {
+  const rule = definition.rule;
+  if (!rule) {
+    return 'Manuell vergeben';
+  }
+  if (rule.type === 'total_xp') {
+    return `Auto: Gesamt-XP ≥ ${rule.threshold}`;
+  }
+  if (rule.type === 'category_xp') {
+    return `Auto: ${rule.category} ≥ ${rule.threshold} XP`;
+  }
+  return 'Manuell vergeben';
+};
 
 const ACCEPTED_IMAGE_TYPES = new Set(['image/png', 'image/webp', 'image/jpeg', 'image/jpg']);
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -573,7 +588,7 @@ const StarIconUploader = ({ blobKey, onSelect, onRemove }: StarIconUploaderProps
 
 type QuestRowProps = {
   quest: Quest;
-  onSave: (id: string, updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active'>>) => void;
+  onSave: (id: string, updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active' | 'category'>>) => void;
   onRemove: (id: string) => void;
 };
 
@@ -582,18 +597,34 @@ const QuestRow = React.memo(function QuestRow({ quest, onSave, onRemove }: Quest
   const [xp, setXp] = useState<number>(quest.xp);
   const [type, setType] = useState<Quest['type']>(quest.type);
   const [active, setActive] = useState<boolean>(quest.active);
+  const [category, setCategory] = useState<string>(quest.category ?? '');
 
   useEffect(() => setName(quest.name), [quest.name]);
   useEffect(() => setXp(quest.xp), [quest.xp]);
   useEffect(() => setType(quest.type), [quest.type]);
   useEffect(() => setActive(quest.active), [quest.active]);
+  useEffect(() => setCategory(quest.category ?? ''), [quest.category]);
 
   const commit = useCallback(() => {
-    onSave(quest.id, { name: name.trim() || quest.name, xp: Math.max(0, xp), type, active });
-  }, [onSave, quest.id, name, xp, type, active, quest.name]);
+    const trimmedCategory = category.trim();
+    onSave(quest.id, {
+      name: name.trim() || quest.name,
+      xp: Math.max(0, xp),
+      type,
+      active,
+      category: trimmedCategory.length > 0 ? trimmedCategory : null,
+    });
+  }, [onSave, quest.id, name, xp, type, active, category, quest.name]);
 
   return (
-    <li style={{ display: 'grid', gridTemplateColumns: '2fr 100px 120px auto auto', gap: 8, alignItems: 'center' }}>
+    <li
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '2fr 100px 140px 1fr auto auto',
+        gap: 8,
+        alignItems: 'center',
+      }}
+    >
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -632,6 +663,20 @@ const QuestRow = React.memo(function QuestRow({ quest, onSave, onRemove }: Quest
           </option>
         ))}
       </select>
+      <input
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            commit();
+          }
+        }}
+        placeholder="Kategorie"
+        aria-label={`Kategorie für ${quest.name}`}
+        style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid #d0d7e6' }}
+      />
       <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <input
           type="checkbox"
@@ -767,15 +812,81 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const [qXP, setQXP] = useState(10);
   const [qType, setQType] = useState<'daily' | 'repeatable' | 'oneoff'>('daily');
   const [groupName, setGroupName] = useState('Team A');
+  const [badgeName, setBadgeName] = useState('');
+  const [badgeDescription, setBadgeDescription] = useState('');
+  const [badgeCategory, setBadgeCategory] = useState('');
+  const [badgeRuleType, setBadgeRuleType] = useState<'total_xp' | 'category_xp'>('total_xp');
+  const [badgeRuleThreshold, setBadgeRuleThreshold] = useState(100);
+  const [badgeRuleCategory, setBadgeRuleCategory] = useState('');
+  const [badgeIconPreview, setBadgeIconPreview] = useState<string | null>(null);
+  const [badgeIconFile, setBadgeIconFile] = useState<File | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const csvInputRef = useRef<HTMLInputElement | null>(null);
+  const badgeIconInputRef = useRef<HTMLInputElement | null>(null);
   const pendingImportAliasesRef = useRef<string[] | null>(null);
   const [lastImportedIds, setLastImportedIds] = useState<string[] | null>(null);
   const [bulkUndoDeadline, setBulkUndoDeadline] = useState<number | null>(null);
   const [undoTicker, setUndoTicker] = useState(0);
   const [detailStudentId, setDetailStudentId] = useState<string | null>(null);
   const starIconKey = state.settings.classStarIconKey ?? null;
+
+  const updateBadgeIcon = useCallback((file: File | null) => {
+    setBadgeIconFile(file);
+    setBadgeIconPreview((previous) => {
+      if (previous && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+        try {
+          URL.revokeObjectURL(previous);
+        } catch (error) {
+          console.warn('Badge-Icon Vorschau konnte nicht freigegeben werden', error);
+        }
+      }
+      if (file && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+        try {
+          return URL.createObjectURL(file);
+        } catch (error) {
+          console.warn('Badge-Icon Vorschau konnte nicht erstellt werden', error);
+        }
+      }
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (badgeIconPreview && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+        try {
+          URL.revokeObjectURL(badgeIconPreview);
+        } catch (error) {
+          console.warn('Badge-Icon Vorschau konnte nicht freigegeben werden', error);
+        }
+      }
+    };
+  }, [badgeIconPreview]);
+
+  const onBadgeIconChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0] ?? null;
+      if (!file) {
+        updateBadgeIcon(null);
+        return;
+      }
+      if (
+        !validateImageFile(file, feedback, {
+          context: 'Badge-Icon',
+          maxBytes: MAX_IMAGE_BYTES,
+          recommendBytes: STAR_ICON_RECOMMENDED_BYTES,
+          recommendMessage: 'Empfohlen: ≤ 512 KB für schnelle Ladezeiten.',
+        })
+      ) {
+        event.target.value = '';
+        updateBadgeIcon(null);
+        return;
+      }
+      updateBadgeIcon(file);
+    },
+    [feedback, updateBadgeIcon],
+  );
 
   const openStudentDetail = useCallback((id: string) => {
     setDetailStudentId(id);
@@ -880,6 +991,86 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     presets.forEach((quest) => dispatch({ type: 'ADD_QUEST', quest }));
     feedback.info('15 Demo-Quests hinzugefügt');
   }, [dispatch, feedback]);
+
+  const handleCreateBadgeDefinition = useCallback(async () => {
+    const trimmedName = badgeName.trim();
+    if (!trimmedName) {
+      feedback.error('Badge benötigt einen Namen');
+      return;
+    }
+    const threshold = Number.isFinite(badgeRuleThreshold)
+      ? Math.max(0, Math.round(badgeRuleThreshold))
+      : 0;
+    let iconKey: string | null = null;
+    try {
+      if (badgeIconFile) {
+        iconKey = await putBlob(badgeIconFile);
+      }
+    } catch (error) {
+      console.error('Badge-Icon konnte nicht gespeichert werden', error);
+      feedback.error('Badge-Icon konnte nicht gespeichert werden');
+      return;
+    }
+    const descriptionValue = badgeDescription.trim();
+    const description = descriptionValue.length > 0 ? descriptionValue : undefined;
+    const categoryValue = badgeCategory.trim();
+    const category = categoryValue.length > 0 ? categoryValue : null;
+    let rule: BadgeDefinition['rule'] = null;
+    if (badgeRuleType === 'total_xp') {
+      rule = { type: 'total_xp', threshold };
+    } else {
+      const ruleCategoryValue = badgeRuleCategory.trim() || categoryValue;
+      const normalizedRuleCategory = ruleCategoryValue.length > 0 ? ruleCategoryValue : 'uncategorized';
+      rule = { type: 'category_xp', category: normalizedRuleCategory, threshold };
+    }
+    const definition: BadgeDefinition = {
+      id: `badge-${makeId()}`,
+      name: trimmedName,
+      description,
+      category,
+      iconKey,
+      rule,
+    };
+    dispatch({ type: 'ADD_BADGE_DEF', definition });
+    feedback.success('Badge gespeichert');
+    updateBadgeIcon(null);
+    if (badgeIconInputRef.current) {
+      badgeIconInputRef.current.value = '';
+    }
+    setBadgeName('');
+    setBadgeDescription('');
+    setBadgeCategory('');
+    setBadgeRuleType('total_xp');
+    setBadgeRuleThreshold(100);
+    setBadgeRuleCategory('');
+  }, [
+    badgeCategory,
+    badgeDescription,
+    badgeIconFile,
+    badgeName,
+    badgeRuleCategory,
+    badgeRuleThreshold,
+    badgeRuleType,
+    badgeIconInputRef,
+    dispatch,
+    feedback,
+    updateBadgeIcon,
+  ]);
+
+  const onRemoveBadgeDefinition = useCallback(
+    async (definition: BadgeDefinition) => {
+      if (definition.iconKey) {
+        try {
+          await deleteBlob(definition.iconKey);
+        } catch (error) {
+          console.warn('Badge-Icon konnte nicht entfernt werden', error);
+        }
+      }
+      dispatch({ type: 'REMOVE_BADGE_DEF', id: definition.id });
+      feedback.info('Badge gelöscht');
+    },
+    [dispatch, feedback],
+  );
 
   const onUpdateStudent = useCallback(
     (id: string, nextAlias: string) => {
@@ -1025,7 +1216,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     feedback.info('Import rückgängig gemacht');
   }, [dispatch, feedback, lastImportedIds]);
   const onUpdateQuest = useCallback(
-    (id: string, updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active'>>) => {
+    (id: string, updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active' | 'category'>>) => {
       dispatch({ type: 'UPDATE_QUEST', id, updates });
       feedback.success('Quest aktualisiert');
     },
@@ -1068,6 +1259,10 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     [dispatch, feedback],
   );
 
+  const sortedBadges = useMemo(
+    () => [...(state.badgeDefs ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [state.badgeDefs],
+  );
   const sortedStudents = useMemo(() => [...state.students].sort((a, b) => a.alias.localeCompare(b.alias)), [state.students]);
   const sortedQuests = useMemo(() => [...state.quests].sort((a, b) => a.name.localeCompare(b.name)), [state.quests]);
   const sortedTeams = useMemo(() => [...state.teams].sort((a, b) => a.name.localeCompare(b.name)), [state.teams]);
@@ -1193,6 +1388,8 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     [dispatch, feedback],
   );
 
+  const canSaveBadge = badgeName.trim().length > 0;
+
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
@@ -1265,7 +1462,222 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
       </section>
 
       <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
+        <h2>Badges verwalten</h2>
+        <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
+          Lege neue Badges an, lade eigene Icons hoch und steuere Auto-Auszeichnungen über XP-Schwellen und Kategorien.
+        </p>
+        <div
+          style={{
+            display: 'grid',
+            gap: 12,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          }}
+        >
+          <div
+            style={{
+              border: '1px solid #d0d7e6',
+              borderRadius: 12,
+              padding: 12,
+              display: 'grid',
+              gap: 12,
+            }}
+          >
+            <h3 style={{ margin: 0 }}>Neues Badge</h3>
+            <label style={{ display: 'grid', gap: 4 }}>
+              <span style={{ fontWeight: 600 }}>Name</span>
+              <input
+                value={badgeName}
+                onChange={(e) => setBadgeName(e.target.value)}
+                placeholder="z. B. Mathe-Profi"
+                style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
+              />
+            </label>
+            <label style={{ display: 'grid', gap: 4 }}>
+              <span style={{ fontWeight: 600 }}>Beschreibung (optional)</span>
+              <input
+                value={badgeDescription}
+                onChange={(e) => setBadgeDescription(e.target.value)}
+                placeholder="Kurzbeschreibung"
+                style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
+              />
+            </label>
+            <label style={{ display: 'grid', gap: 4 }}>
+              <span style={{ fontWeight: 600 }}>Kategorie (optional)</span>
+              <input
+                value={badgeCategory}
+                onChange={(e) => setBadgeCategory(e.target.value)}
+                placeholder="z. B. homework"
+                style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
+              />
+            </label>
+            <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 14,
+                    border: '1px solid #d0d7e6',
+                    background: '#f8fafc',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {badgeIconPreview ? (
+                    <img
+                      src={badgeIconPreview}
+                      alt="Badge-Vorschau"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 28 }}>🏅</span>
+                  )}
+                </div>
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <label style={{ fontWeight: 600 }}>
+                    Icon (optional)
+                    <input
+                      ref={badgeIconInputRef}
+                      type="file"
+                      accept="image/png,image/webp,image/jpeg,image/jpg"
+                      onChange={onBadgeIconChange}
+                      style={{ marginTop: 4 }}
+                    />
+                  </label>
+                  {badgeIconPreview && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateBadgeIcon(null);
+                        if (badgeIconInputRef.current) {
+                          badgeIconInputRef.current.value = '';
+                        }
+                      }}
+                      style={{ padding: '4px 8px', alignSelf: 'flex-start' }}
+                    >
+                      Icon entfernen
+                    </button>
+                  )}
+                </div>
+              </div>
+              <small style={{ color: '#64748b' }}>PNG/WebP mit transparentem Hintergrund wirken am besten.</small>
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gap: 8,
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+              }}
+            >
+              <label style={{ display: 'grid', gap: 4 }}>
+                <span style={{ fontWeight: 600 }}>Auto-Regel</span>
+                <select
+                  value={badgeRuleType}
+                  onChange={(e) => setBadgeRuleType(e.target.value as typeof badgeRuleType)}
+                  style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
+                >
+                  <option value="total_xp">Gesamt-XP</option>
+                  <option value="category_xp">Kategorie-XP</option>
+                </select>
+              </label>
+              <label style={{ display: 'grid', gap: 4 }}>
+                <span style={{ fontWeight: 600 }}>Schwelle</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={badgeRuleThreshold}
+                  onChange={(e) => setBadgeRuleThreshold(Number.parseInt(e.target.value, 10) || 0)}
+                  style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
+                />
+              </label>
+              {badgeRuleType === 'category_xp' && (
+                <label style={{ display: 'grid', gap: 4 }}>
+                  <span style={{ fontWeight: 600 }}>Regel-Kategorie</span>
+                  <input
+                    value={badgeRuleCategory}
+                    onChange={(e) => setBadgeRuleCategory(e.target.value)}
+                    placeholder="z. B. participation"
+                    style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
+                  />
+                  <small style={{ color: '#64748b' }}>Leer lassen = gleiche Kategorie wie oben oder „uncategorized“.</small>
+                </label>
+              )}
+            </div>
+            <AsyncButton
+              onClick={() => handleCreateBadgeDefinition()}
+              style={{ padding: '10px 16px' }}
+              busyLabel="Speichert…"
+              doneLabel="Gespeichert"
+              disabled={!canSaveBadge}
+            >
+              Badge speichern
+            </AsyncButton>
+          </div>
+          <div
+            style={{
+              border: '1px solid #d0d7e6',
+              borderRadius: 12,
+              padding: 12,
+              display: 'grid',
+              gap: 12,
+            }}
+          >
+            <h3 style={{ margin: 0 }}>Vorhandene Badges</h3>
+            {sortedBadges.length === 0 ? (
+              <em>Noch keine Badges angelegt.</em>
+            ) : (
+              <ul style={{ display: 'grid', gap: 8, margin: 0, padding: 0, listStyle: 'none' }}>
+                {sortedBadges.map((badge) => (
+                  <li
+                    key={badge.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 12,
+                      padding: 8,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                      <BadgeIcon name={badge.name} iconKey={badge.iconKey} size={48} />
+                      <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+                        <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {badge.name}
+                        </strong>
+                        {badge.description && (
+                          <span style={{ fontSize: 12, color: '#475569' }}>{badge.description}</span>
+                        )}
+                        <small style={{ fontSize: 12, color: '#64748b' }}>{describeBadgeRule(badge)}</small>
+                        {badge.category && (
+                          <small style={{ fontSize: 12, color: '#475569' }}>Kategorie: {badge.category}</small>
+                        )}
+                      </div>
+                    </div>
+                    <AsyncButton
+                      onClick={() => onRemoveBadgeDefinition(badge)}
+                      style={{ padding: '6px 12px' }}
+                      busyLabel="Löscht…"
+                      doneLabel="Gelöscht"
+                    >
+                      Löschen
+                    </AsyncButton>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
         <h2>Quests verwalten</h2>
+        <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
+          Weise Quests Kategorien zu, damit Auto-Badges auf Basis von Kategorie-XP funktionieren.
+        </p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           <input
             aria-label="Questname"
