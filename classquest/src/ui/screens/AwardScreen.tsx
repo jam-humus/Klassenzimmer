@@ -562,6 +562,8 @@ export default function AwardScreen() {
                             alias={s.alias}
                             xp={s.xp}
                             level={s.level}
+                            avatarMode={s.avatarMode}
+                            avatarPack={s.avatarPack}
                             selected={isSelected(s.id)}
                             disabled={!activeQuest}
                             onToggleSelect={toggle}
@@ -609,6 +611,8 @@ export default function AwardScreen() {
                   alias={s.alias}
                   xp={s.xp}
                   level={s.level}
+                  avatarMode={s.avatarMode}
+                  avatarPack={s.avatarPack}
                   selected={isSelected(s.id)}
                   disabled={!activeQuest}
                   onToggleSelect={toggle}
