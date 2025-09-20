@@ -102,6 +102,8 @@ export const addStudent = (state: AppState, input: StudentInput): AppState => {
     lastAwardedDay: {},
     badges: [],
     teamId: targetTeam?.id,
+    avatarMode: 'procedural',
+    avatarPack: { stageKeys: [null, null, null] },
   };
 
   const teams = targetTeam

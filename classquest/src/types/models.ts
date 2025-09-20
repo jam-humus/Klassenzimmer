@@ -1,11 +1,18 @@
 export type ID = string;
 export type Badge = { id: ID; name: string; icon?: string; description?: string };
 
+export type StudentAvatarMode = 'procedural' | 'imagePack';
+export type StudentAvatarPack = {
+  stageKeys: (string | null)[];
+};
+
 export type Student = {
   id: ID; alias: string; xp: number; level: number;
   streaks: Record<ID, number>;
   lastAwardedDay: Record<ID, string>; // YYYY-MM-DD
   badges: Badge[]; teamId?: ID;
+  avatarMode?: StudentAvatarMode;
+  avatarPack?: StudentAvatarPack;
 };
 
 export type Team = { id: ID; name: string; memberIds: ID[] };
@@ -33,6 +40,7 @@ export type Settings = {
   animationsEnabled?: boolean;
   kidModeEnabled?: boolean;
   flags?: Record<string, boolean>;
+  classStarIconKey?: string | null;
 };
 
 export type AppState = {

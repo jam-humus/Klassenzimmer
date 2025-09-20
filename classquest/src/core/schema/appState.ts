@@ -8,6 +8,10 @@ export const Badge = z.object({
   description: z.string().optional(),
 });
 
+const AvatarPack = z.object({
+  stageKeys: z.array(ID.nullable()).optional(),
+});
+
 export const Student = z.object({
   id: ID,
   alias: z.string().min(1),
@@ -17,6 +21,8 @@ export const Student = z.object({
   lastAwardedDay: z.record(ID, z.string()).default({}),
   badges: z.array(Badge).default([]),
   teamId: ID.optional(),
+  avatarMode: z.enum(['procedural', 'imagePack']).optional(),
+  avatarPack: AvatarPack.optional(),
 });
 
 export const Team = z.object({
@@ -57,6 +63,7 @@ export const Settings = z.object({
   shortcutsEnabled: z.boolean().optional(),
   onboardingCompleted: z.boolean().optional(),
   flags: z.record(z.string(), z.boolean()).optional(),
+  classStarIconKey: z.string().optional().nullable(),
 });
 
 export const AppState = z.object({
@@ -141,6 +148,22 @@ const sanitizeBadges = (value: unknown): AppStateType['students'][number]['badge
   return items;
 };
 
+const AVATAR_STAGE_COUNT = 3;
+
+const sanitizeStageKeys = (value: unknown): (string | null)[] => {
+  if (!Array.isArray(value)) {
+    return Array.from({ length: AVATAR_STAGE_COUNT }, () => null);
+  }
+  return Array.from({ length: AVATAR_STAGE_COUNT }, (_, index) => asString(value[index]) ?? null);
+};
+
+const sanitizeAvatarPack = (value: unknown): AppStateType['students'][number]['avatarPack'] => {
+  if (!isRecord(value)) {
+    return { stageKeys: sanitizeStageKeys(undefined) };
+  }
+  return { stageKeys: sanitizeStageKeys(value.stageKeys) };
+};
+
 const sanitizeFlags = (value: unknown): Record<string, boolean> | undefined => {
   if (!isRecord(value)) return undefined;
   const entries = Object.entries(value)
@@ -182,7 +205,9 @@ export function sanitizeState(raw: unknown): AppStateType | null {
       const lastAwardedDay = sanitizeStringRecord(candidate.lastAwardedDay);
       const badges = sanitizeBadges(candidate.badges);
       const teamId = asId(candidate.teamId) ?? undefined;
-      students.push({ id, alias, xp, level, streaks, lastAwardedDay, badges, teamId });
+      const avatarMode = candidate.avatarMode === 'imagePack' ? 'imagePack' : 'procedural';
+      const avatarPack = sanitizeAvatarPack(candidate.avatarPack);
+      students.push({ id, alias, xp, level, streaks, lastAwardedDay, badges, teamId, avatarMode, avatarPack });
     });
   }
 
@@ -250,6 +275,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
     shortcutsEnabled: asBoolean(settingsRecord.shortcutsEnabled, true),
     onboardingCompleted: asBoolean(settingsRecord.onboardingCompleted, false),
     flags: sanitizeFlags(settingsRecord.flags),
+    classStarIconKey: asString(settingsRecord.classStarIconKey),
   };
 
   const version = Math.max(1, Math.trunc(asNumber(raw.version, 1)) || 1);

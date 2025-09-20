@@ -10,4 +10,5 @@ export const DEFAULT_SETTINGS = {
   shortcutsEnabled: true,
   onboardingCompleted: false,
   flags: { virtualize: false } as Record<string, boolean>,
+  classStarIconKey: null,
 } as const;
