@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS } from './config';
 import { todayKey, levelFromXP } from './xp';
+import { shouldAutoAward } from './selectors/badges';
 import type { Student, Quest, LogEntry, AppState, ID } from '~/types/models';
 
 const getClassMilestoneStep = (state: AppState) =>
@@ -39,6 +40,8 @@ const awardStreak = (
     : student.badges.concat({
         id: `streak-${questId}`,
         name: `${questName} ${streakThresholdForBadge}er Streak`,
+        iconKey: null,
+        awardedAt: new Date().toISOString(),
       });
 
   return { streaks, lastDays, badges };
@@ -53,9 +56,36 @@ const buildLogEntry = (
   ...log,
   questId: quest.id,
   questName: quest.name,
+  questCategory: quest.category ?? log.questCategory ?? null,
   studentId,
   note,
 });
+
+const appendAutoBadges = (state: AppState, student: Student, logs: LogEntry[]): Student => {
+  const defs = state.badgeDefs ?? [];
+  if (!defs.length) {
+    return student;
+  }
+  const evaluationState: AppState = { ...state, logs };
+  let badges = student.badges;
+  let changed = false;
+  for (const def of defs) {
+    if (!def.rule) continue;
+    if (badges.some((badge) => badge.id === def.id)) continue;
+    const snapshot: Student = { ...student, badges };
+    if (shouldAutoAward(evaluationState, snapshot, def)) {
+      badges = badges.concat({
+        id: def.id,
+        name: def.name,
+        iconKey: def.iconKey ?? null,
+        description: def.description,
+        awardedAt: new Date().toISOString(),
+      });
+      changed = true;
+    }
+  }
+  return changed ? { ...student, badges } : student;
+};
 
 export function processAward(state: AppState, studentId: ID, quest: Quest, note?: string): AppState {
   const student = state.students.find((s) => s.id === studentId);
@@ -115,6 +145,7 @@ export function processAward(state: AppState, studentId: ID, quest: Quest, note?
       studentId,
       questId: quest.id,
       questName: quest.name,
+      questCategory: quest.category ?? null,
       xp: quest.xp,
     },
     quest,
@@ -122,10 +153,13 @@ export function processAward(state: AppState, studentId: ID, quest: Quest, note?
     note,
   );
 
+  const logs = [...state.logs, log];
+  const finalStudent = appendAutoBadges(state, updatedStudent, logs);
+
   return {
     ...state,
-    students: state.students.map((s) => (s.id === studentId ? updatedStudent : s)),
-    logs: [...state.logs, log],
+    students: state.students.map((s) => (s.id === studentId ? finalStudent : s)),
+    logs,
     classProgress,
   };
 }
