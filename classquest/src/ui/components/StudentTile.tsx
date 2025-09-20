@@ -1,10 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
+import type { Student } from '~/types/models';
+import { AvatarView } from '~/ui/avatar/AvatarView';
 
 type Props = {
   id: string;
   alias: string;
   xp: number;
   level: number;
+  avatarMode?: Student['avatarMode'];
+  avatarPack?: Student['avatarPack'];
   selected: boolean;
   disabled?: boolean;
   onToggleSelect: (id: string) => void;
@@ -14,7 +18,20 @@ type Props = {
 };
 
 const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
-  { id, alias, xp, level, selected, disabled, onToggleSelect, onAward, onFocus, onLevelUp },
+  {
+    id,
+    alias,
+    xp,
+    level,
+    avatarMode,
+    avatarPack,
+    selected,
+    disabled,
+    onToggleSelect,
+    onAward,
+    onFocus,
+    onLevelUp,
+  },
   ref,
 ) {
   const [evolved, setEvolved] = useState(false);
@@ -86,9 +103,40 @@ const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
         transition: 'box-shadow 0.15s ease, border 0.15s ease',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-        <strong style={{ fontSize: '1.1rem' }}>{alias}</strong>
-        <span style={{ fontSize: 12, opacity: 0.75 }}>{xp} XP · L{level}</span>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            minWidth: 0,
+          }}
+        >
+          <AvatarView
+            student={{ alias, avatarMode, avatarPack, level, xp }}
+            size={56}
+            rounded="xl"
+          />
+          <strong
+            style={{
+              fontSize: '1.1rem',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={alias}
+          >
+            {alias}
+          </strong>
+        </div>
+        <span style={{ fontSize: 12, opacity: 0.75, flexShrink: 0 }}>{xp} XP · L{level}</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
         <button

@@ -5,6 +5,8 @@ import AsyncButton from '~/ui/feedback/AsyncButton';
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import { EVENT_EXPORT_DATA, EVENT_IMPORT_DATA, EVENT_OPEN_SEASON_RESET } from '~/ui/shortcut/events';
 import { deleteBlob, getObjectURL, putBlob } from '~/services/blobStore';
+import { selectLogsForStudent, selectStudentById } from '~/core/selectors/student';
+import StudentDetailScreen from '~/ui/screens/StudentDetailScreen';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
 
@@ -126,6 +128,7 @@ type StudentRowProps = {
   onAvatarModeChange: (student: Student, mode: Student['avatarMode']) => void;
   onStageUpload: (student: Student, stageIndex: number, file: File) => Promise<void>;
   onStageRemove: (student: Student, stageIndex: number) => Promise<void>;
+  onShowDetail: (id: string) => void;
 };
 
 const StudentRow = React.memo(function StudentRow({
@@ -135,6 +138,7 @@ const StudentRow = React.memo(function StudentRow({
   onAvatarModeChange,
   onStageUpload,
   onStageRemove,
+  onShowDetail,
 }: StudentRowProps) {
   const [value, setValue] = useState(student.alias);
   useEffect(() => setValue(student.alias), [student.alias]);
@@ -184,6 +188,14 @@ const StudentRow = React.memo(function StudentRow({
         >
           Speichern
         </AsyncButton>
+        <button
+          type="button"
+          onClick={() => onShowDetail(student.id)}
+          aria-label={`Details von ${student.alias} anzeigen`}
+          style={{ padding: '6px 12px' }}
+        >
+          Details
+        </button>
         <button
           type="button"
           onClick={() => {
@@ -762,7 +774,35 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const [lastImportedIds, setLastImportedIds] = useState<string[] | null>(null);
   const [bulkUndoDeadline, setBulkUndoDeadline] = useState<number | null>(null);
   const [undoTicker, setUndoTicker] = useState(0);
+  const [detailStudentId, setDetailStudentId] = useState<string | null>(null);
   const starIconKey = state.settings.classStarIconKey ?? null;
+
+  const openStudentDetail = useCallback((id: string) => {
+    setDetailStudentId(id);
+  }, []);
+
+  const closeStudentDetail = useCallback(() => {
+    setDetailStudentId(null);
+  }, []);
+
+  const detailStudent = useMemo(
+    () => selectStudentById({ students: state.students }, detailStudentId),
+    [state.students, detailStudentId],
+  );
+
+  const detailLogs = useMemo(
+    () =>
+      detailStudentId
+        ? selectLogsForStudent({ logs: state.logs }, detailStudentId, 50)
+        : [],
+    [state.logs, detailStudentId],
+  );
+
+  useEffect(() => {
+    if (detailStudentId && !detailStudent) {
+      setDetailStudentId(null);
+    }
+  }, [detailStudentId, detailStudent]);
 
   const addStudent = useCallback(() => {
     const trimmed = alias.trim();
@@ -1207,6 +1247,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
               onAvatarModeChange={onAvatarModeChange}
               onStageUpload={onStageUpload}
               onStageRemove={onStageRemove}
+              onShowDetail={openStudentDetail}
             />
           ))}
         </ul>
@@ -1414,6 +1455,9 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
           {importError && <span style={{ color: '#b91c1c', fontWeight: 600 }}>{importError}</span>}
         </div>
       </section>
+      {detailStudent && (
+        <StudentDetailScreen student={detailStudent} logs={detailLogs} onClose={closeStudentDetail} />
+      )}
     </div>
   );
 }
