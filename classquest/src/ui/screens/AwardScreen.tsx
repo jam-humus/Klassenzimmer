@@ -562,6 +562,7 @@ export default function AwardScreen() {
                             alias={s.alias}
                             xp={s.xp}
                             level={s.level}
+                            badges={s.badges}
                             avatarMode={s.avatarMode}
                             avatarPack={s.avatarPack}
                             selected={isSelected(s.id)}
@@ -611,6 +612,7 @@ export default function AwardScreen() {
                   alias={s.alias}
                   xp={s.xp}
                   level={s.level}
+                  badges={s.badges}
                   avatarMode={s.avatarMode}
                   avatarPack={s.avatarPack}
                   selected={isSelected(s.id)}
