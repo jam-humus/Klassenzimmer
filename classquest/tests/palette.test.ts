@@ -35,7 +35,7 @@ describe('shouldIgnoreHotkey', () => {
       type: 'text',
       readOnly: false,
     } as unknown as HTMLInputElement;
-    const event = { target: inputTarget, defaultPrevented: false } as KeyboardEvent;
+    const event = { target: inputTarget, defaultPrevented: false } as unknown as KeyboardEvent;
     expect(shouldIgnoreHotkey(event)).toBe(true);
   });
 
@@ -45,7 +45,7 @@ describe('shouldIgnoreHotkey', () => {
       tagName: 'DIV',
       isContentEditable: true,
     } as unknown as HTMLElement;
-    const event = { target: editableTarget, defaultPrevented: false } as KeyboardEvent;
+    const event = { target: editableTarget, defaultPrevented: false } as unknown as KeyboardEvent;
     expect(shouldIgnoreHotkey(event)).toBe(true);
   });
 
@@ -54,7 +54,7 @@ describe('shouldIgnoreHotkey', () => {
       ...baseTarget,
       tagName: 'BUTTON',
     } as unknown as HTMLElement;
-    const event = { target: buttonTarget, defaultPrevented: false } as KeyboardEvent;
+    const event = { target: buttonTarget, defaultPrevented: false } as unknown as KeyboardEvent;
     expect(shouldIgnoreHotkey(event)).toBe(false);
   });
 });

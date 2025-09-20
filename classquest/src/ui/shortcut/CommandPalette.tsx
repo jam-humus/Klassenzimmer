@@ -29,6 +29,7 @@ type CommandPaletteProps = {
   onOpenSeasonReset: () => void;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function createPaletteItems(
   params: {
     setTab: (tab: Tab) => void;

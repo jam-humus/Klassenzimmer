@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_SETTINGS } from '../config';
 
 export const ID = z.string().min(1);
 
@@ -64,6 +65,13 @@ export const Settings = z.object({
   onboardingCompleted: z.boolean().optional(),
   flags: z.record(z.string(), z.boolean()).optional(),
   classStarIconKey: z.string().optional().nullable(),
+  classMilestoneStep: z.number().int().positive().optional(),
+  classStarsName: z.string().optional(),
+});
+
+export const ClassProgress = z.object({
+  totalXP: z.number().min(0),
+  stars: z.number().min(0),
 });
 
 export const AppState = z.object({
@@ -73,6 +81,7 @@ export const AppState = z.object({
   logs: z.array(LogEntry),
   settings: Settings,
   version: z.number().int(),
+  classProgress: ClassProgress,
 });
 
 export type AppStateType = z.infer<typeof AppState>;
@@ -276,6 +285,20 @@ export function sanitizeState(raw: unknown): AppStateType | null {
     onboardingCompleted: asBoolean(settingsRecord.onboardingCompleted, false),
     flags: sanitizeFlags(settingsRecord.flags),
     classStarIconKey: asString(settingsRecord.classStarIconKey),
+    classMilestoneStep:
+      Math.max(1, Math.floor(asNumber(settingsRecord.classMilestoneStep, DEFAULT_SETTINGS.classMilestoneStep)) || 1) ||
+      DEFAULT_SETTINGS.classMilestoneStep,
+    classStarsName: asString(settingsRecord.classStarsName) ?? DEFAULT_SETTINGS.classStarsName,
+  };
+
+  const totalXP = Math.max(
+    0,
+    students.reduce((sum, student) => sum + (Number.isFinite(student.xp) ? student.xp : 0), 0),
+  );
+  const step = Math.max(1, settings.classMilestoneStep ?? DEFAULT_SETTINGS.classMilestoneStep);
+  const classProgress: AppStateType['classProgress'] = {
+    totalXP,
+    stars: Math.floor(totalXP / step),
   };
 
   const version = Math.max(1, Math.trunc(asNumber(raw.version, 1)) || 1);
@@ -287,6 +310,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
     logs,
     settings,
     version,
+    classProgress,
   } satisfies AppStateType;
 
   const result = AppState.safeParse(candidate);
