@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useApp } from '~/app/AppContext';
-import type { BadgeDefinition, ID, Quest, QuestType, Student, Team } from '~/types/models';
+import type { BadgeDefinition, Category, ID, Quest, QuestType, Student, Team } from '~/types/models';
 import AsyncButton from '~/ui/feedback/AsyncButton';
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import { EVENT_EXPORT_DATA, EVENT_IMPORT_DATA, EVENT_OPEN_SEASON_RESET } from '~/ui/shortcut/events';
@@ -11,7 +11,7 @@ import { BadgeIcon } from '~/ui/components/BadgeIcon';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
 
-const describeBadgeRule = (definition: BadgeDefinition) => {
+const describeBadgeRule = (definition: BadgeDefinition, categories: Category[]) => {
   const rule = definition.rule;
   if (!rule) {
     return 'Manuell vergeben';
@@ -20,7 +20,11 @@ const describeBadgeRule = (definition: BadgeDefinition) => {
     return `Auto: Gesamt-XP ≥ ${rule.threshold}`;
   }
   if (rule.type === 'category_xp') {
-    return `Auto: ${rule.category} ≥ ${rule.threshold} XP`;
+    const targetName =
+      (rule.categoryId && categories.find((category) => category.id === rule.categoryId)?.name) ??
+      rule.category ??
+      'Kategorie';
+    return `Auto: ${targetName} ≥ ${rule.threshold} XP`;
   }
   return 'Manuell vergeben';
 };
@@ -588,33 +592,36 @@ const StarIconUploader = ({ blobKey, onSelect, onRemove }: StarIconUploaderProps
 
 type QuestRowProps = {
   quest: Quest;
-  onSave: (id: string, updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active' | 'category'>>) => void;
+  categories: Category[];
+  onSave: (
+    id: string,
+    updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active' | 'category' | 'categoryId'>>,
+  ) => void;
   onRemove: (id: string) => void;
 };
 
-const QuestRow = React.memo(function QuestRow({ quest, onSave, onRemove }: QuestRowProps) {
+const QuestRow = React.memo(function QuestRow({ quest, categories, onSave, onRemove }: QuestRowProps) {
   const [name, setName] = useState(quest.name);
   const [xp, setXp] = useState<number>(quest.xp);
   const [type, setType] = useState<Quest['type']>(quest.type);
   const [active, setActive] = useState<boolean>(quest.active);
-  const [category, setCategory] = useState<string>(quest.category ?? '');
+  const [categoryId, setCategoryId] = useState<string | null>(quest.categoryId ?? null);
 
   useEffect(() => setName(quest.name), [quest.name]);
   useEffect(() => setXp(quest.xp), [quest.xp]);
   useEffect(() => setType(quest.type), [quest.type]);
   useEffect(() => setActive(quest.active), [quest.active]);
-  useEffect(() => setCategory(quest.category ?? ''), [quest.category]);
+  useEffect(() => setCategoryId(quest.categoryId ?? null), [quest.categoryId]);
 
   const commit = useCallback(() => {
-    const trimmedCategory = category.trim();
     onSave(quest.id, {
       name: name.trim() || quest.name,
       xp: Math.max(0, xp),
       type,
       active,
-      category: trimmedCategory.length > 0 ? trimmedCategory : null,
+      categoryId,
     });
-  }, [onSave, quest.id, name, xp, type, active, category, quest.name]);
+  }, [onSave, quest.id, name, xp, type, active, categoryId, quest.name]);
 
   return (
     <li
@@ -663,20 +670,23 @@ const QuestRow = React.memo(function QuestRow({ quest, onSave, onRemove }: Quest
           </option>
         ))}
       </select>
-      <input
-        value={category}
-        onChange={(e) => setCategory(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            commit();
-          }
+      <select
+        value={categoryId ?? ''}
+        onChange={(e) => {
+          const nextId = e.target.value ? e.target.value : null;
+          setCategoryId(nextId);
+          onSave(quest.id, { categoryId: nextId });
         }}
-        placeholder="Kategorie"
         aria-label={`Kategorie für ${quest.name}`}
         style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid #d0d7e6' }}
-      />
+      >
+        <option value="">Keine Kategorie</option>
+        {categories.map((category) => (
+          <option key={category.id} value={category.id}>
+            {category.name}
+          </option>
+        ))}
+      </select>
       <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <input
           type="checkbox"
@@ -811,13 +821,15 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const [qName, setQName] = useState('Hausaufgaben');
   const [qXP, setQXP] = useState(10);
   const [qType, setQType] = useState<'daily' | 'repeatable' | 'oneoff'>('daily');
+  const [newQuestCategoryId, setNewQuestCategoryId] = useState<string | null>(null);
   const [groupName, setGroupName] = useState('Team A');
   const [badgeName, setBadgeName] = useState('');
   const [badgeDescription, setBadgeDescription] = useState('');
-  const [badgeCategory, setBadgeCategory] = useState('');
+  const [badgeCategoryId, setBadgeCategoryId] = useState<string | null>(null);
   const [badgeRuleType, setBadgeRuleType] = useState<'total_xp' | 'category_xp'>('total_xp');
   const [badgeRuleThreshold, setBadgeRuleThreshold] = useState(100);
-  const [badgeRuleCategory, setBadgeRuleCategory] = useState('');
+  const [badgeRuleCategoryId, setBadgeRuleCategoryId] = useState<string | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [badgeIconPreview, setBadgeIconPreview] = useState<string | null>(null);
   const [badgeIconFile, setBadgeIconFile] = useState<File | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -909,6 +921,16 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     [state.logs, detailStudentId],
   );
 
+  const categories = state.categories ?? [];
+
+  const resolveCategoryName = useCallback(
+    (id: string | null): string | null => {
+      if (!id) return null;
+      return categories.find((category) => category.id === id)?.name ?? null;
+    },
+    [categories],
+  );
+
   useEffect(() => {
     if (detailStudentId && !detailStudent) {
       setDetailStudentId(null);
@@ -980,9 +1002,17 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const addQuest = useCallback(() => {
     const trimmed = qName.trim();
     if (!trimmed) return;
-    dispatch({ type: 'ADD_QUEST', quest: newQuest(trimmed, qXP, qType) });
+    const base = newQuest(trimmed, qXP, qType);
+    const questCategoryId = newQuestCategoryId;
+    const questCategoryName = resolveCategoryName(questCategoryId);
+    const quest: Quest = {
+      ...base,
+      categoryId: questCategoryId ?? null,
+      category: questCategoryName,
+    };
+    dispatch({ type: 'ADD_QUEST', quest });
     feedback.success('Quest gespeichert');
-  }, [dispatch, feedback, qName, qXP, qType]);
+  }, [dispatch, feedback, newQuestCategoryId, qName, qXP, qType, resolveCategoryName]);
 
   const populateQuests = useCallback(() => {
     const presets = Array.from({ length: 15 }, (_, i) =>
@@ -1013,21 +1043,28 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     }
     const descriptionValue = badgeDescription.trim();
     const description = descriptionValue.length > 0 ? descriptionValue : undefined;
-    const categoryValue = badgeCategory.trim();
-    const category = categoryValue.length > 0 ? categoryValue : null;
+    const categoryId = badgeCategoryId;
+    const categoryName = resolveCategoryName(categoryId);
     let rule: BadgeDefinition['rule'] = null;
     if (badgeRuleType === 'total_xp') {
       rule = { type: 'total_xp', threshold };
     } else {
-      const ruleCategoryValue = badgeRuleCategory.trim() || categoryValue;
-      const normalizedRuleCategory = ruleCategoryValue.length > 0 ? ruleCategoryValue : 'uncategorized';
-      rule = { type: 'category_xp', category: normalizedRuleCategory, threshold };
+      const selectedRuleCategoryId = badgeRuleCategoryId ?? categoryId ?? null;
+      const ruleCategoryName =
+        resolveCategoryName(selectedRuleCategoryId) ?? (selectedRuleCategoryId ? null : 'uncategorized');
+      rule = {
+        type: 'category_xp',
+        categoryId: selectedRuleCategoryId,
+        category: ruleCategoryName ?? 'uncategorized',
+        threshold,
+      };
     }
     const definition: BadgeDefinition = {
       id: `badge-${makeId()}`,
       name: trimmedName,
       description,
-      category,
+      category: categoryName,
+      categoryId,
       iconKey,
       rule,
     };
@@ -1039,23 +1076,52 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     }
     setBadgeName('');
     setBadgeDescription('');
-    setBadgeCategory('');
+    setBadgeCategoryId(null);
     setBadgeRuleType('total_xp');
     setBadgeRuleThreshold(100);
-    setBadgeRuleCategory('');
+    setBadgeRuleCategoryId(null);
   }, [
-    badgeCategory,
+    badgeCategoryId,
     badgeDescription,
     badgeIconFile,
     badgeName,
-    badgeRuleCategory,
+    badgeRuleCategoryId,
     badgeRuleThreshold,
     badgeRuleType,
     badgeIconInputRef,
+    categories,
     dispatch,
     feedback,
+    resolveCategoryName,
     updateBadgeIcon,
   ]);
+
+  const handleAddCategory = useCallback(() => {
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) {
+      feedback.error('Bitte einen Kategorienamen eingeben');
+      return;
+    }
+    if (categories.some((category) => category.name.toLowerCase() === trimmed.toLowerCase())) {
+      feedback.info('Kategorie existiert bereits');
+      return;
+    }
+    dispatch({ type: 'CATEGORY_CREATE', name: trimmed });
+    setNewCategoryName('');
+    feedback.success('Kategorie gespeichert');
+  }, [categories, dispatch, feedback, newCategoryName]);
+
+  const handleRemoveCategory = useCallback(
+    (id: string) => {
+      if (usedCategoryIds.has(id)) {
+        feedback.error('Kategorie wird derzeit verwendet und kann nicht gelöscht werden');
+        return;
+      }
+      dispatch({ type: 'CATEGORY_DELETE', id });
+      feedback.info('Kategorie gelöscht');
+    },
+    [dispatch, feedback, usedCategoryIds],
+  );
 
   const onRemoveBadgeDefinition = useCallback(
     async (definition: BadgeDefinition) => {
@@ -1216,7 +1282,10 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     feedback.info('Import rückgängig gemacht');
   }, [dispatch, feedback, lastImportedIds]);
   const onUpdateQuest = useCallback(
-    (id: string, updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active' | 'category'>>) => {
+    (
+      id: string,
+      updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active' | 'category' | 'categoryId'>>,
+    ) => {
       dispatch({ type: 'UPDATE_QUEST', id, updates });
       feedback.success('Quest aktualisiert');
     },
@@ -1266,6 +1335,19 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const sortedStudents = useMemo(() => [...state.students].sort((a, b) => a.alias.localeCompare(b.alias)), [state.students]);
   const sortedQuests = useMemo(() => [...state.quests].sort((a, b) => a.name.localeCompare(b.name)), [state.quests]);
   const sortedTeams = useMemo(() => [...state.teams].sort((a, b) => a.name.localeCompare(b.name)), [state.teams]);
+  const usedCategoryIds = useMemo(() => {
+    const ids = new Set<string>();
+    state.quests.forEach((quest) => {
+      if (quest.categoryId) ids.add(quest.categoryId);
+    });
+    (state.badgeDefs ?? []).forEach((definition) => {
+      if (definition.categoryId) ids.add(definition.categoryId);
+      if (definition.rule?.type === 'category_xp' && definition.rule.categoryId) {
+        ids.add(definition.rule.categoryId);
+      }
+    });
+    return ids;
+  }, [state.badgeDefs, state.quests]);
 
   useEffect(() => {
     const pending = pendingImportAliasesRef.current;
@@ -1462,6 +1544,65 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
       </section>
 
       <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
+        <h2>Kategorien verwalten</h2>
+        <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
+          Lege zentrale Kategorien an, die du für Quests und Badges auswählen kannst.
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          <input
+            aria-label="Kategoriename"
+            placeholder="z. B. Hausaufgaben"
+            value={newCategoryName}
+            onChange={(e) => setNewCategoryName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleAddCategory();
+              }
+            }}
+            style={{ flex: '1 1 200px', minWidth: 180, padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
+          />
+          <button type="button" onClick={handleAddCategory} style={{ padding: '10px 16px' }}>
+            Kategorie hinzufügen
+          </button>
+        </div>
+        {categories.length === 0 ? (
+          <em>Noch keine Kategorien angelegt.</em>
+        ) : (
+          <ul style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: 0, padding: 0, listStyle: 'none' }}>
+            {categories.map((category) => {
+              const inUse = usedCategoryIds.has(category.id);
+              return (
+                <li
+                  key={category.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    border: '1px solid #d0d7e6',
+                    borderRadius: 12,
+                    padding: '4px 8px',
+                    background: '#f8fafc',
+                  }}
+                >
+                  <span>{category.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveCategory(category.id)}
+                    disabled={inUse}
+                    title={inUse ? 'Kategorie wird verwendet' : 'Kategorie löschen'}
+                    style={{ padding: '4px 8px' }}
+                  >
+                    Löschen
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
         <h2>Badges verwalten</h2>
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
           Lege neue Badges an, lade eigene Icons hoch und steuere Auto-Auszeichnungen über XP-Schwellen und Kategorien.
@@ -1503,12 +1644,18 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             </label>
             <label style={{ display: 'grid', gap: 4 }}>
               <span style={{ fontWeight: 600 }}>Kategorie (optional)</span>
-              <input
-                value={badgeCategory}
-                onChange={(e) => setBadgeCategory(e.target.value)}
-                placeholder="z. B. homework"
+              <select
+                value={badgeCategoryId ?? ''}
+                onChange={(e) => setBadgeCategoryId(e.target.value ? e.target.value : null)}
                 style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
-              />
+              >
+                <option value="">Keine Kategorie</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
             </label>
             <div style={{ display: 'grid', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -1595,13 +1742,21 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
               {badgeRuleType === 'category_xp' && (
                 <label style={{ display: 'grid', gap: 4 }}>
                   <span style={{ fontWeight: 600 }}>Regel-Kategorie</span>
-                  <input
-                    value={badgeRuleCategory}
-                    onChange={(e) => setBadgeRuleCategory(e.target.value)}
-                    placeholder="z. B. participation"
+                  <select
+                    value={badgeRuleCategoryId ?? ''}
+                    onChange={(e) => setBadgeRuleCategoryId(e.target.value ? e.target.value : null)}
                     style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
-                  />
-                  <small style={{ color: '#64748b' }}>Leer lassen = gleiche Kategorie wie oben oder „uncategorized“.</small>
+                  >
+                    <option value="">Kategorie wie oben oder „uncategorized“</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  <small style={{ color: '#64748b' }}>
+                    Ohne Auswahl wird die Kategorie oben oder „uncategorized“ verwendet.
+                  </small>
                 </label>
               )}
             </div>
@@ -1651,10 +1806,16 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
                         {badge.description && (
                           <span style={{ fontSize: 12, color: '#475569' }}>{badge.description}</span>
                         )}
-                        <small style={{ fontSize: 12, color: '#64748b' }}>{describeBadgeRule(badge)}</small>
-                        {badge.category && (
-                          <small style={{ fontSize: 12, color: '#475569' }}>Kategorie: {badge.category}</small>
-                        )}
+                        <small style={{ fontSize: 12, color: '#64748b' }}>{describeBadgeRule(badge, categories)}</small>
+                        {(() => {
+                          const badgeCategoryName =
+                            resolveCategoryName(badge.categoryId ?? null) ?? badge.category ?? null;
+                          return badgeCategoryName ? (
+                            <small style={{ fontSize: 12, color: '#475569' }}>
+                              Kategorie: {badgeCategoryName}
+                            </small>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                     <AsyncButton
@@ -1705,6 +1866,19 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
               </option>
             ))}
           </select>
+          <select
+            aria-label="Quest-Kategorie"
+            value={newQuestCategoryId ?? ''}
+            onChange={(e) => setNewQuestCategoryId(e.target.value ? e.target.value : null)}
+            style={{ minWidth: 160, padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
+          >
+            <option value="">Keine Kategorie</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
           <AsyncButton type="button" onClick={() => addQuest()} style={{ padding: '10px 16px' }}>
             Quest anlegen
           </AsyncButton>
@@ -1714,7 +1888,13 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
         </div>
         <ul style={{ display: 'grid', gap: 8, margin: 0, padding: 0, listStyle: 'none' }}>
           {sortedQuests.map((quest) => (
-            <QuestRow key={quest.id} quest={quest} onSave={onUpdateQuest} onRemove={onRemoveQuest} />
+            <QuestRow
+              key={quest.id}
+              quest={quest}
+              categories={categories}
+              onSave={onUpdateQuest}
+              onRemove={onRemoveQuest}
+            />
           ))}
         </ul>
       </section>

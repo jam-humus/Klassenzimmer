@@ -28,11 +28,17 @@ type Action =
   | { type: 'ADD_STUDENTS_BULK'; aliases: string[] }
   | { type: 'REMOVE_STUDENTS_BULK'; ids: ID[] }
   | { type: 'ADD_QUEST'; quest: Quest }
-  | { type: 'UPDATE_QUEST'; id: ID; updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active' | 'category'>> }
+  | {
+      type: 'UPDATE_QUEST';
+      id: ID;
+      updates: Partial<Pick<Quest, 'name' | 'xp' | 'type' | 'active' | 'category' | 'categoryId'>>;
+    }
   | { type: 'REMOVE_QUEST'; id: ID }
   | { type: 'TOGGLE_QUEST'; id: ID }
   | { type: 'ADD_BADGE_DEF'; definition: BadgeDefinition }
   | { type: 'REMOVE_BADGE_DEF'; id: ID }
+  | { type: 'CATEGORY_CREATE'; name: string }
+  | { type: 'CATEGORY_DELETE'; id: ID }
   | { type: 'AWARD'; payload: AwardPayload }
   | { type: 'UNDO_LAST' }
   | { type: 'RESET_SEASON' }
@@ -174,6 +180,13 @@ function normalizeState(raw: AppState): AppState {
     onboardingCompleted: hasData ? true : raw.settings?.onboardingCompleted,
   });
   const classProgress = computeClassProgress(normalizedStudents, settings);
+  const categories = Array.isArray(raw.categories)
+    ? raw.categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        color: category.color ?? null,
+      }))
+    : [];
   return {
     students: normalizedStudents,
     quests,
@@ -183,6 +196,7 @@ function normalizeState(raw: AppState): AppState {
     version: raw.version ?? 1,
     classProgress,
     badgeDefs: raw.badgeDefs ?? [],
+    categories,
   };
 }
 
@@ -323,13 +337,29 @@ function reducer(state: AppState, action: Action): AppState {
       const next = addQuest(state, quest);
       return markOnboardingComplete(next);
     }
-    case 'UPDATE_QUEST':
+    case 'UPDATE_QUEST': {
+      const { id, updates } = action;
       return {
         ...state,
-        quests: state.quests.map((quest) =>
-          quest.id === action.id ? { ...quest, ...action.updates } : quest,
-        ),
+        quests: state.quests.map((quest) => {
+          if (quest.id !== id) return quest;
+          let next = { ...quest, ...updates } satisfies Quest;
+          if (Object.prototype.hasOwnProperty.call(updates, 'categoryId')) {
+            const categoryId = updates.categoryId ?? null;
+            const categoryName = categoryId
+              ? state.categories.find((category) => category.id === categoryId)?.name ?? null
+              : null;
+            next = { ...next, categoryId, category: categoryName } satisfies Quest;
+          } else if (Object.prototype.hasOwnProperty.call(updates, 'category')) {
+            const raw = updates.category;
+            const categoryName =
+              typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : raw === null ? null : quest.category;
+            next = { ...next, category: categoryName ?? null } satisfies Quest;
+          }
+          return next;
+        }),
       };
+    }
     case 'REMOVE_QUEST':
       return {
         ...state,
@@ -345,9 +375,16 @@ function reducer(state: AppState, action: Action): AppState {
       const rawDescription =
         typeof definition.description === 'string' ? definition.description.trim() : '';
       const description = rawDescription.length > 0 ? rawDescription : undefined;
-      const rawCategory =
-        typeof definition.category === 'string' ? definition.category.trim() : '';
-      const category = rawCategory.length > 0 ? rawCategory : null;
+      const rawCategory = typeof definition.category === 'string' ? definition.category.trim() : '';
+      const rawCategoryId =
+        typeof definition.categoryId === 'string' && definition.categoryId.trim().length > 0
+          ? definition.categoryId.trim()
+          : null;
+      const categoryNameFromId = rawCategoryId
+        ? state.categories.find((category) => category.id === rawCategoryId)?.name ?? null
+        : null;
+      const category = categoryNameFromId ?? (rawCategory.length > 0 ? rawCategory : null);
+      const categoryId = rawCategoryId;
       const rawIconKey =
         typeof definition.iconKey === 'string' ? definition.iconKey.trim() : '';
       const iconKey = rawIconKey.length > 0 ? rawIconKey : null;
@@ -359,9 +396,26 @@ function reducer(state: AppState, action: Action): AppState {
         if (rule.type === 'total_xp') {
           rule = { type: 'total_xp', threshold };
         } else if (rule.type === 'category_xp') {
+          const rawRuleCategoryId =
+            typeof rule.categoryId === 'string' && rule.categoryId.trim().length > 0
+              ? rule.categoryId.trim()
+              : null;
           const rawRuleCategory = typeof rule.category === 'string' ? rule.category.trim() : '';
-          const ruleCategory = rawRuleCategory.length > 0 ? rawRuleCategory : 'uncategorized';
-          rule = { type: 'category_xp', category: ruleCategory, threshold };
+          const resolvedRuleCategoryId = rawRuleCategoryId ?? categoryId;
+          const ruleCategoryNameFromId = resolvedRuleCategoryId
+            ? state.categories.find((category) => category.id === resolvedRuleCategoryId)?.name ?? null
+            : null;
+          const ruleCategory =
+            ruleCategoryNameFromId ??
+            (rawRuleCategory.length > 0
+              ? rawRuleCategory
+              : category ?? 'uncategorized');
+          rule = {
+            type: 'category_xp',
+            category: ruleCategory,
+            categoryId: resolvedRuleCategoryId ?? null,
+            threshold,
+          };
         } else {
           rule = null;
         }
@@ -371,6 +425,7 @@ function reducer(state: AppState, action: Action): AppState {
         name,
         description,
         category,
+        categoryId,
         iconKey,
         rule,
       };
@@ -389,6 +444,28 @@ function reducer(state: AppState, action: Action): AppState {
         return state;
       }
       return { ...state, badgeDefs };
+    }
+    case 'CATEGORY_CREATE': {
+      const name = action.name.trim();
+      if (!name) return state;
+      const exists = state.categories.some((category) => category.name.toLowerCase() === name.toLowerCase());
+      if (exists) return state;
+      const category = { id: createId(), name, color: null };
+      return { ...state, categories: [...state.categories, category] };
+    }
+    case 'CATEGORY_DELETE': {
+      const { id } = action;
+      const inUse =
+        state.quests.some((quest) => quest.categoryId === id) ||
+        state.badgeDefs.some(
+          (definition) =>
+            definition.categoryId === id ||
+            (definition.rule?.type === 'category_xp' && definition.rule.categoryId === id),
+        );
+      if (inUse) return state;
+      const categories = state.categories.filter((category) => category.id !== id);
+      if (categories.length === state.categories.length) return state;
+      return { ...state, categories };
     }
     case 'TOGGLE_QUEST': {
       const quest = state.quests.find((q) => q.id === action.id);
