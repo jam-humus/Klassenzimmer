@@ -844,13 +844,40 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const [detailStudentId, setDetailStudentId] = useState<string | null>(null);
   const starIconKey = state.settings.classStarIconKey ?? null;
 
+  const studentsCollapse = useCollapsibleState('manage-students', true);
+  const classGoalsCollapse = useCollapsibleState('manage-class-goals', true);
   const categoriesCollapse = useCollapsibleState('manage-categories', true);
   const badgesCollapse = useCollapsibleState('manage-badges', true);
   const questsCollapse = useCollapsibleState('manage-quests', true);
+  const groupsCollapse = useCollapsibleState('manage-groups', true);
+  const settingsCollapse = useCollapsibleState('manage-settings', true);
+  const resetCollapse = useCollapsibleState('manage-season-reset', true);
+  const backupCollapse = useCollapsibleState('manage-backup', true);
 
   const collapsibleSections = useMemo(
-    () => [categoriesCollapse, badgesCollapse, questsCollapse] as const,
-    [categoriesCollapse, badgesCollapse, questsCollapse],
+    () =>
+      [
+        studentsCollapse,
+        classGoalsCollapse,
+        categoriesCollapse,
+        badgesCollapse,
+        questsCollapse,
+        groupsCollapse,
+        settingsCollapse,
+        resetCollapse,
+        backupCollapse,
+      ] as const,
+    [
+      studentsCollapse,
+      classGoalsCollapse,
+      categoriesCollapse,
+      badgesCollapse,
+      questsCollapse,
+      groupsCollapse,
+      settingsCollapse,
+      resetCollapse,
+      backupCollapse,
+    ],
   );
   const allSectionsOpen = collapsibleSections.every((section) => section.open);
 
@@ -1520,12 +1547,12 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             fontWeight: 600,
             cursor: 'pointer',
           }}
+          aria-pressed={allSectionsOpen}
         >
           {allSectionsOpen ? 'Alle Menüs zuklappen' : 'Alle Menüs aufklappen'}
         </button>
       </div>
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Schüler verwalten</h2>
+      <CollapsibleSection id="manage-students" title="Schüler verwalten" state={studentsCollapse}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           <input
             aria-label="Neuen Schüleralias"
@@ -1580,18 +1607,21 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             />
           ))}
         </ul>
-      </section>
+      </CollapsibleSection>
 
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Class Goals &amp; Rewards</h2>
-        <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+      <CollapsibleSection
+        id="manage-class-goals"
+        title="Class Goals &amp; Rewards"
+        state={classGoalsCollapse}
+      >
+        <div style={{ display: 'grid', gap: 12 }}>
           <div style={{ display: 'grid', gap: 8 }}>
             <h3 style={{ margin: 0 }}>Stern-Icon</h3>
             <StarIconUploader blobKey={starIconKey} onSelect={onStarIconSelect} onRemove={onStarIconRemove} />
             <small style={{ color: '#64748b' }}>Empfohlen: WebP/PNG, transparent, ~256–512px.</small>
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
       <CollapsibleSection
         id="manage-categories"
@@ -1954,8 +1984,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
         </ul>
       </CollapsibleSection>
 
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Gruppen verwalten</h2>
+      <CollapsibleSection id="manage-groups" title="Gruppen verwalten" state={groupsCollapse}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           <input
             aria-label="Gruppenname"
@@ -1987,11 +2016,9 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
           ))}
           {sortedTeams.length === 0 && <em>Noch keine Gruppen angelegt.</em>}
         </ul>
-      </section>
+      </CollapsibleSection>
 
-
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Einstellungen</h2>
+      <CollapsibleSection id="manage-settings" title="Einstellungen" state={settingsCollapse}>
         <div style={{ display: 'grid', gap: 8 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input
@@ -2054,18 +2081,20 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             Listen virtualisieren (für große Klassen)
           </label>
         </div>
-      </section>
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Saison zurücksetzen</h2>
+      </CollapsibleSection>
+      <CollapsibleSection
+        id="manage-season-reset"
+        title="Saison zurücksetzen"
+        state={resetCollapse}
+      >
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
           Setzt XP, Level, Streaks und das Protokoll aller Schüler zurück. Schüler, Gruppen und Quests bleiben bestehen.
         </p>
         <button type="button" onClick={triggerSeasonReset} style={{ padding: '10px 18px', borderRadius: 12 }}>
           Saison-Reset starten
         </button>
-      </section>
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Backup &amp; Restore</h2>
+      </CollapsibleSection>
+      <CollapsibleSection id="manage-backup" title="Backup &amp; Restore" state={backupCollapse}>
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
           Exportiere den aktuellen Klassenstand als JSON-Datei oder importiere eine Sicherung. Beim Import werden alle
           bestehenden Daten überschrieben.
@@ -2101,7 +2130,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
           />
           {importError && <span style={{ color: '#b91c1c', fontWeight: 600 }}>{importError}</span>}
         </div>
-      </section>
+      </CollapsibleSection>
       {detailStudent && (
         <StudentDetailScreen student={detailStudent} logs={detailLogs} onClose={closeStudentDetail} />
       )}
