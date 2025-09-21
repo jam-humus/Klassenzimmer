@@ -17,6 +17,8 @@ import { levelFromXP } from '~/core/xp';
 import { addQuest, addStudent, awardQuest, createInitialState, setQuestActive } from '~/core/state';
 import { sanitizeState } from '~/core/schema/appState';
 import { migrateState } from '~/core/schema/migrate';
+import { sanitizeAssetSettings } from '~/types/settings';
+import { setEffectsSettings } from '~/utils/effects';
 
 type AwardPayload = { questId: ID; studentId?: ID; teamId?: ID; note?: string };
 
@@ -87,13 +89,15 @@ const normalizeStudentAvatar = (student: Student): Student => {
 };
 
 function normalizeSettings(settings?: Partial<Settings>): Settings {
+  const { assets, flags, ...rest } = settings ?? {};
   const merged: Settings = {
     ...DEFAULT_SETTINGS,
-    ...(settings ?? {}),
+    ...rest,
     flags: {
       ...(DEFAULT_SETTINGS.flags ?? {}),
-      ...((settings?.flags ?? {}) as Record<string, boolean>),
+      ...((flags ?? {}) as Record<string, boolean>),
     },
+    assets: sanitizeAssetSettings(assets ?? DEFAULT_SETTINGS.assets),
   };
   merged.avatarStageThresholds = sanitizeAvatarStageThresholds(merged.avatarStageThresholds);
   const rawStarKey =
@@ -680,6 +684,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await storage.saveState(state);
     })();
   }, [state, storage]);
+
+  React.useEffect(() => {
+    setEffectsSettings(state.settings);
+  }, [state.settings]);
 
   return <Ctx.Provider value={{ state, dispatch }}>{children}</Ctx.Provider>;
 }

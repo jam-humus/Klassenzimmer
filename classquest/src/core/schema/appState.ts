@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DEFAULT_SETTINGS } from '../config';
+import { sanitizeAssetSettings } from '~/types/settings';
 
 import { sanitizeAvatarStageThresholds } from '../avatarStages';
 export const ID = z.string().min(1);
@@ -73,6 +74,32 @@ export const LogEntry = z.object({
   questCategoryId: ID.optional().nullable(),
 });
 
+const AssetRef = z.object({
+  key: z.string().min(1),
+  type: z.enum(['audio', 'lottie', 'image']),
+  name: z.string(),
+  createdAt: z.number(),
+});
+
+const AssetBindingMap = z.record(z.string(), z.string()).default({});
+
+const AssetSettingsSchema = z.object({
+  library: z.record(z.string(), AssetRef).default({}),
+  bindings: z
+    .object({
+      audio: AssetBindingMap,
+      lottie: AssetBindingMap,
+      image: AssetBindingMap,
+    })
+    .default({ audio: {}, lottie: {}, image: {} }),
+  audio: z
+    .object({ masterVolume: z.number(), enabled: z.boolean() })
+    .default({ masterVolume: 1, enabled: true }),
+  animations: z
+    .object({ enabled: z.boolean(), preferReducedMotion: z.boolean() })
+    .default({ enabled: true, preferReducedMotion: false }),
+});
+
 export const Settings = z.object({
   className: z.string(),
   xpPerLevel: z.number().positive(),
@@ -90,6 +117,7 @@ export const Settings = z.object({
   classStarIconKey: z.string().optional().nullable(),
   classMilestoneStep: z.number().int().positive().optional(),
   classStarsName: z.string().optional(),
+  assets: AssetSettingsSchema,
 });
 
 export const ClassProgress = z.object({
@@ -389,6 +417,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
   }
 
   const settingsRecord = isRecord(raw.settings) ? raw.settings : {};
+  const assets = sanitizeAssetSettings(settingsRecord.assets ?? DEFAULT_SETTINGS.assets);
   const settings: AppStateType['settings'] = {
     className: asString(settingsRecord.className) ?? 'Meine Klasse',
     xpPerLevel: Math.max(1, Math.floor(asNumber(settingsRecord.xpPerLevel, 100)) || 1),
@@ -411,6 +440,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
       Math.max(1, Math.floor(asNumber(settingsRecord.classMilestoneStep, DEFAULT_SETTINGS.classMilestoneStep)) || 1) ||
       DEFAULT_SETTINGS.classMilestoneStep,
     classStarsName: asString(settingsRecord.classStarsName) ?? DEFAULT_SETTINGS.classStarsName,
+    assets,
   };
 
   const totalXP = Math.max(
