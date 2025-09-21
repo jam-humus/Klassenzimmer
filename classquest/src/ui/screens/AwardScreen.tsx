@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '~/app/AppContext';
 import { StudentTile } from '~/ui/components/StudentTile';
+import AwardBadgeButton from '~/ui/components/AwardBadgeButton';
 import { ClassProgressBar } from '~/ui/components/ClassProgressBar';
 import { useSelection } from '~/ui/hooks/useSelection';
 import { useUndoToast } from '~/ui/hooks/useUndoToast';
@@ -507,6 +508,14 @@ export default function AwardScreen() {
               Undo
             </button>
           </div>
+          {focusedStudent && (
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>
+                Aktionen für: <span style={{ color: '#0f172a' }}>{focusedStudent.alias}</span>
+              </span>
+              <AwardBadgeButton student={focusedStudent} />
+            </div>
+          )}
         </div>
       </div>
 
