@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useApp } from '~/app/AppContext';
+import { AVATAR_STAGE_COUNT, resolveAvatarStageIndex, sanitizeAvatarStageThresholds } from '~/core/avatarStages';
 import type { Student } from '~/types/models';
 import { getObjectURL } from '~/services/blobStore';
 
@@ -20,32 +22,49 @@ const roundedRadius: Record<NonNullable<AvatarViewProps['rounded']>, number> = {
 
 function sanitizeStageKeys(pack: AvatarViewStudent['avatarPack']) {
   const raw = Array.isArray(pack?.stageKeys) ? pack?.stageKeys ?? [] : [];
-  return raw
-    .map((key) => {
-      if (typeof key !== 'string') {
-        return null;
-      }
-      const trimmed = key.trim();
+  return Array.from({ length: AVATAR_STAGE_COUNT }, (_, index) => {
+    const value = raw[index];
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
       return trimmed.length > 0 ? trimmed : null;
-    })
-    .filter((key): key is string => Boolean(key));
+    }
+    return null;
+  });
 }
 
-function pickStageKey(student: AvatarViewStudent) {
+function pickStageKey(student: AvatarViewStudent, thresholds: readonly number[]) {
   if (student.avatarMode !== 'imagePack') {
     return null;
   }
   const keys = sanitizeStageKeys(student.avatarPack);
-  if (!keys.length) {
-    return null;
+  const stageIndex = resolveAvatarStageIndex(student.level ?? 1, thresholds);
+  const direct = keys[stageIndex];
+  if (direct) {
+    return direct;
   }
-  // Prefer the highest defined stage, teachers often upload progressively impressive artwork.
-  return keys[keys.length - 1];
+  for (let index = stageIndex; index >= 0; index -= 1) {
+    const fallback = keys[index];
+    if (fallback) {
+      return fallback;
+    }
+  }
+  for (let index = keys.length - 1; index >= 0; index -= 1) {
+    const fallback = keys[index];
+    if (fallback) {
+      return fallback;
+    }
+  }
+  return null;
 }
 
 export function AvatarView({ student, size = 56, rounded = 'full', className, style }: AvatarViewProps) {
+  const { state } = useApp();
+  const stageThresholds = useMemo(
+    () => sanitizeAvatarStageThresholds(state.settings?.avatarStageThresholds),
+    [state.settings?.avatarStageThresholds],
+  );
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
-  const stageKey = pickStageKey(student);
+  const stageKey = pickStageKey(student, stageThresholds);
 
   useEffect(() => {
     let cancelled = false;

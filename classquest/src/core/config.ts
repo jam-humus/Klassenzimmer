@@ -1,6 +1,8 @@
-export const DEFAULT_SETTINGS = {
+import type { Settings } from '~/types/models';
+export const DEFAULT_SETTINGS: Required<Settings> = {
   className: 'Meine Klasse',
   xpPerLevel: 100,
+  avatarStageThresholds: [3, 6],
   streakThresholdForBadge: 5,
   allowNegativeXP: false,
   sfxEnabled: false,
@@ -13,4 +15,4 @@ export const DEFAULT_SETTINGS = {
   classStarIconKey: null,
   classMilestoneStep: 1000,
   classStarsName: 'Stern',
-} as const;
+};

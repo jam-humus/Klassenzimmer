@@ -70,6 +70,7 @@ export type ClassProgress = {
 export type Settings = {
   className: string;
   xpPerLevel: number;
+  avatarStageThresholds?: [number, number];
   streakThresholdForBadge: number;
   allowNegativeXP?: boolean;
   sfxEnabled?: boolean;

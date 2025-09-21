@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DEFAULT_SETTINGS } from '../config';
 
+import { sanitizeAvatarStageThresholds } from '../avatarStages';
 export const ID = z.string().min(1);
 
 const BadgeRule = z.discriminatedUnion('type', [
@@ -75,6 +76,7 @@ export const LogEntry = z.object({
 export const Settings = z.object({
   className: z.string(),
   xpPerLevel: z.number().positive(),
+  avatarStageThresholds: z.tuple([z.number().int().min(1), z.number().int().min(1)]).optional(),
   streakThresholdForBadge: z.number().positive(),
   allowNegativeXP: z.boolean().optional(),
   // non-breaking optional flags
@@ -390,6 +392,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
   const settings: AppStateType['settings'] = {
     className: asString(settingsRecord.className) ?? 'Meine Klasse',
     xpPerLevel: Math.max(1, Math.floor(asNumber(settingsRecord.xpPerLevel, 100)) || 1),
+    avatarStageThresholds: sanitizeAvatarStageThresholds(settingsRecord.avatarStageThresholds),
     streakThresholdForBadge: Math.max(1, Math.floor(asNumber(settingsRecord.streakThresholdForBadge, 5)) || 1),
     allowNegativeXP: asBoolean(settingsRecord.allowNegativeXP, false),
     sfxEnabled: asBoolean(settingsRecord.sfxEnabled, DEFAULT_SETTINGS.sfxEnabled ?? false),

@@ -11,6 +11,7 @@ import type {
   Team,
 } from '~/types/models';
 import { DEFAULT_SETTINGS } from '~/core/config';
+import { AVATAR_STAGE_COUNT, sanitizeAvatarStageThresholds } from '~/core/avatarStages';
 import { createStorageAdapter } from '~/services/storage';
 import { levelFromXP } from '~/core/xp';
 import { addQuest, addStudent, awardQuest, createInitialState, setQuestActive } from '~/core/state';
@@ -54,8 +55,6 @@ const createId = () => globalThis.crypto?.randomUUID?.() ?? Math.random().toStri
 
 const unique = <T,>(values: Iterable<T>) => Array.from(new Set(values));
 
-const AVATAR_STAGE_COUNT = 3;
-
 const normalizeAvatarPack = (pack?: Student['avatarPack']): NonNullable<Student['avatarPack']> => {
   const rawKeys = Array.isArray(pack?.stageKeys) ? pack?.stageKeys ?? [] : [];
   const stageKeys = Array.from({ length: AVATAR_STAGE_COUNT }, (_, index) => {
@@ -96,6 +95,7 @@ function normalizeSettings(settings?: Partial<Settings>): Settings {
       ...((settings?.flags ?? {}) as Record<string, boolean>),
     },
   };
+  merged.avatarStageThresholds = sanitizeAvatarStageThresholds(merged.avatarStageThresholds);
   const rawStarKey =
     typeof merged.classStarIconKey === 'string' ? merged.classStarIconKey.trim() : merged.classStarIconKey;
   merged.classStarIconKey = rawStarKey && typeof rawStarKey === 'string' && rawStarKey.length > 0 ? rawStarKey : null;
@@ -609,11 +609,29 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'UPDATE_SETTINGS': {
       const settings = normalizeSettings({ ...state.settings, ...action.updates });
-      const classProgress = computeClassProgress(state.students, settings);
+      const xpPerLevelChanged = settings.xpPerLevel !== state.settings.xpPerLevel;
+      let students = state.students;
+      if (xpPerLevelChanged) {
+        let changed = false;
+        students = state.students.map((student) => {
+          const sanitizedXP = Number.isFinite(student.xp) ? Math.max(0, student.xp) : 0;
+          const nextLevel = Math.max(1, levelFromXP(sanitizedXP, settings.xpPerLevel));
+          if (nextLevel === student.level) {
+            return student;
+          }
+          changed = true;
+          return { ...student, level: nextLevel };
+        });
+        if (!changed) {
+          students = state.students;
+        }
+      }
+      const classProgress = computeClassProgress(students, settings);
       return {
         ...state,
         settings,
         classProgress,
+        ...(students !== state.students ? { students } : {}),
       };
     }
     case 'IMPORT': {
