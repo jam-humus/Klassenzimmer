@@ -79,6 +79,7 @@ export const createInitialState = (
   version,
   classProgress: { totalXP: 0, stars: 0 },
   badgeDefs: [],
+  categories: [],
 });
 
 type StudentInput = {
