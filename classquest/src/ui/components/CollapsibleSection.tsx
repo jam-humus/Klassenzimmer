@@ -65,9 +65,11 @@ export function CollapsibleSection({
   const fallbackState = useCollapsibleState(id, defaultOpen);
   const { open, setOpen } = state ?? fallbackState;
   const contentId = `${id}-content`;
+  // --- DIESE ZEILE WURDE ÜBERNOMMEN ---
   const headingId = `${id}-title`;
 
   return (
+    // --- DIESE ATTRIBUTE WURDEN HINZUGEFÜGT ---
     <section
       role="region"
       aria-labelledby={headingId}
@@ -87,6 +89,7 @@ export function CollapsibleSection({
           flexWrap: 'wrap',
         }}
       >
+        {/* --- DIESE ID WURDE HINZUGEFÜGT --- */}
         <h2 id={headingId} style={{ margin: 0, fontSize: 20 }}>
           {title}
         </h2>
