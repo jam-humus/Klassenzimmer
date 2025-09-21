@@ -2,17 +2,28 @@ import type { AppState, Student, BadgeDefinition } from '~/types/models';
 
 const FALLBACK_CATEGORY = 'uncategorized';
 
-const resolveQuestCategory = (state: AppState, questId: string | undefined) => {
+const resolveCategoryNameById = (state: AppState, categoryId: string | null | undefined) => {
+  if (!categoryId) return null;
+  return state.categories?.find((c) => c.id === categoryId)?.name ?? null;
+};
+
+const resolveQuestCategoryName = (state: AppState, questId: string | undefined) => {
   if (!questId) return null;
   const quest = state.quests.find((q) => q.id === questId);
-  return quest?.category ?? null;
+  if (!quest) return null;
+  const byId = resolveCategoryNameById(state, quest.categoryId ?? null);
+  return byId ?? quest.category ?? null;
 };
 
 export function selectStudentCategoryXp(state: AppState, student: Student): Record<string, number> {
   const totals: Record<string, number> = {};
   for (const entry of state.logs ?? []) {
     if (entry.studentId !== student.id) continue;
-    const category = entry.questCategory ?? resolveQuestCategory(state, entry.questId) ?? FALLBACK_CATEGORY;
+    const category =
+      resolveCategoryNameById(state, entry.questCategoryId ?? null) ??
+      entry.questCategory ??
+      resolveQuestCategoryName(state, entry.questId) ??
+      FALLBACK_CATEGORY;
     const delta = Number(entry.xp ?? 0);
     totals[category] = (totals[category] ?? 0) + delta;
   }
@@ -29,8 +40,12 @@ export function shouldAutoAward(state: AppState, student: Student, definition: B
     return (student.xp ?? 0) >= rule.threshold;
   }
   if (rule.type === 'category_xp') {
+    const targetName =
+      resolveCategoryNameById(state, rule.categoryId ?? null) ??
+      (rule.category ?? null);
+    if (!targetName) return false;
     const totals = selectStudentCategoryXp(state, student);
-    const sum = totals[rule.category] ?? 0;
+    const sum = totals[targetName] ?? 0;
     return sum >= rule.threshold;
   }
   return false;

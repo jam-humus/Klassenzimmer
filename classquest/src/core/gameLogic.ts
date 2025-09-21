@@ -47,16 +47,33 @@ const awardStreak = (
   return { streaks, lastDays, badges };
 };
 
+const resolveQuestCategory = (state: AppState, quest: Quest) => {
+  const categoryId = quest.categoryId ?? null;
+  if (categoryId) {
+    const category = state.categories?.find((cat) => cat.id === categoryId);
+    return {
+      id: categoryId,
+      name: category?.name ?? quest.category ?? null,
+    };
+  }
+  return {
+    id: null,
+    name: quest.category ?? null,
+  };
+};
+
 const buildLogEntry = (
   log: LogEntry,
   quest: Quest,
   studentId: ID,
-  note?: string,
+  note: string | undefined,
+  category: { id: ID | null; name: string | null },
 ): LogEntry => ({
   ...log,
   questId: quest.id,
   questName: quest.name,
-  questCategory: quest.category ?? log.questCategory ?? null,
+  questCategory: category.name ?? quest.category ?? log.questCategory ?? null,
+  questCategoryId: category.id ?? quest.categoryId ?? log.questCategoryId ?? null,
   studentId,
   note,
 });
@@ -138,6 +155,7 @@ export function processAward(state: AppState, studentId: ID, quest: Quest, note?
   const classProgress = applyClassProgressDelta(state, deltaXP);
 
   const timestamp = Date.now();
+  const category = resolveQuestCategory(state, quest);
   const log: LogEntry = buildLogEntry(
     {
       id: `${timestamp}-${Math.random()}`,
@@ -145,12 +163,14 @@ export function processAward(state: AppState, studentId: ID, quest: Quest, note?
       studentId,
       questId: quest.id,
       questName: quest.name,
-      questCategory: quest.category ?? null,
+      questCategory: category.name ?? null,
+      questCategoryId: category.id ?? null,
       xp: quest.xp,
     },
     quest,
     studentId,
     note,
+    category,
   );
 
   const logs = [...state.logs, log];
