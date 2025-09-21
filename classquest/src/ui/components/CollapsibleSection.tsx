@@ -65,9 +65,12 @@ export function CollapsibleSection({
   const fallbackState = useCollapsibleState(id, defaultOpen);
   const { open, setOpen } = state ?? fallbackState;
   const contentId = `${id}-content`;
+  const headingId = `${id}-title`;
 
   return (
     <section
+      role="region"
+      aria-labelledby={headingId}
       style={{
         background: '#fff',
         padding: 16,
@@ -84,7 +87,9 @@ export function CollapsibleSection({
           flexWrap: 'wrap',
         }}
       >
-        <h2 style={{ margin: 0, fontSize: 20 }}>{title}</h2>
+        <h2 id={headingId} style={{ margin: 0, fontSize: 20 }}>
+          {title}
+        </h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {actions}
           <button

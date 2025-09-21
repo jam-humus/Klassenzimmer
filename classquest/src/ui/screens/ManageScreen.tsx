@@ -1547,6 +1547,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             fontWeight: 600,
             cursor: 'pointer',
           }}
+          aria-pressed={allSectionsOpen}
         >
           {allSectionsOpen ? 'Alle Menüs zuklappen' : 'Alle Menüs aufklappen'}
         </button>
