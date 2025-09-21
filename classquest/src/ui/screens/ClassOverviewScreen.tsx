@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useApp } from '~/app/AppContext';
 import { AvatarView } from '~/ui/avatar/AvatarView';
+import AwardBadgeButton from '~/ui/components/AwardBadgeButton';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
 import { selectLogsForStudent, selectStudentById } from '~/core/selectors/student';
 import { selectStudentCategoryXp } from '~/core/selectors/badges';
@@ -258,7 +259,10 @@ function ProfilePane({ student, teamName, logs, categories, categoriesTotal, xpP
       </section>
 
       <section style={panelStyle}>
-        <h2 style={{ margin: 0, fontSize: 20 }}>Badges</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0, fontSize: 20 }}>Badges</h2>
+          <AwardBadgeButton student={student} />
+        </div>
         {badges.length === 0 ? (
           <p style={{ margin: 0, color: '#475569' }}>Noch keine Badges vergeben.</p>
         ) : (
