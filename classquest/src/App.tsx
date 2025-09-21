@@ -13,7 +13,12 @@ import CommandPalette from '~/ui/shortcut/CommandPalette';
 import HelpOverlay from '~/ui/shortcut/HelpOverlay';
 import { useKeydown } from '~/ui/shortcut/KeyScope';
 import SeasonResetDialog from '~/ui/dialogs/SeasonResetDialog';
-import { EVENT_CLEAR_SELECTION, EVENT_SELECT_ALL, EVENT_UNDO_PERFORMED } from '~/ui/shortcut/events';
+import {
+  EVENT_CLEAR_SELECTION,
+  EVENT_NAVIGATE_TAB,
+  EVENT_SELECT_ALL,
+  EVENT_UNDO_PERFORMED,
+} from '~/ui/shortcut/events';
 
 type Tab = 'award' | 'leaderboard' | 'overview' | 'log' | 'manage' | 'info';
 
@@ -52,6 +57,18 @@ export default function App() {
       setTab('award');
     }
   }, [shouldShowFirstRun]);
+
+  useEffect(() => {
+    const handleNavigate = (event: Event) => {
+      const detail = (event as CustomEvent<{ tab?: Tab }>).detail;
+      if (!detail?.tab) {
+        return;
+      }
+      setTab(detail.tab);
+    };
+    window.addEventListener(EVENT_NAVIGATE_TAB, handleNavigate as EventListener);
+    return () => window.removeEventListener(EVENT_NAVIGATE_TAB, handleNavigate as EventListener);
+  }, []);
 
   const closeOverlays = useCallback(() => {
     setPaletteOpen(false);

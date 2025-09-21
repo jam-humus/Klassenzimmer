@@ -54,7 +54,7 @@ export function BadgeIcon({ name, iconKey, size = 48 }: BadgeIconProps) {
         src={url}
         alt={name}
         title={name}
-        style={{ ...baseStyle, objectFit: 'cover' }}
+        style={{ ...baseStyle, objectFit: 'cover', imageRendering: 'crisp-edges' }}
       />
     );
   }
