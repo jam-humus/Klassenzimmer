@@ -10,6 +10,7 @@ import { DEFAULT_SETTINGS } from '~/core/config';
 import StudentDetailScreen from '~/ui/screens/StudentDetailScreen';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
 import { CollapsibleSection, useCollapsibleState } from '~/ui/components/CollapsibleSection';
+import ManageSnapshots from '~/ui/manage/ManageSnapshots';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
 
@@ -890,6 +891,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     },
     [dispatch, stage1Threshold, stage2Threshold],
   );
+  const weeklyCollapse = useCollapsibleState('manage-weekly', true);
   const studentsCollapse = useCollapsibleState('manage-students', true);
   const classGoalsCollapse = useCollapsibleState('manage-class-goals', true);
   const categoriesCollapse = useCollapsibleState('manage-categories', true);
@@ -903,6 +905,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const collapsibleSections = useMemo(
     () =>
       [
+        weeklyCollapse,
         studentsCollapse,
         classGoalsCollapse,
         categoriesCollapse,
@@ -914,6 +917,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
         backupCollapse,
       ] as const,
     [
+      weeklyCollapse,
       studentsCollapse,
       classGoalsCollapse,
       categoriesCollapse,
@@ -1579,6 +1583,13 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
           {allSectionsOpen ? 'Alle Menüs zuklappen' : 'Alle Menüs aufklappen'}
         </button>
       </div>
+      <CollapsibleSection id="manage-weekly" title="Weekly-Show & Snapshots" state={weeklyCollapse}>
+        <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
+          Sichere den Wochenstand und starte die Präsentation der Fortschritte. Snapshots werden lokal gespeichert.
+        </p>
+        <ManageSnapshots />
+      </CollapsibleSection>
+
       <CollapsibleSection id="manage-students" title="Schüler verwalten" state={studentsCollapse}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           <input
