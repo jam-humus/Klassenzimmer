@@ -8,6 +8,7 @@ import { deleteBlob, getObjectURL, putBlob } from '~/services/blobStore';
 import { selectLogsForStudent, selectStudentById } from '~/core/selectors/student';
 import StudentDetailScreen from '~/ui/screens/StudentDetailScreen';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
+import { CollapsibleSection, useCollapsibleState } from '~/ui/components/CollapsibleSection';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
 
@@ -843,6 +844,21 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const [detailStudentId, setDetailStudentId] = useState<string | null>(null);
   const starIconKey = state.settings.classStarIconKey ?? null;
 
+  const categoriesCollapse = useCollapsibleState('manage-categories', true);
+  const badgesCollapse = useCollapsibleState('manage-badges', true);
+  const questsCollapse = useCollapsibleState('manage-quests', true);
+
+  const collapsibleSections = useMemo(
+    () => [categoriesCollapse, badgesCollapse, questsCollapse] as const,
+    [categoriesCollapse, badgesCollapse, questsCollapse],
+  );
+  const allSectionsOpen = collapsibleSections.every((section) => section.open);
+
+  const toggleAllSections = useCallback(() => {
+    const next = !allSectionsOpen;
+    collapsibleSections.forEach((section) => section.setOpen(next));
+  }, [allSectionsOpen, collapsibleSections]);
+
   const updateBadgeIcon = useCallback((file: File | null) => {
     setBadgeIconFile(file);
     setBadgeIconPreview((previous) => {
@@ -922,7 +938,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   );
 
   // Rename to avoid `Identifier "categories" has already been declared` conflicts
-  const catList = state.categories ?? [];
+  const catList = useMemo(() => state.categories ?? [], [state.categories]);
 
   const resolveQuestCategoryName = useCallback(
     (id: string | null): string | null => {
@@ -1023,7 +1039,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     feedback.info('15 Demo-Quests hinzugefügt');
   }, [dispatch, feedback]);
 
-  const categories = state.categories ?? [];
+  const categories = useMemo(() => state.categories ?? [], [state.categories]);
 
   const resolveCategoryName = useCallback(
     (id: string | null): string | null => {
@@ -1114,7 +1130,6 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     badgeRuleThreshold,
     badgeRuleType,
     badgeIconInputRef,
-    categories,
     dispatch,
     feedback,
     resolveCategoryName,
@@ -1486,6 +1501,29 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: 8,
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          type="button"
+          onClick={toggleAllSections}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 999,
+            border: '1px solid #cbd5f5',
+            background: '#fff',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          {allSectionsOpen ? 'Alle Menüs zuklappen' : 'Alle Menüs aufklappen'}
+        </button>
+      </div>
       <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
         <h2>Schüler verwalten</h2>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -1555,8 +1593,11 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
         </div>
       </section>
 
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Kategorien verwalten</h2>
+      <CollapsibleSection
+        id="manage-categories"
+        title="Kategorien verwalten"
+        state={categoriesCollapse}
+      >
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
           Lege zentrale Kategorien an, die du für Quests und Badges auswählen kannst.
         </p>
@@ -1612,10 +1653,13 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             })}
           </ul>
         )}
-      </section>
+      </CollapsibleSection>
 
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Badges verwalten</h2>
+      <CollapsibleSection
+        id="manage-badges"
+        title="Badges verwalten"
+        state={badgesCollapse}
+      >
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
           Lege neue Badges an, lade eigene Icons hoch und steuere Auto-Auszeichnungen über XP-Schwellen und Kategorien.
         </p>
@@ -1844,10 +1888,9 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             )}
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Quests verwalten</h2>
+      <CollapsibleSection id="manage-quests" title="Quests verwalten" state={questsCollapse}>
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
           Weise Quests Kategorien zu, damit Auto-Badges auf Basis von Kategorie-XP funktionieren.
         </p>
@@ -1909,7 +1952,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             />
           ))}
         </ul>
-      </section>
+      </CollapsibleSection>
 
       <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
         <h2>Gruppen verwalten</h2>
