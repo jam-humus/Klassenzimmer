@@ -921,6 +921,16 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     [state.logs, detailStudentId],
   );
 
+  const categories = state.categories ?? [];
+
+  const resolveCategoryName = useCallback(
+    (id: string | null): string | null => {
+      if (!id) return null;
+      return categories.find((category) => category.id === id)?.name ?? null;
+    },
+    [categories],
+  );
+
   useEffect(() => {
     if (detailStudentId && !detailStudent) {
       setDetailStudentId(null);
