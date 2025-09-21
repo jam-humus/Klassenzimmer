@@ -921,14 +921,14 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     [state.logs, detailStudentId],
   );
 
-  const categoryOptions = state.categories ?? [];
+  const categories = state.categories ?? [];
 
   const resolveCategoryName = useCallback(
     (id: string | null): string | null => {
       if (!id) return null;
-      return categoryOptions.find((category) => category.id === id)?.name ?? null;
+      return categories.find((category) => category.id === id)?.name ?? null;
     },
-    [categoryOptions],
+    [categories],
   );
 
   useEffect(() => {
@@ -1089,7 +1089,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     badgeRuleThreshold,
     badgeRuleType,
     badgeIconInputRef,
-    categoryOptions,
+    categories,
     dispatch,
     feedback,
     resolveCategoryName,
@@ -1102,14 +1102,14 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
       feedback.error('Bitte einen Kategorienamen eingeben');
       return;
     }
-    if (categoryOptions.some((category) => category.name.toLowerCase() === trimmed.toLowerCase())) {
+    if (categories.some((category) => category.name.toLowerCase() === trimmed.toLowerCase())) {
       feedback.info('Kategorie existiert bereits');
       return;
     }
     dispatch({ type: 'CATEGORY_CREATE', name: trimmed });
     setNewCategoryName('');
     feedback.success('Kategorie gespeichert');
-  }, [categoryOptions, dispatch, feedback, newCategoryName]);
+  }, [categories, dispatch, feedback, newCategoryName]);
 
   const handleRemoveCategory = useCallback(
     (id: string) => {
@@ -1566,11 +1566,11 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             Kategorie hinzufügen
           </button>
         </div>
-        {categoryOptions.length === 0 ? (
+        {categories.length === 0 ? (
           <em>Noch keine Kategorien angelegt.</em>
         ) : (
           <ul style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: 0, padding: 0, listStyle: 'none' }}>
-            {categoryOptions.map((category) => {
+            {categories.map((category) => {
               const inUse = usedCategoryIds.has(category.id);
               return (
                 <li
@@ -1650,7 +1650,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
                 style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
               >
                 <option value="">Keine Kategorie</option>
-                {categoryOptions.map((category) => (
+                {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
                   </option>
@@ -1748,7 +1748,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
                     style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
                   >
                     <option value="">Kategorie wie oben oder „uncategorized“</option>
-                    {categoryOptions.map((category) => (
+                    {categories.map((category) => (
                       <option key={category.id} value={category.id}>
                         {category.name}
                       </option>
@@ -1806,7 +1806,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
                         {badge.description && (
                           <span style={{ fontSize: 12, color: '#475569' }}>{badge.description}</span>
                         )}
-                        <small style={{ fontSize: 12, color: '#64748b' }}>{describeBadgeRule(badge, categoryOptions)}</small>
+                        <small style={{ fontSize: 12, color: '#64748b' }}>{describeBadgeRule(badge, categories)}</small>
                         {(() => {
                           const badgeCategoryName =
                             resolveCategoryName(badge.categoryId ?? null) ?? badge.category ?? null;
@@ -1873,7 +1873,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             style={{ minWidth: 160, padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
           >
             <option value="">Keine Kategorie</option>
-            {categoryOptions.map((category) => (
+            {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
               </option>
@@ -1891,7 +1891,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             <QuestRow
               key={quest.id}
               quest={quest}
-              categories={categoryOptions}
+              categories={categories}
               onSave={onUpdateQuest}
               onRemove={onRemoveQuest}
             />
