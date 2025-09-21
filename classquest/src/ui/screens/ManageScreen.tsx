@@ -6,6 +6,8 @@ import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import { EVENT_EXPORT_DATA, EVENT_IMPORT_DATA, EVENT_OPEN_SEASON_RESET } from '~/ui/shortcut/events';
 import { deleteBlob, getObjectURL, putBlob } from '~/services/blobStore';
 import { selectLogsForStudent, selectStudentById } from '~/core/selectors/student';
+import { AVATAR_STAGE_COUNT } from '~/core/avatarStages';
+import { DEFAULT_SETTINGS } from '~/core/config';
 import StudentDetailScreen from '~/ui/screens/StudentDetailScreen';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
 import { CollapsibleSection, useCollapsibleState } from '~/ui/components/CollapsibleSection';
@@ -33,8 +35,6 @@ const describeBadgeRule = (definition: BadgeDefinition, categories: Category[]) 
 const ACCEPTED_IMAGE_TYPES = new Set(['image/png', 'image/webp', 'image/jpeg', 'image/jpg']);
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const STAR_ICON_RECOMMENDED_BYTES = 512 * 1024;
-const AVATAR_STAGE_COUNT = 3;
-
 type FeedbackApi = ReturnType<typeof useFeedback>;
 
 const srOnly: React.CSSProperties = {
@@ -844,6 +844,53 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const [detailStudentId, setDetailStudentId] = useState<string | null>(null);
   const starIconKey = state.settings.classStarIconKey ?? null;
 
+  const xpPerLevelValue = Math.max(1, Math.round(state.settings.xpPerLevel ?? DEFAULT_SETTINGS.xpPerLevel));
+  const stageThresholds = state.settings.avatarStageThresholds ?? DEFAULT_SETTINGS.avatarStageThresholds;
+  const stage1Threshold = stageThresholds[0] ?? DEFAULT_SETTINGS.avatarStageThresholds[0];
+  const stage2Threshold = Math.max(stage1Threshold + 1, stageThresholds[1] ?? DEFAULT_SETTINGS.avatarStageThresholds[1]);
+  const onXpPerLevelChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const parsed = Number.parseInt(event.target.value, 10);
+      if (!Number.isFinite(parsed)) {
+        return;
+      }
+      const safe = Math.max(1, parsed);
+      if (safe === xpPerLevelValue) {
+        return;
+      }
+      dispatch({ type: 'UPDATE_SETTINGS', updates: { xpPerLevel: safe } });
+    },
+    [dispatch, xpPerLevelValue],
+  );
+  const onStage1ThresholdChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const parsed = Number.parseInt(event.target.value, 10);
+      if (!Number.isFinite(parsed)) {
+        return;
+      }
+      const nextFirst = Math.max(1, parsed);
+      const nextSecond = Math.max(nextFirst + 1, stage2Threshold);
+      if (nextFirst === stage1Threshold && nextSecond === stage2Threshold) {
+        return;
+      }
+      dispatch({ type: 'UPDATE_SETTINGS', updates: { avatarStageThresholds: [nextFirst, nextSecond] } });
+    },
+    [dispatch, stage1Threshold, stage2Threshold],
+  );
+  const onStage2ThresholdChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const parsed = Number.parseInt(event.target.value, 10);
+      if (!Number.isFinite(parsed)) {
+        return;
+      }
+      const nextSecond = Math.max(stage1Threshold + 1, parsed);
+      if (nextSecond === stage2Threshold) {
+        return;
+      }
+      dispatch({ type: 'UPDATE_SETTINGS', updates: { avatarStageThresholds: [stage1Threshold, nextSecond] } });
+    },
+    [dispatch, stage1Threshold, stage2Threshold],
+  );
   const studentsCollapse = useCollapsibleState('manage-students', true);
   const classGoalsCollapse = useCollapsibleState('manage-class-goals', true);
   const categoriesCollapse = useCollapsibleState('manage-categories', true);
@@ -2020,6 +2067,57 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
 
       <CollapsibleSection id="manage-settings" title="Einstellungen" state={settingsCollapse}>
         <div style={{ display: 'grid', gap: 8 }}>
+          <div
+            style={{
+              display: 'grid',
+              gap: 12,
+              border: '1px solid #d0d7e6',
+              borderRadius: 12,
+              padding: 12,
+              background: '#f8fafc',
+            }}
+          >
+            <h3 style={{ margin: 0 }}>Avatare &amp; Level</h3>
+            <label style={{ display: 'grid', gap: 4 }}>
+              <span style={{ fontWeight: 600 }}>XP pro Level</span>
+              <input
+                type="number"
+                min={1}
+                value={xpPerLevelValue}
+                onChange={onXpPerLevelChange}
+                style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5', maxWidth: 140 }}
+              />
+            </label>
+            <div style={{ display: 'grid', gap: 8 }}>
+              <span style={{ fontWeight: 600 }}>Avatar-Stufen bei Level</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 12, color: '#475569' }}>Stufe 0 → 1 ab</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={stage1Threshold}
+                    onChange={onStage1ThresholdChange}
+                    style={{ width: 90, padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
+                  />
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 12, color: '#475569' }}>Stufe 1 → 2 ab</span>
+                  <input
+                    type="number"
+                    min={stage1Threshold + 1}
+                    value={stage2Threshold}
+                    onChange={onStage2ThresholdChange}
+                    style={{ width: 90, padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
+                  />
+                </label>
+              </div>
+              <small style={{ color: '#64748b' }}>
+                Beispiel: [{stage1Threshold}, {stage2Threshold}] → Level &lt; {stage1Threshold} = Stufe 0 · Level{' '}
+                {stage1Threshold}–{stage2Threshold - 1} = Stufe 1 · Level ≥{stage2Threshold} = Stufe 2
+              </small>
+            </div>
+          </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input
               type="checkbox"
