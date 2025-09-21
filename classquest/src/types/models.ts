@@ -82,6 +82,8 @@ export type Settings = {
   classStarIconKey?: string | null;
   classMilestoneStep?: number;
   classStarsName?: string;
+  /** Levelgrenzen ab denen Avatar-Stufen 2 und 3 aktiv werden */
+  avatarStageThresholds?: [number, number];
 };
 
 export type BadgeDefinition = {

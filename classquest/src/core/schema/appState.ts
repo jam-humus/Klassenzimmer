@@ -88,6 +88,7 @@ export const Settings = z.object({
   classStarIconKey: z.string().optional().nullable(),
   classMilestoneStep: z.number().int().positive().optional(),
   classStarsName: z.string().optional(),
+  avatarStageThresholds: z.array(z.number().int().positive()).length(2).optional(),
 });
 
 export const ClassProgress = z.object({
@@ -226,6 +227,19 @@ const sanitizeAvatarPack = (value: unknown): AppStateType['students'][number]['a
     return { stageKeys: sanitizeStageKeys(undefined) };
   }
   return { stageKeys: sanitizeStageKeys(value.stageKeys) };
+};
+
+const sanitizeStageThresholds = (value: unknown): [number, number] => {
+  const fallback = DEFAULT_SETTINGS.avatarStageThresholds ?? [3, 6];
+  if (!Array.isArray(value)) {
+    return [fallback[0], Math.max(fallback[0] + 1, fallback[1] ?? fallback[0] + 1)];
+  }
+  const first = Math.max(1, Math.floor(asNumber(value[0], fallback[0])));
+  let second = Math.max(1, Math.floor(asNumber(value[1], fallback[1])));
+  if (second <= first) {
+    second = first + 1;
+  }
+  return [first, second];
 };
 
 const sanitizeFlags = (value: unknown): Record<string, boolean> | undefined => {
@@ -408,6 +422,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
       Math.max(1, Math.floor(asNumber(settingsRecord.classMilestoneStep, DEFAULT_SETTINGS.classMilestoneStep)) || 1) ||
       DEFAULT_SETTINGS.classMilestoneStep,
     classStarsName: asString(settingsRecord.classStarsName) ?? DEFAULT_SETTINGS.classStarsName,
+    avatarStageThresholds: sanitizeStageThresholds(settingsRecord.avatarStageThresholds),
   };
 
   const totalXP = Math.max(

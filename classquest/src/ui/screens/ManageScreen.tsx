@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useApp } from '~/app/AppContext';
+import { DEFAULT_SETTINGS } from '~/core/config';
 import type { BadgeDefinition, Category, ID, Quest, QuestType, Student, Team } from '~/types/models';
 import AsyncButton from '~/ui/feedback/AsyncButton';
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
@@ -8,6 +9,7 @@ import { deleteBlob, getObjectURL, putBlob } from '~/services/blobStore';
 import { selectLogsForStudent, selectStudentById } from '~/core/selectors/student';
 import StudentDetailScreen from '~/ui/screens/StudentDetailScreen';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
+import { CollapsibleSection, useCollapsibleState } from '~/ui/components/CollapsibleSection';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
 
@@ -842,6 +844,104 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const [undoTicker, setUndoTicker] = useState(0);
   const [detailStudentId, setDetailStudentId] = useState<string | null>(null);
   const starIconKey = state.settings.classStarIconKey ?? null;
+  const stageThresholds = useMemo(() => {
+    const raw = state.settings.avatarStageThresholds ?? DEFAULT_SETTINGS.avatarStageThresholds;
+    const first = Math.max(1, Math.floor(raw?.[0] ?? DEFAULT_SETTINGS.avatarStageThresholds[0]));
+    let second = Math.max(1, Math.floor(raw?.[1] ?? DEFAULT_SETTINGS.avatarStageThresholds[1]));
+    if (second <= first) {
+      second = first + 1;
+    }
+    return [first, second] as [number, number];
+  }, [state.settings.avatarStageThresholds]);
+  const [stageTwoLevel, stageThreeLevel] = stageThresholds;
+  const [stageThresholdInputs, setStageThresholdInputs] = useState<[string, string]>(() => [
+    String(stageThresholds[0]),
+    String(stageThresholds[1]),
+  ]);
+  const [stageTwoInput, stageThreeInput] = stageThresholdInputs;
+  useEffect(() => {
+    setStageThresholdInputs([String(stageTwoLevel), String(stageThreeLevel)]);
+  }, [stageThreeLevel, stageTwoLevel]);
+  const stageThreeMin = useMemo(() => {
+    const parsed = Number.parseInt(stageTwoInput, 10);
+    if (Number.isFinite(parsed)) {
+      return Math.max(2, parsed + 1);
+    }
+    return stageTwoLevel + 1;
+  }, [stageTwoInput, stageTwoLevel]);
+  const stageOneRangeText = stageTwoLevel <= 1 ? 'Level 1' : `Level 1–${stageTwoLevel - 1}`;
+  const stageTwoRangeText =
+    stageThreeLevel > stageTwoLevel ? `Level ${stageTwoLevel}–${stageThreeLevel - 1}` : `Level ${stageTwoLevel}`;
+  const stageThreeRangeText = `ab Level ${stageThreeLevel}`;
+
+  const studentsCollapse = useCollapsibleState('manage-students', true);
+  const classGoalsCollapse = useCollapsibleState('manage-class-goals', true);
+  const categoriesCollapse = useCollapsibleState('manage-categories', true);
+  const badgesCollapse = useCollapsibleState('manage-badges', true);
+  const questsCollapse = useCollapsibleState('manage-quests', true);
+  const groupsCollapse = useCollapsibleState('manage-groups', true);
+  const settingsCollapse = useCollapsibleState('manage-settings', true);
+  const resetCollapse = useCollapsibleState('manage-season-reset', true);
+  const backupCollapse = useCollapsibleState('manage-backup', true);
+
+  const collapsibleSections = useMemo(
+    () =>
+      [
+        studentsCollapse,
+        classGoalsCollapse,
+        categoriesCollapse,
+        badgesCollapse,
+        questsCollapse,
+        groupsCollapse,
+        settingsCollapse,
+        resetCollapse,
+        backupCollapse,
+      ] as const,
+    [
+      studentsCollapse,
+      classGoalsCollapse,
+      categoriesCollapse,
+      badgesCollapse,
+      questsCollapse,
+      groupsCollapse,
+      settingsCollapse,
+      resetCollapse,
+      backupCollapse,
+    ],
+  );
+  const allSectionsOpen = collapsibleSections.every((section) => section.open);
+
+  const toggleAllSections = useCallback(() => {
+    const next = !allSectionsOpen;
+    collapsibleSections.forEach((section) => section.setOpen(next));
+  }, [allSectionsOpen, collapsibleSections]);
+
+  const commitStageThresholds = useCallback(() => {
+    const parseLevel = (value: string, fallback: number) => {
+      const parsed = Number.parseInt(value, 10);
+      if (!Number.isFinite(parsed)) {
+        return fallback;
+      }
+      return Math.max(1, Math.floor(parsed));
+    };
+    const nextStageTwo = parseLevel(stageTwoInput, stageTwoLevel);
+    let nextStageThree = parseLevel(stageThreeInput, stageThreeLevel);
+    let adjusted = false;
+    if (nextStageThree <= nextStageTwo) {
+      adjusted = true;
+      nextStageThree = nextStageTwo + 1;
+    }
+    if (nextStageTwo === stageTwoLevel && nextStageThree === stageThreeLevel) {
+      setStageThresholdInputs([String(nextStageTwo), String(nextStageThree)]);
+      return;
+    }
+    dispatch({ type: 'UPDATE_SETTINGS', updates: { avatarStageThresholds: [nextStageTwo, nextStageThree] } });
+    setStageThresholdInputs([String(nextStageTwo), String(nextStageThree)]);
+    if (adjusted) {
+      feedback.info('Stufe 3 startet immer nach Stufe 2. Wert wurde angepasst.');
+    }
+    feedback.success('Avatar-Stufen gespeichert');
+  }, [dispatch, feedback, stageThreeInput, stageThreeLevel, stageTwoInput, stageTwoLevel]);
 
   const updateBadgeIcon = useCallback((file: File | null) => {
     setBadgeIconFile(file);
@@ -922,7 +1022,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   );
 
   // Rename to avoid `Identifier "categories" has already been declared` conflicts
-  const catList = state.categories ?? [];
+  const catList = useMemo(() => state.categories ?? [], [state.categories]);
 
   const resolveQuestCategoryName = useCallback(
     (id: string | null): string | null => {
@@ -1023,7 +1123,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     feedback.info('15 Demo-Quests hinzugefügt');
   }, [dispatch, feedback]);
 
-  const categories = state.categories ?? [];
+  const categories = useMemo(() => state.categories ?? [], [state.categories]);
 
   const resolveCategoryName = useCallback(
     (id: string | null): string | null => {
@@ -1114,7 +1214,6 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     badgeRuleThreshold,
     badgeRuleType,
     badgeIconInputRef,
-    categories,
     dispatch,
     feedback,
     resolveCategoryName,
@@ -1486,8 +1585,31 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Schüler verwalten</h2>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: 8,
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          type="button"
+          onClick={toggleAllSections}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 999,
+            border: '1px solid #cbd5f5',
+            background: '#fff',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+          aria-pressed={allSectionsOpen}
+        >
+          {allSectionsOpen ? 'Alle Menüs zuklappen' : 'Alle Menüs aufklappen'}
+        </button>
+      </div>
+      <CollapsibleSection id="manage-students" title="Schüler verwalten" state={studentsCollapse}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           <input
             aria-label="Neuen Schüleralias"
@@ -1542,21 +1664,27 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             />
           ))}
         </ul>
-      </section>
+      </CollapsibleSection>
 
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Class Goals &amp; Rewards</h2>
-        <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+      <CollapsibleSection
+        id="manage-class-goals"
+        title="Class Goals &amp; Rewards"
+        state={classGoalsCollapse}
+      >
+        <div style={{ display: 'grid', gap: 12 }}>
           <div style={{ display: 'grid', gap: 8 }}>
             <h3 style={{ margin: 0 }}>Stern-Icon</h3>
             <StarIconUploader blobKey={starIconKey} onSelect={onStarIconSelect} onRemove={onStarIconRemove} />
             <small style={{ color: '#64748b' }}>Empfohlen: WebP/PNG, transparent, ~256–512px.</small>
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Kategorien verwalten</h2>
+      <CollapsibleSection
+        id="manage-categories"
+        title="Kategorien verwalten"
+        state={categoriesCollapse}
+      >
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
           Lege zentrale Kategorien an, die du für Quests und Badges auswählen kannst.
         </p>
@@ -1612,10 +1740,13 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             })}
           </ul>
         )}
-      </section>
+      </CollapsibleSection>
 
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Badges verwalten</h2>
+      <CollapsibleSection
+        id="manage-badges"
+        title="Badges verwalten"
+        state={badgesCollapse}
+      >
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
           Lege neue Badges an, lade eigene Icons hoch und steuere Auto-Auszeichnungen über XP-Schwellen und Kategorien.
         </p>
@@ -1844,10 +1975,9 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             )}
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Quests verwalten</h2>
+      <CollapsibleSection id="manage-quests" title="Quests verwalten" state={questsCollapse}>
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
           Weise Quests Kategorien zu, damit Auto-Badges auf Basis von Kategorie-XP funktionieren.
         </p>
@@ -1909,10 +2039,9 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             />
           ))}
         </ul>
-      </section>
+      </CollapsibleSection>
 
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Gruppen verwalten</h2>
+      <CollapsibleSection id="manage-groups" title="Gruppen verwalten" state={groupsCollapse}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           <input
             aria-label="Gruppenname"
@@ -1944,85 +2073,148 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
           ))}
           {sortedTeams.length === 0 && <em>Noch keine Gruppen angelegt.</em>}
         </ul>
-      </section>
+      </CollapsibleSection>
 
-
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Einstellungen</h2>
-        <div style={{ display: 'grid', gap: 8 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={Boolean(state.settings.allowNegativeXP)}
-              onChange={(e) => {
-                dispatch({ type: 'UPDATE_SETTINGS', updates: { allowNegativeXP: e.target.checked } });
-                feedback.success('Einstellung gespeichert');
-              }}
-            />
-            Negative XP erlauben (Shop kann unter 0 gehen)
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={Boolean(state.settings.sfxEnabled)}
-              onChange={(e) => {
-                dispatch({ type: 'UPDATE_SETTINGS', updates: { sfxEnabled: e.target.checked } });
-                feedback.info(e.target.checked ? 'Soundeffekte aktiviert' : 'Soundeffekte deaktiviert');
-              }}
-            />
-            Soundeffekte aktivieren
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={Boolean(state.settings.compactMode)}
-              onChange={(e) => {
-                dispatch({ type: 'UPDATE_SETTINGS', updates: { compactMode: e.target.checked } });
-                feedback.info(e.target.checked ? 'Kompakte Ansicht aktiviert' : 'Kompakte Ansicht deaktiviert');
-              }}
-            />
-            Kompakte Ansicht
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={state.settings.shortcutsEnabled !== false}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                dispatch({ type: 'UPDATE_SETTINGS', updates: { shortcutsEnabled: checked } });
-                feedback.info(checked ? 'Tastaturkürzel aktiviert' : 'Tastaturkürzel deaktiviert');
-              }}
-            />
-            Tastaturkürzel aktivieren
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={Boolean(state.settings.flags?.virtualize)}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                dispatch({
-                  type: 'UPDATE_SETTINGS',
-                  updates: { flags: { ...(state.settings.flags ?? {}), virtualize: checked } },
-                });
-                feedback.info(checked ? 'Virtualisierung aktiviert' : 'Virtualisierung deaktiviert');
-              }}
-            />
-            Listen virtualisieren (für große Klassen)
-          </label>
+      <CollapsibleSection id="manage-settings" title="Einstellungen" state={settingsCollapse}>
+        <div style={{ display: 'grid', gap: 16 }}>
+          <section style={{ display: 'grid', gap: 8 }}>
+            <h3 style={{ margin: 0 }}>Avatar-Stufen</h3>
+            <p style={{ margin: 0, fontSize: 14, color: '#475569' }}>
+              Bestimme ab welchem Level die hochgeladenen Avatar-Stufen automatisch wechseln.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'flex-end' }}>
+              <label style={{ display: 'grid', gap: 4 }}>
+                <span style={{ fontWeight: 600 }}>Stufe 2 ab Level</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={stageTwoInput}
+                  onChange={(event) => setStageThresholdInputs([event.target.value, stageThreeInput])}
+                  onBlur={commitStageThresholds}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      commitStageThresholds();
+                    }
+                  }}
+                  aria-label="Avatar-Stufe 2 ab diesem Level aktivieren"
+                  style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5', minWidth: 120 }}
+                />
+              </label>
+              <label style={{ display: 'grid', gap: 4 }}>
+                <span style={{ fontWeight: 600 }}>Stufe 3 ab Level</span>
+                <input
+                  type="number"
+                  min={stageThreeMin}
+                  value={stageThreeInput}
+                  onChange={(event) => setStageThresholdInputs([stageTwoInput, event.target.value])}
+                  onBlur={commitStageThresholds}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      commitStageThresholds();
+                    }
+                  }}
+                  aria-label="Avatar-Stufe 3 ab diesem Level aktivieren"
+                  style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5', minWidth: 120 }}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={commitStageThresholds}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: 10,
+                  border: '1px solid #cbd5f5',
+                  background: '#fff',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Speichern
+              </button>
+            </div>
+            <small style={{ color: '#64748b' }}>
+              Stufe 1: {stageOneRangeText} · Stufe 2: {stageTwoRangeText} · Stufe 3: {stageThreeRangeText}
+            </small>
+          </section>
+          <div style={{ display: 'grid', gap: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(state.settings.allowNegativeXP)}
+                onChange={(e) => {
+                  dispatch({ type: 'UPDATE_SETTINGS', updates: { allowNegativeXP: e.target.checked } });
+                  feedback.success('Einstellung gespeichert');
+                }}
+              />
+              Negative XP erlauben (Shop kann unter 0 gehen)
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(state.settings.sfxEnabled)}
+                onChange={(e) => {
+                  dispatch({ type: 'UPDATE_SETTINGS', updates: { sfxEnabled: e.target.checked } });
+                  feedback.info(e.target.checked ? 'Soundeffekte aktiviert' : 'Soundeffekte deaktiviert');
+                }}
+              />
+              Soundeffekte aktivieren
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(state.settings.compactMode)}
+                onChange={(e) => {
+                  dispatch({ type: 'UPDATE_SETTINGS', updates: { compactMode: e.target.checked } });
+                  feedback.info(e.target.checked ? 'Kompakte Ansicht aktiviert' : 'Kompakte Ansicht deaktiviert');
+                }}
+              />
+              Kompakte Ansicht
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={state.settings.shortcutsEnabled !== false}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  dispatch({ type: 'UPDATE_SETTINGS', updates: { shortcutsEnabled: checked } });
+                  feedback.info(checked ? 'Tastaturkürzel aktiviert' : 'Tastaturkürzel deaktiviert');
+                }}
+              />
+              Tastaturkürzel aktivieren
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(state.settings.flags?.virtualize)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  dispatch({
+                    type: 'UPDATE_SETTINGS',
+                    updates: { flags: { ...(state.settings.flags ?? {}), virtualize: checked } },
+                  });
+                  feedback.info(checked ? 'Virtualisierung aktiviert' : 'Virtualisierung deaktiviert');
+                }}
+              />
+              Listen virtualisieren (für große Klassen)
+            </label>
+          </div>
         </div>
-      </section>
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Saison zurücksetzen</h2>
+      </CollapsibleSection>
+      <CollapsibleSection
+        id="manage-season-reset"
+        title="Saison zurücksetzen"
+        state={resetCollapse}
+      >
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
           Setzt XP, Level, Streaks und das Protokoll aller Schüler zurück. Schüler, Gruppen und Quests bleiben bestehen.
         </p>
         <button type="button" onClick={triggerSeasonReset} style={{ padding: '10px 18px', borderRadius: 12 }}>
           Saison-Reset starten
         </button>
-      </section>
-      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-        <h2>Backup &amp; Restore</h2>
+      </CollapsibleSection>
+      <CollapsibleSection id="manage-backup" title="Backup &amp; Restore" state={backupCollapse}>
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>
           Exportiere den aktuellen Klassenstand als JSON-Datei oder importiere eine Sicherung. Beim Import werden alle
           bestehenden Daten überschrieben.
@@ -2058,7 +2250,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
           />
           {importError && <span style={{ color: '#b91c1c', fontWeight: 600 }}>{importError}</span>}
         </div>
-      </section>
+      </CollapsibleSection>
       {detailStudent && (
         <StudentDetailScreen student={detailStudent} logs={detailLogs} onClose={closeStudentDetail} />
       )}

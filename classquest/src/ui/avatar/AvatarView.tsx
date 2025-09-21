@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useApp } from '~/app/AppContext';
+import { DEFAULT_SETTINGS } from '~/core/config';
 import type { Student } from '~/types/models';
 import { getObjectURL } from '~/services/blobStore';
 
@@ -18,34 +20,64 @@ const roundedRadius: Record<NonNullable<AvatarViewProps['rounded']>, number> = {
   lg: 16,
 };
 
-function sanitizeStageKeys(pack: AvatarViewStudent['avatarPack']) {
+const DEFAULT_STAGE_THRESHOLDS = DEFAULT_SETTINGS.avatarStageThresholds ?? [3, 6];
+
+function sanitizeStageKeys(pack: AvatarViewStudent['avatarPack']): (string | null)[] {
   const raw = Array.isArray(pack?.stageKeys) ? pack?.stageKeys ?? [] : [];
-  return raw
-    .map((key) => {
-      if (typeof key !== 'string') {
-        return null;
-      }
-      const trimmed = key.trim();
+  return Array.from({ length: 3 }, (_, index) => {
+    const candidate = raw[index];
+    if (typeof candidate === 'string') {
+      const trimmed = candidate.trim();
       return trimmed.length > 0 ? trimmed : null;
-    })
-    .filter((key): key is string => Boolean(key));
+    }
+    return null;
+  });
 }
 
-function pickStageKey(student: AvatarViewStudent) {
+function resolveStageThresholds(thresholds?: readonly number[] | null): [number, number] {
+  if (!thresholds || thresholds.length < 2) {
+    return [DEFAULT_STAGE_THRESHOLDS[0], DEFAULT_STAGE_THRESHOLDS[1]];
+  }
+  const first = Math.max(1, Math.floor(thresholds[0]));
+  let second = Math.max(1, Math.floor(thresholds[1]));
+  if (second <= first) {
+    second = first + 1;
+  }
+  return [first, second];
+}
+
+function pickStageKey(student: AvatarViewStudent, thresholds: readonly number[]) {
   if (student.avatarMode !== 'imagePack') {
     return null;
   }
   const keys = sanitizeStageKeys(student.avatarPack);
-  if (!keys.length) {
+  if (!keys.some(Boolean)) {
     return null;
   }
-  // Prefer the highest defined stage, teachers often upload progressively impressive artwork.
-  return keys[keys.length - 1];
+  const [stageTwoLevel, stageThreeLevel] = resolveStageThresholds(thresholds);
+  const level = Math.max(1, Math.floor(student.level ?? 1));
+  const desiredStage = level < stageTwoLevel ? 0 : level < stageThreeLevel ? 1 : 2;
+
+  for (let index = desiredStage; index >= 0; index -= 1) {
+    const key = keys[index];
+    if (key) {
+      return key;
+    }
+  }
+  for (let index = desiredStage + 1; index < keys.length; index += 1) {
+    const key = keys[index];
+    if (key) {
+      return key;
+    }
+  }
+  return null;
 }
 
 export function AvatarView({ student, size = 56, rounded = 'full', className, style }: AvatarViewProps) {
+  const { state } = useApp();
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
-  const stageKey = pickStageKey(student);
+  const thresholds = resolveStageThresholds(state.settings.avatarStageThresholds);
+  const stageKey = pickStageKey(student, thresholds);
 
   useEffect(() => {
     let cancelled = false;

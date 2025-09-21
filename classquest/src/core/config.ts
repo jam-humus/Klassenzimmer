@@ -13,4 +13,5 @@ export const DEFAULT_SETTINGS = {
   classStarIconKey: null,
   classMilestoneStep: 1000,
   classStarsName: 'Stern',
+  avatarStageThresholds: [3, 6] as [number, number],
 } as const;

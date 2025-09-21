@@ -72,6 +72,33 @@ const normalizeAvatarPack = (pack?: Student['avatarPack']): NonNullable<Student[
 const stageKeysEqual = (a: (string | null)[], b: (string | null)[]) =>
   a.length === b.length && a.every((value, index) => value === b[index]);
 
+const DEFAULT_STAGE_THRESHOLDS = DEFAULT_SETTINGS.avatarStageThresholds ?? [3, 6];
+
+const parseStageThreshold = (value: unknown, fallback: number) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(1, Math.floor(value));
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed)) {
+      return Math.max(1, Math.floor(parsed));
+    }
+  }
+  return Math.max(1, Math.floor(fallback));
+};
+
+const normalizeStageThresholds = (
+  value: Settings['avatarStageThresholds'] | number[] | null | undefined,
+): [number, number] => {
+  const source = Array.isArray(value) ? value : DEFAULT_STAGE_THRESHOLDS;
+  const first = parseStageThreshold(source[0], DEFAULT_STAGE_THRESHOLDS[0]);
+  let second = parseStageThreshold(source[1], DEFAULT_STAGE_THRESHOLDS[1]);
+  if (second <= first) {
+    second = first + 1;
+  }
+  return [first, second];
+};
+
 const normalizeStudentAvatar = (student: Student): Student => {
   const avatarMode: Student['avatarMode'] = student.avatarMode === 'imagePack' ? 'imagePack' : 'procedural';
   const currentPack = normalizeAvatarPack(student.avatarPack);
@@ -107,6 +134,7 @@ function normalizeSettings(settings?: Partial<Settings>): Settings {
       ? merged.classStarsName.trim()
       : DEFAULT_SETTINGS.classStarsName;
   merged.classStarsName = starsName;
+  merged.avatarStageThresholds = normalizeStageThresholds(settings?.avatarStageThresholds ?? merged.avatarStageThresholds);
   if (merged.onboardingCompleted == null) {
     merged.onboardingCompleted = false;
   }
