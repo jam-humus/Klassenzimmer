@@ -8,3 +8,4 @@ export const EVENT_REQUEST_UNDO = 'cq:request-undo';
 export const EVENT_EXPORT_DATA = 'cq:export-data';
 export const EVENT_IMPORT_DATA = 'cq:import-data';
 export const EVENT_OPEN_SEASON_RESET = 'cq:open-season-reset';
+export const EVENT_NAVIGATE_TAB = 'cq:navigate-tab';

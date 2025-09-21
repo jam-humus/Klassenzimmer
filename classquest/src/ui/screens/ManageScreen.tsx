@@ -5,7 +5,6 @@ import AsyncButton from '~/ui/feedback/AsyncButton';
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import { EVENT_EXPORT_DATA, EVENT_IMPORT_DATA, EVENT_OPEN_SEASON_RESET } from '~/ui/shortcut/events';
 import { deleteBlob, getObjectURL, putBlob } from '~/services/blobStore';
-import { selectLogsForStudent, selectStudentById } from '~/core/selectors/student';
 import { AVATAR_STAGE_COUNT } from '~/core/avatarStages';
 import { DEFAULT_SETTINGS } from '~/core/config';
 import StudentDetailScreen from '~/ui/screens/StudentDetailScreen';
@@ -998,19 +997,6 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     setDetailStudentId(null);
   }, []);
 
-  const detailStudent = useMemo(
-    () => selectStudentById({ students: state.students }, detailStudentId),
-    [state.students, detailStudentId],
-  );
-
-  const detailLogs = useMemo(
-    () =>
-      detailStudentId
-        ? selectLogsForStudent({ logs: state.logs }, detailStudentId, 50)
-        : [],
-    [state.logs, detailStudentId],
-  );
-
   // Rename to avoid `Identifier "categories" has already been declared` conflicts
   const catList = useMemo(() => state.categories ?? [], [state.categories]);
 
@@ -1021,12 +1007,6 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     },
     [catList],
   );
-
-  useEffect(() => {
-    if (detailStudentId && !detailStudent) {
-      setDetailStudentId(null);
-    }
-  }, [detailStudentId, detailStudent]);
 
   const addStudent = useCallback(() => {
     const trimmed = alias.trim();
@@ -2229,8 +2209,12 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
           {importError && <span style={{ color: '#b91c1c', fontWeight: 600 }}>{importError}</span>}
         </div>
       </CollapsibleSection>
-      {detailStudent && (
-        <StudentDetailScreen student={detailStudent} logs={detailLogs} onClose={closeStudentDetail} />
+      {detailStudentId && (
+        <StudentDetailScreen
+          studentId={detailStudentId}
+          onClose={closeStudentDetail}
+          onSelectStudent={(id) => setDetailStudentId(id)}
+        />
       )}
     </div>
   );
