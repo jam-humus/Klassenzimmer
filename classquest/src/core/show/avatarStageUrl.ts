@@ -13,7 +13,7 @@ function sanitizeStageKeys(pack?: Student['avatarPack']): (string | null)[] {
 }
 
 export async function getAvatarStageUrl(
-  state: AppState,
+  _state: AppState,
   student: Student,
   stage: number,
 ): Promise<string | null> {

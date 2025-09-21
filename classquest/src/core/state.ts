@@ -1,6 +1,7 @@
 import { DEFAULT_SETTINGS } from './config';
 import { processAward } from './gameLogic';
 import { levelFromXP } from './xp';
+import { sanitizeAssetSettings } from '~/types/settings';
 import type {
   AppState,
   ID,
@@ -68,14 +69,18 @@ export const createInitialState = (
   teams: [],
   quests: [],
   logs: [],
-  settings: {
-    ...DEFAULT_SETTINGS,
-    ...settings,
-    flags: {
-      ...(DEFAULT_SETTINGS.flags ?? {}),
-      ...((settings?.flags ?? {}) as Record<string, boolean>),
-    },
-  },
+  settings: (() => {
+    const { flags, assets, ...restSettings } = settings ?? {};
+    return {
+      ...DEFAULT_SETTINGS,
+      ...restSettings,
+      flags: {
+        ...(DEFAULT_SETTINGS.flags ?? {}),
+        ...((flags ?? {}) as Record<string, boolean>),
+      },
+      assets: sanitizeAssetSettings(assets ?? DEFAULT_SETTINGS.assets),
+    } satisfies Settings;
+  })(),
   version,
   classProgress: { totalXP: 0, stars: 0 },
   badgeDefs: [],
