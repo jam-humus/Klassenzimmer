@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import type { LogEntry, Student } from '~/types/models';
-import { AvatarView } from '~/ui/avatar/AvatarView';
-import { BadgeIcon } from '~/ui/components/BadgeIcon';
+import ProfileCard from '~/ui/components/ProfileCard';
 
 type StudentDetailScreenProps = {
   student: Pick<Student, 'id' | 'alias' | 'xp' | 'level' | 'badges' | 'avatarMode' | 'avatarPack'>;
@@ -51,100 +50,70 @@ export default function StudentDetailScreen({ student, logs, onClose }: StudentD
         role="document"
         onClick={(event) => event.stopPropagation()}
         style={{
-          background: '#fff',
-          borderRadius: 20,
-          maxWidth: 520,
+          background: 'transparent',
+          borderRadius: 24,
+          maxWidth: 560,
           width: '100%',
           maxHeight: '90vh',
           overflowY: 'auto',
-          boxShadow: '0 24px 48px rgba(15,23,42,0.25)',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 8 }}>
           <button
             type="button"
             onClick={onClose}
             aria-label="Detailansicht schließen"
             style={{
               border: 'none',
-              background: 'transparent',
-              fontSize: 18,
+              background: 'rgba(15,23,42,0.06)',
+              color: '#0f172a',
+              borderRadius: 999,
+              width: 36,
+              height: 36,
+              fontSize: 20,
               cursor: 'pointer',
+              lineHeight: 1,
             }}
           >
             ×
           </button>
         </div>
         <div style={{ padding: '0 24px 24px', display: 'grid', gap: 24 }}>
-          <header style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <AvatarView
-              student={{
-                alias: student.alias,
-                avatarMode: student.avatarMode,
-                avatarPack: student.avatarPack,
-                level: student.level,
-                xp: student.xp,
-              }}
-              size={96}
-              rounded="xl"
-            />
-            <div>
-              <h2 id="student-detail-title" style={{ margin: 0, fontSize: 24 }}>{student.alias}</h2>
-              <p style={{ margin: '4px 0 0', color: '#475569' }}>
-                {student.xp} XP · Level {student.level}
-              </p>
-            </div>
-          </header>
+          <ProfileCard studentId={student.id} titleId="student-detail-title" />
 
-          {student.badges?.length ? (
-            <section>
-              <h3 style={{ margin: '0 0 12px', fontSize: 18 }}>Badges</h3>
-              <ul style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: 0, padding: 0, listStyle: 'none' }}>
-                {student.badges.map((badge) => (
-                  <li
-                    key={`${badge.id}-${badge.awardedAt}`}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: 999,
-                      border: '1px solid #cbd5f5',
-                      background: '#f8fafc',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      fontSize: 14,
-                    }}
-                  >
-                    <BadgeIcon name={badge.name} iconKey={badge.iconKey} size={36} />
-                    <span>{badge.name}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          <section>
-            <h3 style={{ margin: '0 0 12px', fontSize: 18 }}>Letzte Vergaben</h3>
+          <section
+            style={{
+              background: '#fff',
+              borderRadius: 24,
+              border: '1px solid rgba(15,23,42,0.12)',
+              boxShadow: '0 24px 48px rgba(15,23,42,0.08)',
+              padding: 24,
+              display: 'grid',
+              gap: 16,
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0f172a' }}>Letzte Vergaben</h3>
             {logs.length === 0 ? (
-              <p style={{ margin: 0, color: '#64748b' }}>Noch keine Vergaben vorhanden.</p>
+              <p style={{ margin: 0, color: '#64748b', fontSize: 14 }}>Noch keine Vergaben vorhanden.</p>
             ) : (
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 12 }}>
                 {logs.map((entry) => (
                   <li
                     key={entry.id}
                     style={{
-                      border: '1px solid #d0d7e6',
-                      borderRadius: 12,
-                      padding: 12,
-                      background: '#f8fafc',
+                      border: '1px solid rgba(15,23,42,0.1)',
+                      borderRadius: 16,
+                      padding: 14,
+                      background: 'rgba(248,250,252,0.95)',
                       display: 'grid',
-                      gap: 4,
+                      gap: 6,
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-                      <strong style={{ fontSize: 16 }}>+{entry.xp} XP</strong>
+                      <strong style={{ fontSize: 15, color: '#0f172a' }}>+{entry.xp} XP</strong>
                       <span style={{ fontSize: 12, color: '#64748b' }}>{formatTimestamp(entry.timestamp)}</span>
                     </div>
-                    <div style={{ fontSize: 14 }}>{entry.questName}</div>
+                    <div style={{ fontSize: 14, color: '#0f172a' }}>{entry.questName}</div>
                     {entry.note && (
                       <div style={{ fontSize: 12, color: '#475569' }}>{entry.note}</div>
                     )}
