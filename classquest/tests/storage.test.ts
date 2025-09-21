@@ -36,6 +36,7 @@ const sampleState = (): AppState => ({
   students: [{ id: 's1', alias: 'Lena', xp: 10, level: 1, streaks: {}, lastAwardedDay: {}, badges: [] }],
   teams: [],
   quests: [{ id: 'q1', name: 'Hausaufgaben', xp: 10, type: 'daily', target: 'individual', active: true }],
+  categories: [],
   logs: [],
   settings: { className: '4a', xpPerLevel: 100, streakThresholdForBadge: 5, allowNegativeXP: false },
   version: 1,

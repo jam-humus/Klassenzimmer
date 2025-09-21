@@ -20,6 +20,7 @@ const createState = (studentOverrides: Partial<Student> = {}): AppState => {
     students: [student],
     teams: [],
     quests: [],
+    categories: [],
     logs: [],
     settings: {
       className: 'Demo',

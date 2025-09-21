@@ -921,14 +921,15 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     [state.logs, detailStudentId],
   );
 
-  const categories = state.categories ?? [];
+  // Rename to avoid `Identifier "categories" has already been declared` conflicts
+  const catList = state.categories ?? [];
 
-  const resolveCategoryName = useCallback(
+  const resolveQuestCategoryName = useCallback(
     (id: string | null): string | null => {
       if (!id) return null;
-      return categories.find((category) => category.id === id)?.name ?? null;
+      return catList.find((category) => category.id === id)?.name ?? null;
     },
-    [categories],
+    [catList],
   );
 
   useEffect(() => {
@@ -1004,7 +1005,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     if (!trimmed) return;
     const base = newQuest(trimmed, qXP, qType);
     const questCategoryId = newQuestCategoryId;
-    const questCategoryName = resolveCategoryName(questCategoryId);
+    const questCategoryName = resolveQuestCategoryName(questCategoryId);
     const quest: Quest = {
       ...base,
       categoryId: questCategoryId ?? null,
@@ -1012,7 +1013,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     };
     dispatch({ type: 'ADD_QUEST', quest });
     feedback.success('Quest gespeichert');
-  }, [dispatch, feedback, newQuestCategoryId, qName, qXP, qType, resolveCategoryName]);
+  }, [dispatch, feedback, newQuestCategoryId, qName, qXP, qType, resolveQuestCategoryName]);
 
   const populateQuests = useCallback(() => {
     const presets = Array.from({ length: 15 }, (_, i) =>
@@ -1031,6 +1032,20 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     },
     [categories],
   );
+
+  const usedCategoryIds = useMemo(() => {
+    const ids = new Set<string>();
+    state.quests.forEach((quest) => {
+      if (quest.categoryId) ids.add(quest.categoryId);
+    });
+    (state.badgeDefs ?? []).forEach((definition) => {
+      if (definition.categoryId) ids.add(definition.categoryId);
+      if (definition.rule?.type === 'category_xp' && definition.rule.categoryId) {
+        ids.add(definition.rule.categoryId);
+      }
+    });
+    return ids;
+  }, [state.badgeDefs, state.quests]);
 
   const handleCreateBadgeDefinition = useCallback(async () => {
     const trimmedName = badgeName.trim();
@@ -1345,19 +1360,6 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const sortedStudents = useMemo(() => [...state.students].sort((a, b) => a.alias.localeCompare(b.alias)), [state.students]);
   const sortedQuests = useMemo(() => [...state.quests].sort((a, b) => a.name.localeCompare(b.name)), [state.quests]);
   const sortedTeams = useMemo(() => [...state.teams].sort((a, b) => a.name.localeCompare(b.name)), [state.teams]);
-  const usedCategoryIds = useMemo(() => {
-    const ids = new Set<string>();
-    state.quests.forEach((quest) => {
-      if (quest.categoryId) ids.add(quest.categoryId);
-    });
-    (state.badgeDefs ?? []).forEach((definition) => {
-      if (definition.categoryId) ids.add(definition.categoryId);
-      if (definition.rule?.type === 'category_xp' && definition.rule.categoryId) {
-        ids.add(definition.rule.categoryId);
-      }
-    });
-    return ids;
-  }, [state.badgeDefs, state.quests]);
 
   useEffect(() => {
     const pending = pendingImportAliasesRef.current;
