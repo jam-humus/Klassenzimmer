@@ -6,7 +6,8 @@ export const ID = z.string().min(1);
 const BadgeRule = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('category_xp'),
-    category: z.string().min(1),
+    categoryId: ID.optional().nullable(),
+    category: z.string().optional().nullable(),
     threshold: z.number().int().nonnegative(),
   }),
   z.object({
@@ -56,6 +57,7 @@ export const Quest = z.object({
   isPersonalTo: ID.optional(),
   active: z.boolean(),
   category: z.string().optional().nullable(),
+  categoryId: ID.optional().nullable(),
 });
 
 export const LogEntry = z.object({
@@ -67,6 +69,7 @@ export const LogEntry = z.object({
   xp: z.number(), // can be negative for shop
   note: z.string().optional(),
   questCategory: z.string().optional().nullable(),
+  questCategoryId: ID.optional().nullable(),
 });
 
 export const Settings = z.object({
@@ -97,8 +100,15 @@ export const BadgeDefinition = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   category: z.string().optional().nullable(),
+  categoryId: ID.optional().nullable(),
   iconKey: z.string().optional().nullable(),
   rule: BadgeRule.optional().nullable(),
+});
+
+export const Category = z.object({
+  id: ID,
+  name: z.string().min(1),
+  color: z.string().optional().nullable(),
 });
 
 export const AppState = z.object({
@@ -110,9 +120,11 @@ export const AppState = z.object({
   version: z.number().int(),
   classProgress: ClassProgress,
   badgeDefs: z.array(BadgeDefinition).default([]),
+  categories: z.array(Category).default([]),
 });
 
 export type AppStateType = z.infer<typeof AppState>;
+export type CategoryType = z.infer<typeof Category>;
 
 type BadgeRuleType = z.infer<typeof BadgeRule>;
 
@@ -250,9 +262,15 @@ const sanitizeBadgeRule = (value: unknown): BadgeRuleType | null => {
     return { type: 'total_xp', threshold } satisfies BadgeRuleType;
   }
   if (type === 'category_xp') {
+    const categoryId = asId(value.categoryId);
     const category = asString(value.category);
-    if (!category) return null;
-    return { type: 'category_xp', category, threshold } satisfies BadgeRuleType;
+    if (!categoryId && !category) return null;
+    return {
+      type: 'category_xp',
+      categoryId: categoryId ?? null,
+      category: category ?? null,
+      threshold,
+    } satisfies BadgeRuleType;
   }
   return null;
 };
@@ -266,9 +284,26 @@ const sanitizeBadgeDefs = (value: unknown): BadgeDefinitionType[] => {
     const name = asString(candidate.name) ?? 'Abzeichen';
     const description = asString(candidate.description) ?? undefined;
     const category = asString(candidate.category) ?? null;
+    const categoryId = asId(candidate.categoryId) ?? null;
     const iconKey = asString((candidate.iconKey ?? candidate.icon)) ?? null;
     const rule = sanitizeBadgeRule(candidate.rule);
-    items.push({ id, name, description, category, iconKey, rule } satisfies BadgeDefinitionType);
+    items.push({ id, name, description, category, categoryId, iconKey, rule } satisfies BadgeDefinitionType);
+  });
+  return items;
+};
+
+const sanitizeCategories = (value: unknown): CategoryType[] => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const items: CategoryType[] = [];
+  value.forEach((candidate) => {
+    if (!isRecord(candidate)) return;
+    const id = asId(candidate.id) ?? randomId();
+    if (seen.has(id)) return;
+    const name = asString(candidate.name) ?? 'Kategorie';
+    const color = asString(candidate.color) ?? null;
+    seen.add(id);
+    items.push({ id, name, color });
   });
   return items;
 };
@@ -328,7 +363,8 @@ export function sanitizeState(raw: unknown): AppStateType | null {
       const isPersonalTo = asId(candidate.isPersonalTo) ?? undefined;
       const active = asBoolean(candidate.active, true);
       const category = asString(candidate.category) ?? null;
-      quests.push({ id, name, description, xp, type, target, isPersonalTo, active, category });
+      const categoryId = asId(candidate.categoryId) ?? null;
+      quests.push({ id, name, description, xp, type, target, isPersonalTo, active, category, categoryId });
     });
   }
 
@@ -345,7 +381,8 @@ export function sanitizeState(raw: unknown): AppStateType | null {
       const xp = asNumber(candidate.xp, 0);
       const note = asString(candidate.note) ?? undefined;
       const questCategory = asString(candidate.questCategory) ?? null;
-      logs.push({ id, timestamp, studentId, questId, questName, xp, note, questCategory });
+      const questCategoryId = asId(candidate.questCategoryId) ?? null;
+      logs.push({ id, timestamp, studentId, questId, questName, xp, note, questCategory, questCategoryId });
     });
   }
 
@@ -385,6 +422,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
 
   const version = Math.max(1, Math.trunc(asNumber(raw.version, 1)) || 1);
   const badgeDefs = sanitizeBadgeDefs(raw.badgeDefs);
+  const categories = sanitizeCategories(raw.categories);
 
   const candidate = {
     students,
@@ -395,6 +433,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
     version,
     classProgress,
     badgeDefs,
+    categories,
   } satisfies AppStateType;
 
   const result = AppState.safeParse(candidate);
