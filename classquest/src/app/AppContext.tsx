@@ -37,6 +37,7 @@ type Action =
   | { type: 'TOGGLE_QUEST'; id: ID }
   | { type: 'ADD_BADGE_DEF'; definition: BadgeDefinition }
   | { type: 'REMOVE_BADGE_DEF'; id: ID }
+  | { type: 'AWARD_BADGE_MANUAL'; studentId: ID; badgeId: ID }
   | { type: 'CATEGORY_CREATE'; name: string }
   | { type: 'CATEGORY_DELETE'; id: ID }
   | { type: 'AWARD'; payload: AwardPayload }
@@ -444,6 +445,32 @@ function reducer(state: AppState, action: Action): AppState {
         return state;
       }
       return { ...state, badgeDefs };
+    }
+    case 'AWARD_BADGE_MANUAL': {
+      const definition = state.badgeDefs.find((entry) => entry.id === action.badgeId);
+      if (!definition) {
+        return state;
+      }
+      const studentIndex = state.students.findIndex((student) => student.id === action.studentId);
+      if (studentIndex < 0) {
+        return state;
+      }
+      const target = state.students[studentIndex];
+      const existingBadges = Array.isArray(target.badges) ? target.badges : [];
+      if (existingBadges.some((badge) => badge.id === definition.id)) {
+        return state;
+      }
+      const awardedBadge = {
+        id: definition.id,
+        name: definition.name,
+        iconKey: definition.iconKey ?? null,
+        description: definition.description,
+        awardedAt: new Date().toISOString(),
+      } satisfies Student['badges'][number];
+      const students = state.students.map((student, index) =>
+        index === studentIndex ? { ...student, badges: [...existingBadges, awardedBadge] } : student,
+      );
+      return markOnboardingComplete({ ...state, students });
     }
     case 'CATEGORY_CREATE': {
       const name = action.name.trim();
