@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '~/app/AppContext';
 import { AvatarView } from '~/ui/avatar/AvatarView';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
-import { getAvatarStageUrl } from '~/core/show/avatarStageUrl';
+import EvolutionSequence from '~/ui/show/EvolutionSequence';
 import type { WeeklyDelta } from '~/core/show/weekly';
 
 const AVATAR_SIZE = 220;
@@ -20,7 +20,6 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
   const { state } = useApp();
   const student = state.students.find((entry) => entry.id === data.studentId);
   const [phase, setPhase] = React.useState<'intro' | 'xp' | 'level' | 'badges' | 'done'>('intro');
-  const [previousStageUrl, setPreviousStageUrl] = React.useState<string | null>(null);
   const [showCurrentStage, setShowCurrentStage] = React.useState(false);
 
   React.useEffect(() => {
@@ -49,25 +48,6 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
     const timer = window.setTimeout(() => setShowCurrentStage(true), 120);
     return () => window.clearTimeout(timer);
   }, [data.studentId]);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    if (!student || data.avatarStageEnd <= data.avatarStageStart) {
-      setPreviousStageUrl(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-    (async () => {
-      const url = await getAvatarStageUrl(state, student, data.avatarStageStart);
-      if (!cancelled) {
-        setPreviousStageUrl(url);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [student, state, data.avatarStageStart, data.avatarStageEnd]);
 
   if (!student) {
     return (
@@ -168,22 +148,6 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
         }}
       >
         <div style={{ position: 'relative', justifySelf: 'center' }}>
-          {evolved && (
-            <div
-              aria-hidden
-              style={{
-                position: 'absolute',
-                top: -24,
-                left: -24,
-                right: -24,
-                bottom: -24,
-                borderRadius: AVATAR_SIZE,
-                background:
-                  'radial-gradient(circle at center, rgba(253,224,71,0.4), rgba(253,224,71,0) 70%)',
-                filter: 'blur(12px)',
-              }}
-            />
-          )}
           <div
             style={{
               position: 'relative',
@@ -191,35 +155,31 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
               height: AVATAR_SIZE,
             }}
           >
-            {previousStageUrl && (
-              <img
-                src={previousStageUrl}
-                alt="Vorheriger Avatar"
+            {evolved ? (
+              <EvolutionSequence
+                student={student}
+                fromStage={data.avatarStageStart}
+                toStage={data.avatarStageEnd}
+                levelStart={data.levelStart}
+                levelEnd={data.levelEnd}
+                size={AVATAR_SIZE}
+                totalMs={2200}
+              />
+            ) : (
+              <div
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  borderRadius: AVATAR_SIZE / 2,
-                  opacity: showCurrentStage ? 0 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: showCurrentStage ? 1 : 0,
                   transition: 'opacity 0.6s ease',
                 }}
-              />
+              >
+                <AvatarView student={student} size={AVATAR_SIZE} rounded="xl" />
+              </div>
             )}
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: showCurrentStage ? 1 : 0,
-                transition: 'opacity 0.6s ease',
-              }}
-            >
-              <AvatarView student={student} size={AVATAR_SIZE} rounded="xl" />
-            </div>
           </div>
         </div>
         <div style={{ display: 'grid', gap: 16 }}>
