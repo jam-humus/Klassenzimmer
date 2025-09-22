@@ -27,6 +27,51 @@ export interface AssetRef {
 
 export type AssetBindingMap = Partial<Record<AssetEvent, string>>;
 
+export type AssetCooldownMap = Partial<Record<AssetEvent, number>>;
+
+export interface AssetCooldownSettings {
+  audioMs?: AssetCooldownMap;
+  lottieMs?: AssetCooldownMap;
+  defaultAudioMs?: number;
+  defaultLottieMs?: number;
+  coalesceWindowMs?: AssetCooldownMap;
+}
+
+export const DEFAULT_AUDIO_COOLDOWN_MS = 250;
+export const DEFAULT_LOTTIE_COOLDOWN_MS = 600;
+export const DEFAULT_XP_COALESCE_WINDOW_MS = 300;
+
+const DEFAULT_COALESCE_WINDOW_MAP: Readonly<AssetCooldownMap> = Object.freeze({
+  xp_awarded: DEFAULT_XP_COALESCE_WINDOW_MS,
+});
+
+const createDefaultCooldownSettings = (): AssetCooldownSettings => ({
+  audioMs: {},
+  lottieMs: {},
+  defaultAudioMs: DEFAULT_AUDIO_COOLDOWN_MS,
+  defaultLottieMs: DEFAULT_LOTTIE_COOLDOWN_MS,
+  coalesceWindowMs: { ...DEFAULT_COALESCE_WINDOW_MAP },
+});
+
+const cloneCooldownSettings = (settings: AssetCooldownSettings | undefined): AssetCooldownSettings => {
+  const defaults = createDefaultCooldownSettings();
+  const audioMs = settings?.audioMs ? { ...settings.audioMs } : {};
+  const lottieMs = settings?.lottieMs ? { ...settings.lottieMs } : {};
+  const coalesceWindowMs = settings?.coalesceWindowMs
+    ? { ...settings.coalesceWindowMs }
+    : { ...(defaults.coalesceWindowMs ?? {}) };
+  return {
+    audioMs,
+    lottieMs,
+    coalesceWindowMs,
+    defaultAudioMs: clampNonNegative(settings?.defaultAudioMs, defaults.defaultAudioMs ?? DEFAULT_AUDIO_COOLDOWN_MS),
+    defaultLottieMs: clampNonNegative(
+      settings?.defaultLottieMs,
+      defaults.defaultLottieMs ?? DEFAULT_LOTTIE_COOLDOWN_MS,
+    ),
+  } satisfies AssetCooldownSettings;
+};
+
 export interface AssetSettings {
   library: Record<string, AssetRef>;
   bindings: {
@@ -36,6 +81,7 @@ export interface AssetSettings {
   };
   audio: { masterVolume: number; enabled: boolean };
   animations: { enabled: boolean; preferReducedMotion: boolean };
+  cooldown: AssetCooldownSettings;
 }
 
 export const DEFAULT_ASSET_SETTINGS: Readonly<AssetSettings> = Object.freeze({
@@ -47,6 +93,7 @@ export const DEFAULT_ASSET_SETTINGS: Readonly<AssetSettings> = Object.freeze({
   },
   audio: { masterVolume: 1, enabled: true },
   animations: { enabled: true, preferReducedMotion: false },
+  cooldown: createDefaultCooldownSettings(),
 });
 
 export const createDefaultAssetSettings = (): AssetSettings => ({
@@ -58,6 +105,7 @@ export const createDefaultAssetSettings = (): AssetSettings => ({
   },
   audio: { masterVolume: 1, enabled: true },
   animations: { enabled: true, preferReducedMotion: false },
+  cooldown: createDefaultCooldownSettings(),
 });
 
 export const cloneAssetSettings = (settings: AssetSettings): AssetSettings => ({
@@ -85,6 +133,7 @@ export const cloneAssetSettings = (settings: AssetSettings): AssetSettings => ({
     enabled: settings.animations?.enabled ?? true,
     preferReducedMotion: settings.animations?.preferReducedMotion ?? false,
   },
+  cooldown: cloneCooldownSettings(settings.cooldown),
 });
 
 const VALID_ASSET_KINDS: AssetKind[] = ['audio', 'lottie', 'image'];
@@ -115,6 +164,13 @@ const clamp01 = (value: number | null | undefined, fallback: number): number => 
   return Math.min(1, Math.max(0, value));
 };
 
+const clampNonNegative = (value: number | null | undefined, fallback: number): number => {
+  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
+    return Math.max(0, fallback);
+  }
+  return value < 0 ? 0 : value;
+};
+
 const sanitizeAssetRef = (value: unknown): AssetRef | null => {
   if (typeof value !== 'object' || value === null) return null;
   const record = value as Record<string, unknown>;
@@ -137,6 +193,55 @@ const sanitizeAssetBindingMap = (value: unknown): AssetBindingMap => {
     })
     .filter(Boolean) as [AssetEvent, string][];
   return Object.fromEntries(entries);
+};
+
+const sanitizeCooldownMap = (value: unknown): AssetCooldownMap => {
+  if (typeof value !== 'object' || value === null) return {};
+  const result: AssetCooldownMap = {};
+  Object.entries(value as Record<string, unknown>).forEach(([event, candidate]) => {
+    const parsed = asNumber(candidate);
+    if (parsed == null) return;
+    const clamped = clampNonNegative(parsed, 0);
+    result[event as AssetEvent] = clamped;
+  });
+  return result;
+};
+
+const sanitizeCooldownSettings = (
+  value: unknown,
+  defaults: AssetCooldownSettings | undefined,
+): AssetCooldownSettings => {
+  const baseDefaults = defaults ?? createDefaultCooldownSettings();
+  const record =
+    typeof value === 'object' && value !== null
+      ? (value as Partial<AssetCooldownSettings> & Record<string, unknown>)
+      : {};
+
+  const defaultAudioMs = clampNonNegative(
+    asNumber(record.defaultAudioMs),
+    baseDefaults.defaultAudioMs ?? DEFAULT_AUDIO_COOLDOWN_MS,
+  );
+  const defaultLottieMs = clampNonNegative(
+    asNumber(record.defaultLottieMs),
+    baseDefaults.defaultLottieMs ?? DEFAULT_LOTTIE_COOLDOWN_MS,
+  );
+
+  const audioMs = sanitizeCooldownMap(record.audioMs);
+  const lottieMs = sanitizeCooldownMap(record.lottieMs);
+
+  const baseCoalesce = baseDefaults.coalesceWindowMs
+    ? { ...baseDefaults.coalesceWindowMs }
+    : { ...DEFAULT_COALESCE_WINDOW_MAP };
+  const coalesceInput = sanitizeCooldownMap(record.coalesceWindowMs);
+  const coalesceWindowMs = { ...baseCoalesce, ...coalesceInput };
+
+  return {
+    audioMs,
+    lottieMs,
+    coalesceWindowMs,
+    defaultAudioMs,
+    defaultLottieMs,
+  } satisfies AssetCooldownSettings;
 };
 
 export const sanitizeAssetSettings = (value: unknown): AssetSettings => {
@@ -175,10 +280,13 @@ export const sanitizeAssetSettings = (value: unknown): AssetSettings => {
         : defaults.animations.preferReducedMotion,
   } satisfies AssetSettings['animations'];
 
+  const cooldown = sanitizeCooldownSettings(record.cooldown, defaults.cooldown);
+
   return {
     library,
     bindings,
     audio,
     animations,
+    cooldown,
   } satisfies AssetSettings;
 };
