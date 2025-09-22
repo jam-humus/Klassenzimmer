@@ -154,7 +154,7 @@ const preloadAudio = async (url: string): Promise<void> => {
       if (typeof audio.load === 'function') {
         try {
           audio.load();
-        } catch (error) {
+        } catch {
           resolve();
         }
       }
