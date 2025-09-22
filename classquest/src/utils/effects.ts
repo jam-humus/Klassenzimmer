@@ -13,6 +13,8 @@ import {
 
 type LottieOptions = { mount?: HTMLElement; center?: boolean; durationMs?: number };
 
+export type PlayAudioResult = 'played' | 'cooldown' | 'disabled' | 'unavailable';
+
 const clampVolume = (value: number): number => {
   if (!Number.isFinite(value)) return 1;
   if (Number.isNaN(value)) return 1;
@@ -385,22 +387,22 @@ export const setEffectsSettings = (settings: Settings | null | undefined): void 
   activeLottieByEvent.clear();
 };
 
-export function playEventAudio(evt: AssetEvent): void {
-  if (typeof window === 'undefined') return;
-  if (!currentAssets.audio.enabled) return;
+export function playEventAudio(evt: AssetEvent): PlayAudioResult {
+  if (typeof window === 'undefined') return 'disabled';
+  if (!currentAssets.audio.enabled) return 'disabled';
   const now = getTimestamp();
   const cooldownMs = getCooldownMs('audio', evt);
-  if (withinCooldown(lastAudioAt.get(evt), now, cooldownMs)) return;
+  if (withinCooldown(lastAudioAt.get(evt), now, cooldownMs)) return 'cooldown';
   const binding = resolveBinding('audio', evt);
-  if (!binding) return;
+  if (!binding) return 'unavailable';
   const volume = clampVolume(currentAssets.audio.masterVolume ?? 1);
-  if (volume <= 0) return;
+  if (volume <= 0) return 'disabled';
+  const AudioCtor = getAudioConstructor();
+  if (!AudioCtor) return 'disabled';
   lastAudioAt.set(evt, now);
   void fetchAssetUrl(binding.blobKey)
     .then((url) => {
       if (!url) return;
-      const AudioCtor = getAudioConstructor();
-      if (!AudioCtor) return;
       try {
         const audio = new AudioCtor(url);
         audio.volume = volume;
@@ -414,6 +416,7 @@ export function playEventAudio(evt: AssetEvent): void {
     .catch((error) => {
       console.warn('Failed to load audio asset', error);
     });
+  return 'played';
 }
 
 export function triggerEventLottie(evt: AssetEvent, opts?: LottieOptions): void {
