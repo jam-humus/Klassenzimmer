@@ -1,8 +1,15 @@
 import lottie, { type AnimationItem } from 'lottie-web';
 import { clearObjectURL, getObjectURL } from '~/services/blobStore';
 import type { Settings } from '~/types/models';
-import type { AssetEvent, AssetRef, AssetSettings } from '~/types/settings';
-import { cloneAssetSettings, createDefaultAssetSettings } from '~/types/settings';
+import {
+  type AssetEvent,
+  type AssetRef,
+  type AssetSettings,
+  cloneAssetSettings,
+  createDefaultAssetSettings,
+  DEFAULT_AUDIO_COOLDOWN_MS,
+  DEFAULT_LOTTIE_COOLDOWN_MS,
+} from '~/types/settings';
 
 type LottieOptions = { mount?: HTMLElement; center?: boolean; durationMs?: number };
 
@@ -11,6 +18,23 @@ const clampVolume = (value: number): number => {
   if (Number.isNaN(value)) return 1;
   return Math.min(1, Math.max(0, value));
 };
+
+const getTimestamp = (): number => {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now();
+  }
+  return Date.now();
+};
+
+const clampCooldownValue = (value: number | undefined, fallback: number): number => {
+  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
+    return Math.max(0, fallback);
+  }
+  return value < 0 ? 0 : value;
+};
+
+const withinCooldown = (lastAt: number | undefined, now: number, cooldownMs: number): boolean =>
+  typeof lastAt === 'number' && now - lastAt < cooldownMs;
 
 const resolveBlobKey = (recordId: string, ref: AssetRef | undefined): string | null => {
   const keyCandidate = ref?.key ?? recordId;
@@ -55,6 +79,38 @@ const DEFAULT_ASSETS = createDefaultAssetSettings();
 let currentAssets: AssetSettings = cloneAssetSettings(DEFAULT_ASSETS);
 let knownBlobKeys = collectActiveBlobKeys(currentAssets);
 let blobKeyToAsset = new Map<string, AssetRef>();
+
+const lastAudioAt = new Map<AssetEvent, number>();
+const lastLottieAt = new Map<AssetEvent, number>();
+const activeLottieByEvent = new Map<AssetEvent, boolean>();
+const coalesceTimers = new Map<AssetEvent, number>();
+
+const getCooldownMs = (kind: 'audio' | 'lottie', evt: AssetEvent): number => {
+  const cooldown = currentAssets.cooldown;
+  if (!cooldown) {
+    return kind === 'audio' ? DEFAULT_AUDIO_COOLDOWN_MS : DEFAULT_LOTTIE_COOLDOWN_MS;
+  }
+  if (kind === 'audio') {
+    const specific = cooldown.audioMs?.[evt];
+    if (typeof specific === 'number') {
+      return clampCooldownValue(specific, cooldown.defaultAudioMs ?? DEFAULT_AUDIO_COOLDOWN_MS);
+    }
+    return clampCooldownValue(cooldown.defaultAudioMs, DEFAULT_AUDIO_COOLDOWN_MS);
+  }
+  const specific = cooldown.lottieMs?.[evt];
+  if (typeof specific === 'number') {
+    return clampCooldownValue(specific, cooldown.defaultLottieMs ?? DEFAULT_LOTTIE_COOLDOWN_MS);
+  }
+  return clampCooldownValue(cooldown.defaultLottieMs, DEFAULT_LOTTIE_COOLDOWN_MS);
+};
+
+const getCoalesceWindowMs = (evt: AssetEvent): number => {
+  const value = currentAssets.cooldown?.coalesceWindowMs?.[evt];
+  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+  return value;
+};
 
 const urlPromises = new Map<string, Promise<string | null>>();
 const resolvedUrls = new Map<string, string>();
@@ -234,7 +290,12 @@ const createLottieContainer = (mount: HTMLElement, centered: boolean | undefined
   return container;
 };
 
-const startLottieAnimation = (container: HTMLElement, url: string, durationOverride?: number): void => {
+const startLottieAnimation = (
+  container: HTMLElement,
+  url: string,
+  durationOverride?: number,
+  onFinish?: () => void,
+): void => {
   let animation: AnimationItem | null = null;
   let fallbackTimer: number | undefined;
   let disposed = false;
@@ -258,6 +319,11 @@ const startLottieAnimation = (container: HTMLElement, url: string, durationOverr
       console.warn('Failed to destroy lottie animation', error);
     }
     container.remove();
+    try {
+      onFinish?.();
+    } catch (error) {
+      console.warn('Failed to finalize lottie animation', error);
+    }
   };
 
   const scheduleFallback = (duration: number) => {
@@ -312,29 +378,42 @@ export const setEffectsSettings = (settings: Settings | null | undefined): void 
   knownBlobKeys = activeKeys;
   currentAssets = assets;
   updateAssetIndex(assets);
+  if (typeof window !== 'undefined') {
+    coalesceTimers.forEach((id) => window.clearTimeout(id));
+  }
+  coalesceTimers.clear();
+  activeLottieByEvent.clear();
 };
 
 export function playEventAudio(evt: AssetEvent): void {
   if (typeof window === 'undefined') return;
   if (!currentAssets.audio.enabled) return;
+  const now = getTimestamp();
+  const cooldownMs = getCooldownMs('audio', evt);
+  if (withinCooldown(lastAudioAt.get(evt), now, cooldownMs)) return;
   const binding = resolveBinding('audio', evt);
   if (!binding) return;
   const volume = clampVolume(currentAssets.audio.masterVolume ?? 1);
   if (volume <= 0) return;
-  void fetchAssetUrl(binding.blobKey).then((url) => {
-    if (!url) return;
-    const AudioCtor = getAudioConstructor();
-    if (!AudioCtor) return;
-    try {
-      const audio = new AudioCtor(url);
-      audio.volume = volume;
-      void audio.play().catch((error: unknown) => {
-        console.warn('Failed to play audio asset', error);
-      });
-    } catch (error) {
-      console.warn('Unable to instantiate audio', error);
-    }
-  });
+  lastAudioAt.set(evt, now);
+  void fetchAssetUrl(binding.blobKey)
+    .then((url) => {
+      if (!url) return;
+      const AudioCtor = getAudioConstructor();
+      if (!AudioCtor) return;
+      try {
+        const audio = new AudioCtor(url);
+        audio.volume = volume;
+        void audio.play().catch((error: unknown) => {
+          console.warn('Failed to play audio asset', error);
+        });
+      } catch (error) {
+        console.warn('Unable to instantiate audio', error);
+      }
+    })
+    .catch((error) => {
+      console.warn('Failed to load audio asset', error);
+    });
 }
 
 export function triggerEventLottie(evt: AssetEvent, opts?: LottieOptions): void {
@@ -343,15 +422,54 @@ export function triggerEventLottie(evt: AssetEvent, opts?: LottieOptions): void 
   if (!animations.enabled || animations.preferReducedMotion) {
     return;
   }
+  const now = getTimestamp();
+  const cooldownMs = getCooldownMs('lottie', evt);
+  if (withinCooldown(lastLottieAt.get(evt), now, cooldownMs)) return;
+  if (activeLottieByEvent.get(evt)) return;
   const binding = resolveBinding('lottie', evt);
   if (!binding) return;
-  void fetchAssetUrl(binding.blobKey).then((url) => {
-    if (!url) return;
-    const mount = opts?.mount ?? ensureOverlayRoot();
-    if (!mount) return;
-    const container = createLottieContainer(mount, opts?.center);
-    startLottieAnimation(container, url, opts?.durationMs);
-  });
+  lastLottieAt.set(evt, now);
+  activeLottieByEvent.set(evt, true);
+  void fetchAssetUrl(binding.blobKey)
+    .then((url) => {
+      if (!url) {
+        activeLottieByEvent.delete(evt);
+        return;
+      }
+      const mount = opts?.mount ?? ensureOverlayRoot();
+      if (!mount) {
+        activeLottieByEvent.delete(evt);
+        return;
+      }
+      const container = createLottieContainer(mount, opts?.center);
+      startLottieAnimation(container, url, opts?.durationMs, () => {
+        activeLottieByEvent.delete(evt);
+      });
+    })
+    .catch((error) => {
+      activeLottieByEvent.delete(evt);
+      console.warn('Failed to load lottie asset', error);
+    });
+}
+
+export function playXpAwardedEffectsCoalesced(): void {
+  const evt: AssetEvent = 'xp_awarded';
+  const windowMs = getCoalesceWindowMs(evt);
+  if (windowMs <= 0 || typeof window === 'undefined') {
+    playEventAudio(evt);
+    triggerEventLottie(evt, { center: true, durationMs: 900 });
+    return;
+  }
+  const existing = coalesceTimers.get(evt);
+  if (existing != null) {
+    window.clearTimeout(existing);
+  }
+  const timeoutId = window.setTimeout(() => {
+    playEventAudio(evt);
+    triggerEventLottie(evt, { center: true, durationMs: 900 });
+    coalesceTimers.delete(evt);
+  }, windowMs);
+  coalesceTimers.set(evt, timeoutId);
 }
 
 export async function preloadAssets(): Promise<void> {

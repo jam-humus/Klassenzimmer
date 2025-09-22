@@ -1,6 +1,11 @@
 import * as z from 'zod';
 import { DEFAULT_SETTINGS } from '../config';
-import { sanitizeAssetSettings } from '~/types/settings';
+import {
+  DEFAULT_AUDIO_COOLDOWN_MS,
+  DEFAULT_LOTTIE_COOLDOWN_MS,
+  DEFAULT_XP_COALESCE_WINDOW_MS,
+  sanitizeAssetSettings,
+} from '~/types/settings';
 
 import { sanitizeAvatarStageThresholds } from '../avatarStages';
 export const ID = z.string().min(1);
@@ -83,6 +88,26 @@ const AssetRef = z.object({
 
 const AssetBindingMap = z.record(z.string(), z.string()).default({});
 
+const AssetCooldownMap = z.record(z.string(), z.number().nonnegative()).default({});
+
+const DEFAULT_COOLDOWN_SCHEMA_VALUE = {
+  audioMs: {},
+  lottieMs: {},
+  defaultAudioMs: DEFAULT_AUDIO_COOLDOWN_MS,
+  defaultLottieMs: DEFAULT_LOTTIE_COOLDOWN_MS,
+  coalesceWindowMs: { xp_awarded: DEFAULT_XP_COALESCE_WINDOW_MS },
+} as const;
+
+const AssetCooldownSettingsSchema = z
+  .object({
+    audioMs: AssetCooldownMap.optional(),
+    lottieMs: AssetCooldownMap.optional(),
+    defaultAudioMs: z.number().nonnegative().optional(),
+    defaultLottieMs: z.number().nonnegative().optional(),
+    coalesceWindowMs: AssetCooldownMap.optional(),
+  })
+  .default(DEFAULT_COOLDOWN_SCHEMA_VALUE);
+
 const AssetSettingsSchema = z.object({
   library: z.record(z.string(), AssetRef).default({}),
   bindings: z
@@ -98,6 +123,7 @@ const AssetSettingsSchema = z.object({
   animations: z
     .object({ enabled: z.boolean(), preferReducedMotion: z.boolean() })
     .default({ enabled: true, preferReducedMotion: false }),
+  cooldown: AssetCooldownSettingsSchema,
 });
 
 export const Settings = z.object({
