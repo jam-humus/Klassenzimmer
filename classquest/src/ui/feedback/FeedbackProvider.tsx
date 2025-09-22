@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useApp } from '~/app/AppContext';
+import { playEventAudio } from '~/utils/effects';
+import type { AssetEvent } from '~/types/settings';
 
 type Toast = { id: string; kind: 'success'|'info'|'error'; message: string; t: number };
 type Ctx = {
@@ -14,8 +16,8 @@ const makeId = () => globalThis.crypto?.randomUUID?.() ?? Math.random().toString
 const makeToast = (kind: Toast['kind'], message: string): Toast => ({ id: makeId(), kind, message, t: Date.now() });
 
 function useSfx(enabled: boolean) {
-  const play = useCallback((kind: 'success' | 'error') => {
-    if (!enabled || typeof window === 'undefined') return;
+  const playFallbackTone = useCallback((kind: 'success' | 'error') => {
+    if (typeof window === 'undefined') return;
     try {
       const withWebkit = window as typeof window & { webkitAudioContext?: typeof window.AudioContext };
       const AudioContextCtor = withWebkit.AudioContext ?? withWebkit.webkitAudioContext;
@@ -25,8 +27,8 @@ function useSfx(enabled: boolean) {
       const gain = ctx.createGain();
       osc.type = 'sine';
       const now = ctx.currentTime;
-      const fStart = kind==='success' ? 880 : 220;
-      const fEnd   = kind==='success' ? 1320 : 110;
+      const fStart = kind === 'success' ? 880 : 220;
+      const fEnd = kind === 'success' ? 1320 : 110;
       osc.frequency.setValueAtTime(fStart, now);
       osc.frequency.exponentialRampToValueAtTime(fEnd, now + 0.12);
       gain.gain.setValueAtTime(0.0001, now);
@@ -39,7 +41,20 @@ function useSfx(enabled: boolean) {
     } catch (error) {
       console.warn('Feedback sound failed', error);
     }
-  }, [enabled]);
+  }, []);
+
+  const play = useCallback(
+    (kind: 'success' | 'error') => {
+      if (!enabled || typeof window === 'undefined') return;
+      const assetEvent: AssetEvent = kind === 'success' ? 'ui_success' : 'ui_error';
+      const result = playEventAudio(assetEvent);
+      if (result === 'played' || result === 'cooldown' || result === 'disabled') {
+        return;
+      }
+      playFallbackTone(kind);
+    },
+    [enabled, playFallbackTone],
+  );
   return play;
 }
 
