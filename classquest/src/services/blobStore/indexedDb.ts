@@ -118,26 +118,27 @@ function revokeCachedUrl(id: string) {
   urlCache.delete(id);
 }
 
-export async function putBlob(file: Blob): Promise<string> {
-  const id = createId();
+export async function putBlob(file: Blob, id?: string): Promise<string> {
+  const trimmed = typeof id === 'string' ? id.trim() : '';
+  const recordId = trimmed.length > 0 ? trimmed : createId();
   const db = await getDatabase();
 
   if (db) {
     try {
       await runTransaction(db, 'readwrite', (store) => {
-        store.put(file, id);
+        store.put(file, recordId);
       });
     } catch (error) {
       console.warn('IndexedDB put failed, switching to memory store.', error);
       ensureMemoryStore();
-      memoryStore.set(id, file);
+      memoryStore.set(recordId, file);
     }
   } else {
-    memoryStore.set(id, file);
+    memoryStore.set(recordId, file);
   }
 
-  cacheUrl(id, file);
-  return id;
+  cacheUrl(recordId, file);
+  return recordId;
 }
 
 export async function getBlob(id: string): Promise<Blob | null> {
