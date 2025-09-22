@@ -1,4 +1,4 @@
-import * as z from 'zod';
+import { z } from 'zod';
 import { DEFAULT_SETTINGS } from '../config';
 import { sanitizeAssetSettings } from '~/types/settings';
 
