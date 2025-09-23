@@ -9,6 +9,7 @@ import { EVENT_CLEAR_SELECTION, EVENT_SELECT_ALL, EVENT_FOCUS_STUDENT, EVENT_SET
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Quest, Team } from '~/types/models';
+import { playSound } from '~/utils/sounds';
 import { playLottieOverlay } from '~/ui/anim/playLottie';
 
 const TILE_MIN_WIDTH = 240;
@@ -252,6 +253,7 @@ export default function AwardScreen() {
   const awardStudent = useCallback(
     (studentId: string, quest: Quest) => {
       dispatch({ type: 'AWARD', payload: { questId: quest.id, studentId } });
+      void playSound('xp_awarded');
     },
     [dispatch],
   );
@@ -298,6 +300,7 @@ export default function AwardScreen() {
       if (!team) return;
       if (activeQuest.target === 'team') {
         dispatch({ type: 'AWARD', payload: { questId: activeQuest.id, teamId: team.id } });
+        void playSound('xp_awarded');
         showUndoToast(activeQuest, team.name);
         feedback.success(`${activeQuest.name} an ${team.name}`);
         return;
