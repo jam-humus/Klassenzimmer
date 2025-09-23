@@ -13,6 +13,10 @@ import {
   cloneAssetSettings,
   createDefaultAssetSettings,
 } from '~/types/settings';
+import {
+  SNAPSHOT_AUDIO_EVENT_DETAILS,
+  isSnapshotAssetEvent,
+} from '~/core/show/snapshotEvents';
 
 const AUDIO_TYPES = new Set([
   'audio/mpeg',
@@ -35,28 +39,6 @@ const LOTTIE_TYPES = new Set(['application/json']);
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const MAX_LOTTIE_BYTES = 200 * 1024;
-
-const SNAPSHOT_EVENT_DETAILS: ReadonlyArray<{
-  event: AssetEvent;
-  label: string;
-  description: string;
-}> = [
-  {
-    event: 'xp_awarded',
-    label: 'XP-Phase',
-    description: 'Sound, wenn die gewonnenen XP im Snapshot eingeblendet werden.',
-  },
-  {
-    event: 'level_up',
-    label: 'Level-Phase',
-    description: 'Sound für Level-Aufstiege innerhalb der Snapshot-Präsentation.',
-  },
-  {
-    event: 'badge_award',
-    label: 'Badge-Phase',
-    description: 'Sound, wenn neue Badges im Snapshot vorgestellt werden.',
-  },
-];
 
 const fileMatches = (file: File, types: Set<string>, extensions: string[]): boolean => {
   if (file.type && types.has(file.type.toLowerCase())) {
@@ -183,6 +165,9 @@ export default function AssetsTab() {
   };
 
   const handleBindingChange = (kind: 'audio' | 'lottie', event: AssetEvent, key: string | null) => {
+    if (!isSnapshotAssetEvent(event)) {
+      return;
+    }
     updateAssets((draft) => {
       if (key) {
         draft.bindings[kind][event] = key;
@@ -193,6 +178,9 @@ export default function AssetsTab() {
   };
 
   const handleTest = (event: AssetEvent) => {
+    if (!isSnapshotAssetEvent(event)) {
+      return;
+    }
     playEventAudio(event);
     triggerEventLottie(event, { center: true });
   };
@@ -274,7 +262,7 @@ export default function AssetsTab() {
               </tr>
             </thead>
             <tbody>
-              {SNAPSHOT_EVENT_DETAILS.map(({ event, label, description }) => (
+              {SNAPSHOT_AUDIO_EVENT_DETAILS.map(({ event, label, description }) => (
                 <AssetBindingRow
                   key={event}
                   event={event}
