@@ -3,6 +3,7 @@ import { useApp } from '~/app/AppContext';
 import { AvatarView } from '~/ui/avatar/AvatarView';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
 import EvolutionSequence from '~/ui/show/EvolutionSequence';
+import { playEventAudio } from '~/utils/effects';
 import type { WeeklyDelta } from '~/core/show/weekly';
 
 const AVATAR_SIZE = 220;
@@ -21,6 +22,11 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
   const student = state.students.find((entry) => entry.id === data.studentId);
   const [phase, setPhase] = React.useState<'intro' | 'xp' | 'level' | 'badges' | 'done'>('intro');
   const [showCurrentStage, setShowCurrentStage] = React.useState(false);
+  const xpGain = Math.max(0, data.xpEnd - data.xpStart);
+  const levelGain = Math.max(0, data.levelEnd - data.levelStart);
+  const hasNewBadges = data.newBadges.length > 0;
+  const evolved = data.avatarStageEnd > data.avatarStageStart;
+  const studentId = student?.id;
 
   React.useEffect(() => {
     setPhase('intro');
@@ -49,6 +55,19 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
     return () => window.clearTimeout(timer);
   }, [data.studentId]);
 
+  React.useEffect(() => {
+    if (!studentId) {
+      return;
+    }
+    if (phase === 'xp' && xpGain > 0) {
+      playEventAudio('xp_awarded');
+    } else if (phase === 'level' && levelGain > 0) {
+      playEventAudio('level_up');
+    } else if (phase === 'badges' && hasNewBadges) {
+      playEventAudio('badge_award');
+    }
+  }, [hasNewBadges, levelGain, phase, studentId, xpGain]);
+
   if (!student) {
     return (
       <div
@@ -67,10 +86,7 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
     );
   }
 
-  const xpGain = Math.max(0, data.xpEnd - data.xpStart);
-  const levelGain = Math.max(0, data.levelEnd - data.levelStart);
-  const evolved = data.avatarStageEnd > data.avatarStageStart;
-  const showBadges = data.newBadges.length > 0;
+  const showBadges = hasNewBadges;
 
   const badgeList = (
     <div

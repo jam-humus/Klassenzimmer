@@ -36,26 +36,27 @@ const LOTTIE_TYPES = new Set(['application/json']);
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const MAX_LOTTIE_BYTES = 200 * 1024;
 
-const EVENT_DETAILS: Record<AssetEvent, { label: string; description: string }> = {
-  xp_awarded: { label: 'XP vergeben', description: 'Effekt bei XP-Vergabe.' },
-  badge_award: { label: 'Badge vergeben', description: 'Effekt bei Badge-Vergabe.' },
-  level_up: { label: 'Level-Up', description: 'Sound beim Level-Aufstieg.' },
-  class_milestone: { label: 'Klassen-Meilenstein', description: 'Effekt beim Klassen-Stern.' },
-  quest_completed: { label: 'Quest abgeschlossen', description: 'Effekt bei Quest-Abschluss.' },
-  student_select: { label: 'Schüler wechseln', description: 'Kurzer Tick beim Profilwechsel.' },
-  avatar_zoom: { label: 'Avatar-Zoom', description: 'Whoosh beim Avatar-Zoom.' },
-  weekly_showcase_start: { label: 'Showcase Start', description: 'Intro im Showcase.' },
-  weekly_showcase_end: { label: 'Showcase Ende', description: 'Outro im Showcase.' },
-  ui_click: { label: 'UI Klick', description: 'UI-Feedback beim Klicken.' },
-  ui_success: { label: 'UI Erfolg', description: 'Positive Rückmeldung.' },
-  ui_error: { label: 'UI Fehler', description: 'Hinweis bei Fehlern.' },
-  undo: { label: 'Aktion rückgängig', description: 'Sound beim Rückgängig machen.' },
-  redo: { label: 'Aktion wiederholen', description: 'Sound beim Wiederholen.' },
-  import_success: { label: 'Import erfolgreich', description: 'Signal nach erfolgreichem Import.' },
-  export_success: { label: 'Export erfolgreich', description: 'Signal nach erfolgreichem Export.' },
-};
-
-const ALL_EVENTS: AssetEvent[] = Object.keys(EVENT_DETAILS) as AssetEvent[];
+const SNAPSHOT_EVENT_DETAILS: ReadonlyArray<{
+  event: AssetEvent;
+  label: string;
+  description: string;
+}> = [
+  {
+    event: 'xp_awarded',
+    label: 'XP-Phase',
+    description: 'Sound, wenn die gewonnenen XP im Snapshot eingeblendet werden.',
+  },
+  {
+    event: 'level_up',
+    label: 'Level-Phase',
+    description: 'Sound für Level-Aufstiege innerhalb der Snapshot-Präsentation.',
+  },
+  {
+    event: 'badge_award',
+    label: 'Badge-Phase',
+    description: 'Sound, wenn neue Badges im Snapshot vorgestellt werden.',
+  },
+];
 
 const fileMatches = (file: File, types: Set<string>, extensions: string[]): boolean => {
   if (file.type && types.has(file.type.toLowerCase())) {
@@ -228,7 +229,7 @@ export default function AssetsTab() {
         >
           <AssetUploadCard
             title="Sound hochladen"
-            description="Kurze Soundeffekte für XP, UI und mehr."
+            description="Kurze Snapshot-Sounds für XP, Level und Badges."
             accept=".mp3,.ogg,.wav"
             hint="Bitte MP3, OGG oder WAV hochladen (kurze Sounds &lt; 1s empfohlen)."
             validate={validateAudio}
@@ -255,8 +256,13 @@ export default function AssetsTab() {
 
       <AssetPreviewList assets={libraryEntries} onRename={handleRename} onDelete={handleDelete} />
 
-      <section style={{ display: 'grid', gap: 12 }} aria-label="Event-Zuordnungen">
-        <h2 style={{ margin: 0, fontSize: 20 }}>Event-Mapping</h2>
+      <section style={{ display: 'grid', gap: 12 }} aria-label="Snapshot-Event-Zuordnungen">
+        <div style={{ display: 'grid', gap: 4 }}>
+          <h2 style={{ margin: 0, fontSize: 20 }}>Snapshot-Event-Mapping</h2>
+          <p style={{ margin: 0, color: '#475569' }}>
+            Verknüpfe hier die Sounds für die drei Phasen der Snapshot-Präsentation.
+          </p>
+        </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -268,12 +274,12 @@ export default function AssetsTab() {
               </tr>
             </thead>
             <tbody>
-              {ALL_EVENTS.map((event) => (
+              {SNAPSHOT_EVENT_DETAILS.map(({ event, label, description }) => (
                 <AssetBindingRow
                   key={event}
                   event={event}
-                  label={EVENT_DETAILS[event].label}
-                  description={EVENT_DETAILS[event].description}
+                  label={label}
+                  description={description}
                   audioOptions={audioOptions}
                   lottieOptions={lottieOptions}
                   audioValue={assets.bindings?.audio?.[event] ?? null}
