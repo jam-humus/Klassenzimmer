@@ -1,34 +1,36 @@
-import type { AssetEvent } from '~/types/settings';
-
-export type SnapshotAssetEvent = Extract<AssetEvent, 'xp_awarded' | 'level_up' | 'badge_award'>;
+import type { SnapshotSoundEvent } from '~/types/settings';
 
 export type SnapshotEventDetail = {
-  event: SnapshotAssetEvent;
+  event: SnapshotSoundEvent;
   label: string;
   description: string;
 };
 
-export const SNAPSHOT_AUDIO_EVENT_DETAILS: readonly SnapshotEventDetail[] = [
+export const SNAPSHOT_SOUND_EVENT_DETAILS: readonly SnapshotEventDetail[] = [
   {
-    event: 'xp_awarded',
-    label: 'XP-Phase',
+    event: 'snap_xp',
+    label: 'Snapshot: XP-Animation',
     description: 'Sound, wenn die gewonnenen XP im Snapshot eingeblendet werden.',
   },
   {
-    event: 'level_up',
-    label: 'Level-Phase',
+    event: 'snap_level',
+    label: 'Snapshot: Level-Change',
     description: 'Sound für Level-Aufstiege innerhalb der Snapshot-Präsentation.',
   },
   {
-    event: 'badge_award',
-    label: 'Badge-Phase',
+    event: 'snap_avatar',
+    label: 'Snapshot: Avatar-Entwicklung',
+    description: 'Sound, wenn der Avatar eine Stufe hochspringt.',
+  },
+  {
+    event: 'snap_badge',
+    label: 'Snapshot: Badge-Einblendung',
     description: 'Sound, wenn neue Badges im Snapshot vorgestellt werden.',
   },
 ] as const;
 
-export const SNAPSHOT_AUDIO_EVENTS: readonly SnapshotAssetEvent[] = SNAPSHOT_AUDIO_EVENT_DETAILS.map(
-  (entry) => entry.event,
-);
+export const SNAPSHOT_SOUND_EVENTS: readonly SnapshotSoundEvent[] =
+  SNAPSHOT_SOUND_EVENT_DETAILS.map((entry) => entry.event);
 
-export const isSnapshotAssetEvent = (value: AssetEvent): value is SnapshotAssetEvent =>
-  SNAPSHOT_AUDIO_EVENTS.includes(value as SnapshotAssetEvent);
+export const isSnapshotSoundEvent = (value: string): value is SnapshotSoundEvent =>
+  SNAPSHOT_SOUND_EVENTS.includes(value as SnapshotSoundEvent);

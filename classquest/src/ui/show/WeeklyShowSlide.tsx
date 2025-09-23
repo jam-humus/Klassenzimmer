@@ -3,7 +3,7 @@ import { useApp } from '~/app/AppContext';
 import { AvatarView } from '~/ui/avatar/AvatarView';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
 import EvolutionSequence from '~/ui/show/EvolutionSequence';
-import { playEventAudio } from '~/utils/effects';
+import { playSnapshotSound } from '~/utils/sounds';
 import type { WeeklyDelta } from '~/core/show/weekly';
 
 const AVATAR_SIZE = 220;
@@ -60,13 +60,20 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
       return;
     }
     if (phase === 'xp' && xpGain > 0) {
-      playEventAudio('xp_awarded');
-    } else if (phase === 'level' && levelGain > 0) {
-      playEventAudio('level_up');
-    } else if (phase === 'badges' && hasNewBadges) {
-      playEventAudio('badge_award');
+      void playSnapshotSound('snap_xp');
     }
-  }, [hasNewBadges, levelGain, phase, studentId, xpGain]);
+    if (phase === 'level') {
+      if (levelGain > 0) {
+        void playSnapshotSound('snap_level');
+      }
+      if (evolved) {
+        void playSnapshotSound('snap_avatar');
+      }
+    }
+    if (phase === 'badges' && hasNewBadges) {
+      void playSnapshotSound('snap_badge');
+    }
+  }, [evolved, hasNewBadges, levelGain, phase, studentId, xpGain]);
 
   if (!student) {
     return (

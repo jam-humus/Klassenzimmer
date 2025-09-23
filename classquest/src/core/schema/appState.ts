@@ -5,6 +5,10 @@ import {
   DEFAULT_LOTTIE_COOLDOWN_MS,
   DEFAULT_XP_COALESCE_WINDOW_MS,
   sanitizeAssetSettings,
+  sanitizeSnapshotSoundSettings,
+  sanitizeSoundSettings,
+  createDefaultSoundSettings,
+  createDefaultSnapshotSoundSettings,
 } from '~/types/settings';
 
 import { sanitizeAvatarStageThresholds } from '../avatarStages';
@@ -126,6 +130,27 @@ const AssetSettingsSchema = z.object({
   cooldown: AssetCooldownSettingsSchema,
 });
 
+const SOUND_SETTINGS_DEFAULT = createDefaultSoundSettings();
+const SNAPSHOT_SOUND_SETTINGS_DEFAULT = createDefaultSnapshotSoundSettings();
+
+const SoundSettingsSchema = z
+  .object({
+    enabled: z.boolean(),
+    masterVolume: z.number(),
+    useFallbackBeep: z.boolean().optional(),
+    bindings: z.record(z.string(), z.string()).default({}),
+  })
+  .default(SOUND_SETTINGS_DEFAULT);
+
+const SnapshotSoundSettingsSchema = z
+  .object({
+    enabled: z.boolean(),
+    volume: z.number(),
+    bindings: z.record(z.string(), z.string()).default({}),
+    cooldownMs: z.record(z.string(), z.number().nonnegative()).optional(),
+  })
+  .default(SNAPSHOT_SOUND_SETTINGS_DEFAULT);
+
 export const Settings = z.object({
   className: z.string(),
   xpPerLevel: z.number().positive(),
@@ -144,6 +169,8 @@ export const Settings = z.object({
   classMilestoneStep: z.number().int().positive().optional(),
   classStarsName: z.string().optional(),
   assets: AssetSettingsSchema,
+  sounds: SoundSettingsSchema,
+  snapshotSounds: SnapshotSoundSettingsSchema,
 });
 
 export const ClassProgress = z.object({
@@ -444,6 +471,14 @@ export function sanitizeState(raw: unknown): AppStateType | null {
 
   const settingsRecord = isRecord(raw.settings) ? raw.settings : {};
   const assets = sanitizeAssetSettings(settingsRecord.assets ?? DEFAULT_SETTINGS.assets);
+  const sounds = sanitizeSoundSettings(
+    settingsRecord.sounds ?? DEFAULT_SETTINGS.sounds,
+    DEFAULT_SETTINGS.sounds,
+  );
+  const snapshotSounds = sanitizeSnapshotSoundSettings(
+    settingsRecord.snapshotSounds ?? DEFAULT_SETTINGS.snapshotSounds,
+    DEFAULT_SETTINGS.snapshotSounds,
+  );
   const settings: AppStateType['settings'] = {
     className: asString(settingsRecord.className) ?? 'Meine Klasse',
     xpPerLevel: Math.max(1, Math.floor(asNumber(settingsRecord.xpPerLevel, 100)) || 1),
@@ -467,6 +502,8 @@ export function sanitizeState(raw: unknown): AppStateType | null {
       DEFAULT_SETTINGS.classMilestoneStep,
     classStarsName: asString(settingsRecord.classStarsName) ?? DEFAULT_SETTINGS.classStarsName,
     assets,
+    sounds,
+    snapshotSounds,
   };
 
   const totalXP = Math.max(
