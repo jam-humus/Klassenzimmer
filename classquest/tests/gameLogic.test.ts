@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { processAward } from '~/core/gameLogic';
 import type { AppState, Quest, Student } from '~/types/models';
-import { createDefaultAssetSettings } from '~/types/settings';
+import {
+  createDefaultAssetSettings,
+  createDefaultSnapshotSoundSettings,
+  createDefaultSoundSettings,
+} from '~/types/settings';
 
 const createStudent = (overrides: Partial<Student> = {}): Student => ({
   id: 'student-1',
@@ -29,6 +33,8 @@ const createState = (studentOverrides: Partial<Student> = {}): AppState => {
       streakThresholdForBadge: 2,
       allowNegativeXP: false,
       assets: createDefaultAssetSettings(),
+      sounds: createDefaultSoundSettings(),
+      snapshotSounds: createDefaultSnapshotSoundSettings(),
     },
     version: 1,
     classProgress: { totalXP, stars: Math.floor(totalXP / 1000) },
@@ -100,6 +106,8 @@ describe('processAward', () => {
         streakThresholdForBadge: 2,
         allowNegativeXP: true,
         assets: createDefaultAssetSettings(),
+        sounds: createDefaultSoundSettings(),
+        snapshotSounds: createDefaultSnapshotSoundSettings(),
       },
     } satisfies AppState;
 

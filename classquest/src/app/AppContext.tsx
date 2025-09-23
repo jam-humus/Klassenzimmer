@@ -17,8 +17,9 @@ import { levelFromXP } from '~/core/xp';
 import { addQuest, addStudent, awardQuest, createInitialState, setQuestActive } from '~/core/state';
 import { sanitizeState } from '~/core/schema/appState';
 import { migrateState } from '~/core/schema/migrate';
-import { sanitizeAssetSettings } from '~/types/settings';
+import { sanitizeAssetSettings, sanitizeSnapshotSoundSettings, sanitizeSoundSettings } from '~/types/settings';
 import { setEffectsSettings } from '~/utils/effects';
+import { setSoundSettings } from '~/utils/sounds';
 
 type AwardPayload = { questId: ID; studentId?: ID; teamId?: ID; note?: string };
 
@@ -89,7 +90,7 @@ const normalizeStudentAvatar = (student: Student): Student => {
 };
 
 function normalizeSettings(settings?: Partial<Settings>): Settings {
-  const { assets, flags, ...rest } = settings ?? {};
+  const { assets, flags, sounds, snapshotSounds, ...rest } = settings ?? {};
   const merged: Settings = {
     ...DEFAULT_SETTINGS,
     ...rest,
@@ -98,6 +99,11 @@ function normalizeSettings(settings?: Partial<Settings>): Settings {
       ...((flags ?? {}) as Record<string, boolean>),
     },
     assets: sanitizeAssetSettings(assets ?? DEFAULT_SETTINGS.assets),
+    sounds: sanitizeSoundSettings(sounds ?? DEFAULT_SETTINGS.sounds, DEFAULT_SETTINGS.sounds),
+    snapshotSounds: sanitizeSnapshotSoundSettings(
+      snapshotSounds ?? DEFAULT_SETTINGS.snapshotSounds,
+      DEFAULT_SETTINGS.snapshotSounds,
+    ),
   };
   merged.avatarStageThresholds = sanitizeAvatarStageThresholds(merged.avatarStageThresholds);
   const rawStarKey =
@@ -687,6 +693,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     setEffectsSettings(state.settings);
+    setSoundSettings(state.settings);
   }, [state.settings]);
 
   return <Ctx.Provider value={{ state, dispatch }}>{children}</Ctx.Provider>;
