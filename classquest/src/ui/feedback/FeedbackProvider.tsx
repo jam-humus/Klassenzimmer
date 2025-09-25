@@ -16,33 +16,6 @@ const makeId = () => globalThis.crypto?.randomUUID?.() ?? Math.random().toString
 const makeToast = (kind: Toast['kind'], message: string): Toast => ({ id: makeId(), kind, message, t: Date.now() });
 
 function useSfx(enabled: boolean) {
-  const playFallbackTone = useCallback((kind: 'success' | 'error') => {
-    if (typeof window === 'undefined') return;
-    try {
-      const withWebkit = window as typeof window & { webkitAudioContext?: typeof window.AudioContext };
-      const AudioContextCtor = withWebkit.AudioContext ?? withWebkit.webkitAudioContext;
-      if (!AudioContextCtor) return;
-      const ctx = new AudioContextCtor();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      const now = ctx.currentTime;
-      const fStart = kind === 'success' ? 880 : 220;
-      const fEnd = kind === 'success' ? 1320 : 110;
-      osc.frequency.setValueAtTime(fStart, now);
-      osc.frequency.exponentialRampToValueAtTime(fEnd, now + 0.12);
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.08, now + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.18);
-      setTimeout(() => void ctx.close(), 250);
-    } catch (error) {
-      console.warn('Feedback sound failed', error);
-    }
-  }, []);
-
   const play = useCallback(
     (kind: 'success' | 'error') => {
       if (!enabled || typeof window === 'undefined') return;
@@ -51,9 +24,9 @@ function useSfx(enabled: boolean) {
       if (result === 'played' || result === 'cooldown' || result === 'disabled') {
         return;
       }
-      playFallbackTone(kind);
+      // No fallback tone – only play configured UI sounds.
     },
-    [enabled, playFallbackTone],
+    [enabled],
   );
   return play;
 }
