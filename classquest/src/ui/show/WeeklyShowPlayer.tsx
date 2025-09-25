@@ -3,7 +3,7 @@ import { useApp } from '~/app/AppContext';
 import WeeklyShowSlide from '~/ui/show/WeeklyShowSlide';
 import { computeDeltasFromSnapshot, computeWeeklyDeltas, type WeeklyDelta } from '~/core/show/weekly';
 import { listSnapshots, type WeeklySnapshot } from '~/services/weeklyStorage';
-import { preloadSounds } from '~/utils/sounds';
+import { playSound, preloadSounds } from '~/utils/sounds';
 
 function formatDateLabel(snapshot: WeeklySnapshot): string {
   const created = new Date(snapshot.createdAt);
@@ -43,6 +43,7 @@ export default function WeeklyShowPlayer() {
   const [useSnapshot, setUseSnapshot] = React.useState(true);
   const [snapshots, setSnapshots] = React.useState<WeeklySnapshot[]>(() => listSnapshots());
   const [snapshotId, setSnapshotId] = React.useState<string | undefined>(() => listSnapshots()[0]?.id);
+  const showcaseSignatureRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     const handleStorage = () => {
@@ -112,6 +113,19 @@ export default function WeeklyShowPlayer() {
     }
     return result;
   }, [state, fromISO, order, onlyChanged, useSnapshot, snapshotId, snapshots]);
+
+  React.useEffect(() => {
+    if (!deltas.length) {
+      showcaseSignatureRef.current = null;
+      return;
+    }
+    const signature = deltas.map((delta) => delta.studentId).join('|');
+    if (showcaseSignatureRef.current === signature) {
+      return;
+    }
+    showcaseSignatureRef.current = signature;
+    void playSound('showcase_start');
+  }, [deltas]);
 
   React.useEffect(() => {
     setCurrentIndex(0);
