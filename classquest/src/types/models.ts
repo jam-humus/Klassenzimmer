@@ -1,6 +1,6 @@
-import type { AssetSettings, SnapshotSoundSettings, SoundSettings } from './settings';
+import type { AssetSettings, SoundSettings } from './settings';
 
-export type { AssetEvent, AssetRef, AssetSettings, SnapshotSoundSettings, SoundSettings } from './settings';
+export type { AssetEvent, AssetRef, AssetSettings, SoundSettings } from './settings';
 
 export type ID = string;
 
@@ -89,7 +89,6 @@ export type Settings = {
   classStarsName?: string;
   assets: AssetSettings;
   sounds: SoundSettings;
-  snapshotSounds: SnapshotSoundSettings;
 };
 
 export type BadgeDefinition = {

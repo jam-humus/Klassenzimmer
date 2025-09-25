@@ -5,17 +5,17 @@ import AssetUploadCard from '~/components/manage/AssetUploadCard';
 import AssetPreviewList from '~/components/manage/AssetPreviewList';
 import AssetBindingRow from '~/components/manage/AssetBindingRow';
 import { blobStore } from '~/utils/blobStore';
-import { playSnapshotSound, preloadSounds } from '~/utils/sounds';
+import { playSound, preloadSounds } from '~/utils/sounds';
 import {
   type AssetKind,
   type AssetSettings,
   cloneAssetSettings,
-  cloneSnapshotSoundSettings,
+  cloneSoundSettings,
   createDefaultAssetSettings,
-  createDefaultSnapshotSoundSettings,
-  type SnapshotSoundEvent,
+  createDefaultSoundSettings,
+  type AppSoundEvent,
 } from '~/types/settings';
-import { SNAPSHOT_SOUND_EVENT_DETAILS } from '~/core/show/snapshotEvents';
+import { SOUND_EVENT_DETAILS } from '~/core/show/snapshotEvents';
 
 const AUDIO_TYPES = new Set([
   'audio/mpeg',
@@ -42,9 +42,8 @@ export default function AssetsTab() {
   const { state, dispatch } = useApp();
   const feedback = useFeedback();
   const assets = state.settings.assets ?? createDefaultAssetSettings();
-  const snapshotSounds =
-    state.settings.snapshotSounds ?? createDefaultSnapshotSoundSettings();
-  const [preloadingSnapshotSounds, setPreloadingSnapshotSounds] = useState(false);
+  const soundSettings = state.settings.sounds ?? createDefaultSoundSettings();
+  const [preloadingSounds, setPreloadingSounds] = useState(false);
 
   const updateAssets = (updater: (draft: AssetSettings) => void, message?: string) => {
     const draft = cloneAssetSettings(state.settings.assets ?? createDefaultAssetSettings());
@@ -55,15 +54,13 @@ export default function AssetsTab() {
     }
   };
 
-  const updateSnapshotSounds = (
-    updater: (draft: typeof snapshotSounds) => void,
+  const updateSoundSettings = (
+    updater: (draft: typeof soundSettings) => void,
     message?: string,
   ) => {
-    const draft = cloneSnapshotSoundSettings(
-      state.settings.snapshotSounds ?? createDefaultSnapshotSoundSettings(),
-    );
+    const draft = cloneSoundSettings(state.settings.sounds ?? createDefaultSoundSettings());
     updater(draft);
-    dispatch({ type: 'UPDATE_SETTINGS', updates: { snapshotSounds: draft } });
+    dispatch({ type: 'UPDATE_SETTINGS', updates: { sounds: draft } });
     if (message) {
       feedback.success(message);
     }
@@ -139,36 +136,36 @@ export default function AssetsTab() {
     feedback.success('Asset entfernt');
   };
 
-  const handleBindingChange = (event: SnapshotSoundEvent, key: string | null) => {
-    updateSnapshotSounds((draft) => {
+  const handleBindingChange = (event: AppSoundEvent, key: string | null) => {
+    updateSoundSettings((draft) => {
       if (key) {
         draft.bindings[event] = key;
       } else {
         delete draft.bindings[event];
       }
-    }, 'Snapshot-Sound gespeichert');
+    }, 'Sound gespeichert');
   };
 
-  const handleTest = (event: SnapshotSoundEvent) => {
-    void playSnapshotSound(event);
+  const handleTest = (event: AppSoundEvent) => {
+    void playSound(event);
   };
 
-  const handleSnapshotPreload = async () => {
-    if (preloadingSnapshotSounds) return;
-    setPreloadingSnapshotSounds(true);
+  const handlePreload = async () => {
+    if (preloadingSounds) return;
+    setPreloadingSounds(true);
     try {
       await preloadSounds();
-      feedback.success('Snapshot-Sounds vorgeladen');
+      feedback.success('Sounds vorgeladen');
     } catch (error) {
-      console.error('Snapshot-Preload fehlgeschlagen', error);
-      feedback.error('Snapshot-Preload fehlgeschlagen');
+      console.error('Sound-Preload fehlgeschlagen', error);
+      feedback.error('Sound-Preload fehlgeschlagen');
     } finally {
-      setPreloadingSnapshotSounds(false);
+      setPreloadingSounds(false);
     }
   };
 
-  const snapshotVolumePercent = Math.round(
-    Math.max(0, Math.min(1, snapshotSounds.volume ?? 1)) * 100,
+  const masterVolumePercent = Math.round(
+    Math.max(0, Math.min(1, soundSettings.masterVolume ?? 1)) * 100,
   );
 
   return (
@@ -184,7 +181,7 @@ export default function AssetsTab() {
         >
           <AssetUploadCard
             title="Sound hochladen"
-            description="Kurze Snapshot-Sounds für XP, Level und Badges."
+            description="Kurze Sounds für XP, Level, Badges und den Showcase."
             accept=".mp3,.ogg,.wav"
             hint="Bitte MP3, OGG oder WAV hochladen (kurze Sounds &lt; 1s empfohlen)."
             validate={validateAudio}
@@ -195,40 +192,40 @@ export default function AssetsTab() {
 
       <AssetPreviewList assets={libraryEntries} onRename={handleRename} onDelete={handleDelete} />
 
-      <section style={{ display: 'grid', gap: 16 }} aria-label="Snapshot-Sounds">
-          <div style={{ display: 'grid', gap: 4 }}>
-            <h2 style={{ margin: 0, fontSize: 20 }}>Snapshot-Sounds</h2>
-            <p style={{ margin: 0, color: '#475569' }}>
-              Lege fest, welche Audioeffekte während der Snapshot-Show für XP, Level, Avatar und Badges
-              abgespielt werden.
-            </p>
-          </div>
+      <section style={{ display: 'grid', gap: 16 }} aria-label="Sound-Einstellungen">
+        <div style={{ display: 'grid', gap: 4 }}>
+          <h2 style={{ margin: 0, fontSize: 20 }}>Sound-Effekte</h2>
+          <p style={{ margin: 0, color: '#475569' }}>
+            Weise für die unterstützten Events passende Audiodateien zu. Wenn kein Sound hinterlegt ist,
+            bleibt das Event stumm.
+          </p>
+        </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input
             type="checkbox"
-            checked={snapshotSounds.enabled}
+            checked={soundSettings.enabled}
             onChange={(event) =>
-              updateSnapshotSounds(
+              updateSoundSettings(
                 (draft) => {
                   draft.enabled = event.target.checked;
                 },
-                event.target.checked ? 'Snapshot-Sounds aktiviert' : 'Snapshot-Sounds deaktiviert',
+                event.target.checked ? 'Sounds aktiviert' : 'Sounds deaktiviert',
               )
             }
           />
-          Snapshot-Sounds aktiv
+          Sound-Effekte aktiv
         </label>
         <label style={{ display: 'grid', gap: 6, maxWidth: 320 }}>
-          <span>Snapshot-Lautstärke: {snapshotVolumePercent}%</span>
+          <span>Gesamtlautstärke: {masterVolumePercent}%</span>
           <input
             type="range"
             min={0}
             max={100}
-            value={snapshotVolumePercent}
+            value={masterVolumePercent}
             onChange={(event) => {
               const value = Number.parseInt(event.target.value, 10) || 0;
-              updateSnapshotSounds((draft) => {
-                draft.volume = Math.max(0, Math.min(1, value / 100));
+              updateSoundSettings((draft) => {
+                draft.masterVolume = Math.max(0, Math.min(1, value / 100));
               });
             }}
           />
@@ -243,14 +240,14 @@ export default function AssetsTab() {
               </tr>
             </thead>
             <tbody>
-              {SNAPSHOT_SOUND_EVENT_DETAILS.map(({ event, label, description }) => (
+              {SOUND_EVENT_DETAILS.map(({ event, label, description }) => (
                 <AssetBindingRow
                   key={event}
                   event={event}
                   label={label}
                   description={description}
                   audioOptions={audioOptions}
-                  audioValue={snapshotSounds.bindings?.[event] ?? null}
+                  audioValue={soundSettings.bindings?.[event] ?? null}
                   onChange={handleBindingChange}
                   onTest={handleTest}
                 />
@@ -261,19 +258,19 @@ export default function AssetsTab() {
         <div>
           <button
             type="button"
-            onClick={handleSnapshotPreload}
-            disabled={preloadingSnapshotSounds}
+            onClick={handlePreload}
+            disabled={preloadingSounds}
             style={{
               padding: '8px 16px',
               borderRadius: 10,
               border: '1px solid #a855f7',
-              backgroundColor: preloadingSnapshotSounds ? '#ede9fe' : '#f3e8ff',
+              backgroundColor: preloadingSounds ? '#ede9fe' : '#f3e8ff',
               color: '#4c1d95',
               fontWeight: 600,
-              cursor: preloadingSnapshotSounds ? 'progress' : 'pointer',
+              cursor: preloadingSounds ? 'progress' : 'pointer',
             }}
           >
-            {preloadingSnapshotSounds ? 'Lädt…' : 'Snapshot-Sounds vorladen'}
+            {preloadingSounds ? 'Lädt…' : 'Sounds vorladen'}
           </button>
         </div>
       </section>

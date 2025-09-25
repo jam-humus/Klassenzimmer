@@ -1,26 +1,14 @@
 import type { Settings } from '~/types/models';
-import type {
-  AppSoundEvent,
-  SnapshotSoundEvent,
-  SnapshotSoundSettings,
-  SoundSettings,
-} from '~/types/settings';
-import {
-  cloneSnapshotSoundSettings,
-  cloneSoundSettings,
-  createDefaultSnapshotSoundSettings,
-  createDefaultSoundSettings,
-} from '~/types/settings';
+import type { AppSoundEvent, SoundSettings } from '~/types/settings';
+import { cloneSoundSettings, createDefaultSoundSettings } from '~/types/settings';
 import { blobStore } from '~/utils/blobStore';
 
 const urlCache = new Map<string, string>();
 const pendingUrls = new Map<string, Promise<string | null>>();
 const assetKeyIndex = new Map<string, string>();
 const lastAtApp = new Map<AppSoundEvent, number>();
-const lastAtSnap = new Map<SnapshotSoundEvent, number>();
 
 let appCfg: SoundSettings = createDefaultSoundSettings();
-let snapCfg: SnapshotSoundSettings = createDefaultSnapshotSoundSettings();
 
 const APP_EVENT_COOLDOWN_MS = 200;
 
@@ -94,29 +82,6 @@ const preloadAudio = async (url: string): Promise<void> => {
   });
 };
 
-const beep = (vol = 1) => {
-  if (typeof window === 'undefined') return;
-  const Ctor =
-    window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (typeof Ctor !== 'function') return;
-  try {
-    const ctx = new Ctor();
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
-    oscillator.type = 'sine';
-    oscillator.frequency.value = 880;
-    gain.gain.value = Math.max(0, Math.min(1, vol)) * 0.1;
-    oscillator.connect(gain).connect(ctx.destination);
-    oscillator.start();
-    setTimeout(() => {
-      oscillator.stop();
-      ctx.close().catch(() => undefined);
-    }, 120);
-  } catch (error) {
-    console.warn('Snapshot beep failed', error);
-  }
-};
-
 const playByKey = async (binding: string | undefined, volume = 1): Promise<boolean> => {
   if (typeof window === 'undefined') return false;
   const resolvedKey = resolveBindingKey(binding);
@@ -161,16 +126,13 @@ const updateAssetIndex = (settings: Settings | null | undefined) => {
 
 export function setSoundSettings(settings: Settings | null | undefined): void {
   appCfg = cloneSoundSettings(settings?.sounds);
-  snapCfg = cloneSnapshotSoundSettings(settings?.snapshotSounds);
   updateAssetIndex(settings);
   lastAtApp.clear();
-  lastAtSnap.clear();
 }
 
 export async function preloadSounds(): Promise<void> {
   const keys = new Set<string>();
   collectBindingKeys(appCfg.bindings ?? {}).forEach((key) => keys.add(key));
-  collectBindingKeys(snapCfg.bindings ?? {}).forEach((key) => keys.add(key));
   if (!keys.size) return;
   await Promise.all(
     Array.from(keys).map(async (key) => {
@@ -186,19 +148,6 @@ export async function playSound(evt: AppSoundEvent): Promise<void> {
   const now = getNow();
   if ((lastAtApp.get(evt) ?? 0) > now - APP_EVENT_COOLDOWN_MS) return;
   const key = appCfg.bindings?.[evt];
-  const played = await playByKey(key, appCfg.masterVolume);
-  if (!played && appCfg.useFallbackBeep) {
-    beep(appCfg.masterVolume);
-  }
+  await playByKey(key, appCfg.masterVolume);
   lastAtApp.set(evt, now);
-}
-
-export async function playSnapshotSound(evt: SnapshotSoundEvent): Promise<void> {
-  if (!snapCfg.enabled) return;
-  const now = getNow();
-  const cooldown = snapCfg.cooldownMs?.[evt] ?? APP_EVENT_COOLDOWN_MS;
-  if ((lastAtSnap.get(evt) ?? 0) > now - cooldown) return;
-  const key = snapCfg.bindings?.[evt];
-  await playByKey(key, snapCfg.volume);
-  lastAtSnap.set(evt, now);
 }

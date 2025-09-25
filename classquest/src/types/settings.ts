@@ -41,22 +41,12 @@ export interface AssetCooldownSettings {
   coalesceWindowMs?: AssetCooldownMap;
 }
 
-export type AppSoundEvent = 'xp_awarded' | 'level_up' | 'badge_award';
-
-export type SnapshotSoundEvent = 'snap_xp' | 'snap_level' | 'snap_avatar' | 'snap_badge';
+export type AppSoundEvent = 'xp_awarded' | 'level_up' | 'badge_award' | 'showcase_start';
 
 export interface SoundSettings {
   enabled: boolean;
   masterVolume: number;
-  useFallbackBeep?: boolean;
   bindings: Partial<Record<AppSoundEvent, string>>;
-}
-
-export interface SnapshotSoundSettings {
-  enabled: boolean;
-  volume: number;
-  bindings: Partial<Record<SnapshotSoundEvent, string>>;
-  cooldownMs?: Partial<Record<SnapshotSoundEvent, number>>;
 }
 
 export const DEFAULT_AUDIO_COOLDOWN_MS = 250;
@@ -67,22 +57,8 @@ export const APP_SOUND_EVENTS: Readonly<AppSoundEvent[]> = Object.freeze([
   'xp_awarded',
   'level_up',
   'badge_award',
+  'showcase_start',
 ]);
-
-export const SNAPSHOT_SOUND_EVENTS: Readonly<SnapshotSoundEvent[]> = Object.freeze([
-  'snap_xp',
-  'snap_level',
-  'snap_avatar',
-  'snap_badge',
-]);
-
-const DEFAULT_SNAPSHOT_SOUND_COOLDOWNS: Readonly<Record<SnapshotSoundEvent, number>> =
-  Object.freeze({
-    snap_xp: 150,
-    snap_badge: 300,
-    snap_level: 300,
-    snap_avatar: 300,
-  });
 
 const DEFAULT_COALESCE_WINDOW_MAP: Readonly<AssetCooldownMap> = Object.freeze({
   xp_awarded: DEFAULT_XP_COALESCE_WINDOW_MS,
@@ -266,25 +242,6 @@ const sanitizeSoundBindingMap = <T extends string>(
   return result;
 };
 
-const sanitizeSnapshotCooldownMap = (
-  value: unknown,
-  defaults: Partial<Record<SnapshotSoundEvent, number>>,
-): Partial<Record<SnapshotSoundEvent, number>> => {
-  const base: Partial<Record<SnapshotSoundEvent, number>> = { ...defaults };
-  if (typeof value !== 'object' || value === null) {
-    return base;
-  }
-  const result: Partial<Record<SnapshotSoundEvent, number>> = { ...base };
-  Object.entries(value as Record<string, unknown>).forEach(([event, candidate]) => {
-    if (!SNAPSHOT_SOUND_EVENTS.includes(event as SnapshotSoundEvent)) return;
-    const parsed = asNumber(candidate);
-    if (parsed == null) return;
-    const fallback = base[event as SnapshotSoundEvent] ?? 0;
-    result[event as SnapshotSoundEvent] = clampNonNegative(parsed, fallback);
-  });
-  return result;
-};
-
 const sanitizeCooldownSettings = (
   value: unknown,
   defaults: AssetCooldownSettings | undefined,
@@ -372,34 +329,13 @@ export const sanitizeAssetSettings = (value: unknown): AssetSettings => {
 export const createDefaultSoundSettings = (): SoundSettings => ({
   enabled: true,
   masterVolume: 1,
-  useFallbackBeep: false,
   bindings: {},
-});
-
-export const createDefaultSnapshotSoundSettings = (): SnapshotSoundSettings => ({
-  enabled: true,
-  volume: 1,
-  bindings: {},
-  cooldownMs: { ...DEFAULT_SNAPSHOT_SOUND_COOLDOWNS },
 });
 
 export const cloneSoundSettings = (settings: SoundSettings | undefined): SoundSettings => ({
   enabled: settings?.enabled ?? true,
   masterVolume: clamp01(settings?.masterVolume, 1),
-  useFallbackBeep: settings?.useFallbackBeep ?? false,
   bindings: { ...(settings?.bindings ?? {}) },
-});
-
-export const cloneSnapshotSoundSettings = (
-  settings: SnapshotSoundSettings | undefined,
-): SnapshotSoundSettings => ({
-  enabled: settings?.enabled ?? true,
-  volume: clamp01(settings?.volume, 1),
-  bindings: { ...(settings?.bindings ?? {}) },
-  cooldownMs: {
-    ...DEFAULT_SNAPSHOT_SOUND_COOLDOWNS,
-    ...(settings?.cooldownMs ?? {}),
-  },
 });
 
 export const sanitizeSoundSettings = (
@@ -413,39 +349,10 @@ export const sanitizeSoundSettings = (
       : {};
   const enabled = typeof record.enabled === 'boolean' ? record.enabled : baseDefaults.enabled;
   const masterVolume = clamp01(asNumber(record.masterVolume), baseDefaults.masterVolume);
-  const useFallbackBeep =
-    typeof record.useFallbackBeep === 'boolean'
-      ? record.useFallbackBeep
-      : baseDefaults.useFallbackBeep ?? false;
   const bindings = sanitizeSoundBindingMap(record.bindings, APP_SOUND_EVENTS);
   return {
     enabled,
     masterVolume,
-    useFallbackBeep,
     bindings,
   } satisfies SoundSettings;
-};
-
-export const sanitizeSnapshotSoundSettings = (
-  value: unknown,
-  defaults?: SnapshotSoundSettings,
-): SnapshotSoundSettings => {
-  const baseDefaults = defaults ?? createDefaultSnapshotSoundSettings();
-  const record =
-    typeof value === 'object' && value !== null
-      ? (value as Partial<SnapshotSoundSettings> & Record<string, unknown>)
-      : {};
-  const enabled = typeof record.enabled === 'boolean' ? record.enabled : baseDefaults.enabled;
-  const volume = clamp01(asNumber(record.volume), baseDefaults.volume);
-  const bindings = sanitizeSoundBindingMap(record.bindings, SNAPSHOT_SOUND_EVENTS);
-  const cooldownMs = sanitizeSnapshotCooldownMap(
-    record.cooldownMs,
-    baseDefaults.cooldownMs ?? DEFAULT_SNAPSHOT_SOUND_COOLDOWNS,
-  );
-  return {
-    enabled,
-    volume,
-    bindings,
-    cooldownMs,
-  } satisfies SnapshotSoundSettings;
 };

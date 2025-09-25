@@ -1,4 +1,4 @@
-import type { SnapshotSoundEvent } from '~/types/settings';
+import type { AppSoundEvent } from '~/types/settings';
 
 type AssetOption = {
   id: string;
@@ -6,13 +6,13 @@ type AssetOption = {
 };
 
 type AssetBindingRowProps = {
-  event: SnapshotSoundEvent;
+  event: AppSoundEvent;
   label: string;
   description: string;
   audioOptions: AssetOption[];
   audioValue?: string | null;
-  onChange: (event: SnapshotSoundEvent, key: string | null) => void;
-  onTest: (event: SnapshotSoundEvent) => void;
+  onChange: (event: AppSoundEvent, key: string | null) => void;
+  onTest: (event: AppSoundEvent) => void;
 };
 
 export default function AssetBindingRow({

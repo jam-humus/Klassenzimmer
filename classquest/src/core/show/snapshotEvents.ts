@@ -1,36 +1,30 @@
-import type { SnapshotSoundEvent } from '~/types/settings';
+import type { AppSoundEvent } from '~/types/settings';
 
-export type SnapshotEventDetail = {
-  event: SnapshotSoundEvent;
+export type SoundEventDetail = {
+  event: AppSoundEvent;
   label: string;
   description: string;
 };
 
-export const SNAPSHOT_SOUND_EVENT_DETAILS: readonly SnapshotEventDetail[] = [
+export const SOUND_EVENT_DETAILS: readonly SoundEventDetail[] = [
   {
-    event: 'snap_xp',
-    label: 'Snapshot: XP-Animation',
-    description: 'Sound, wenn die gewonnenen XP im Snapshot eingeblendet werden.',
+    event: 'xp_awarded',
+    label: 'XP vergeben',
+    description: 'Spielt ab, wenn XP vergeben werden oder XP-Gewinne im Snapshot erscheinen.',
   },
   {
-    event: 'snap_level',
-    label: 'Snapshot: Level-Change',
-    description: 'Sound für Level-Aufstiege innerhalb der Snapshot-Präsentation.',
+    event: 'level_up',
+    label: 'Level-Up',
+    description: 'Sound für Levelaufstiege in der App und im Snapshot.',
   },
   {
-    event: 'snap_avatar',
-    label: 'Snapshot: Avatar-Entwicklung',
-    description: 'Sound, wenn der Avatar eine Stufe hochspringt.',
+    event: 'badge_award',
+    label: 'Badge vergeben',
+    description: 'Sound, wenn neue Badges verliehen oder im Snapshot gezeigt werden.',
   },
   {
-    event: 'snap_badge',
-    label: 'Snapshot: Badge-Einblendung',
-    description: 'Sound, wenn neue Badges im Snapshot vorgestellt werden.',
+    event: 'showcase_start',
+    label: 'Snapshot/Showcase Start',
+    description: 'Intro-Sound beim Start der Snapshot-Show.',
   },
 ] as const;
-
-export const SNAPSHOT_SOUND_EVENTS: readonly SnapshotSoundEvent[] =
-  SNAPSHOT_SOUND_EVENT_DETAILS.map((entry) => entry.event);
-
-export const isSnapshotSoundEvent = (value: string): value is SnapshotSoundEvent =>
-  SNAPSHOT_SOUND_EVENTS.includes(value as SnapshotSoundEvent);

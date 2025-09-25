@@ -2,11 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { LocalStorageAdapter, STORAGE_KEY } from '~/services/storage/localStorage';
 import type { AppState } from '~/types/models';
 import { sanitizeState } from '~/core/schema/appState';
-import {
-  createDefaultAssetSettings,
-  createDefaultSnapshotSoundSettings,
-  createDefaultSoundSettings,
-} from '~/types/settings';
+import { createDefaultAssetSettings, createDefaultSoundSettings } from '~/types/settings';
 
 type GlobalWithStorage = typeof globalThis & { localStorage?: Storage };
 
@@ -50,7 +46,6 @@ const sampleState = (): AppState => ({
     allowNegativeXP: false,
     assets: createDefaultAssetSettings(),
     sounds: createDefaultSoundSettings(),
-    snapshotSounds: createDefaultSnapshotSoundSettings(),
   },
   version: 1,
   classProgress: { totalXP: 10, stars: 0 },

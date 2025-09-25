@@ -1,5 +1,5 @@
 import type { Settings } from '~/types/models';
-import { createDefaultAssetSettings, createDefaultSnapshotSoundSettings, createDefaultSoundSettings } from '~/types/settings';
+import { createDefaultAssetSettings, createDefaultSoundSettings } from '~/types/settings';
 export const DEFAULT_SETTINGS: Required<Settings> = {
   className: 'Meine Klasse',
   xpPerLevel: 100,
@@ -18,5 +18,4 @@ export const DEFAULT_SETTINGS: Required<Settings> = {
   classStarsName: 'Stern',
   assets: createDefaultAssetSettings(),
   sounds: createDefaultSoundSettings(),
-  snapshotSounds: createDefaultSnapshotSoundSettings(),
 };
