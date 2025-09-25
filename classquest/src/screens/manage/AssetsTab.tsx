@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { useApp } from '~/app/AppContext';
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import AssetUploadCard from '~/components/manage/AssetUploadCard';
 import AssetPreviewList from '~/components/manage/AssetPreviewList';
-import AssetBindingRow from '~/components/manage/AssetBindingRow';
 import { blobStore } from '~/utils/blobStore';
 import { playSound, preloadSounds } from '~/utils/sounds';
 import {
   type AssetKind,
   type AssetSettings,
+  type AssetEvent,
   cloneAssetSettings,
   cloneSoundSettings,
   createDefaultAssetSettings,
@@ -37,6 +38,78 @@ const fileMatches = (file: File, types: Set<string>, extensions: string[]): bool
 };
 
 const createAssetKey = () => `asset:${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
+
+type SoundOption = { id: string; name: string };
+
+type SoundEventCardProps = {
+  event: AppSoundEvent;
+  label: string;
+  description: string;
+  options: SoundOption[];
+  value: string | null;
+  onSelect: (event: AppSoundEvent, key: string | null) => void;
+  onTest: (event: AppSoundEvent) => void;
+};
+
+const cardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 16,
+  borderRadius: 12,
+  border: '1px solid #d0d7e6',
+  background: '#fff',
+  boxShadow: '0 6px 18px rgba(15, 23, 42, 0.05)',
+};
+
+function SoundEventCard({ event, label, description, options, value, onSelect, onTest }: SoundEventCardProps) {
+  const hasSelection = Boolean(value);
+  return (
+    <div style={cardStyle}>
+      <div style={{ display: 'grid', gap: 4 }}>
+        <span style={{ fontWeight: 600 }}>{label}</span>
+        <span style={{ fontSize: 13, color: '#475569' }}>{description}</span>
+      </div>
+      <div style={{ display: 'grid', gap: 8 }}>
+        <label style={{ display: 'grid', gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>Sound auswählen</span>
+          <select
+            value={value ?? ''}
+            onChange={(changeEvent) => onSelect(event, changeEvent.target.value || null)}
+            style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #cbd5f5' }}
+          >
+            <option value="">– Kein Sound –</option>
+            {options.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => onTest(event)}
+            disabled={!hasSelection}
+            style={{
+              padding: '8px 14px',
+              borderRadius: 10,
+              border: '1px solid #4ade80',
+              backgroundColor: hasSelection ? '#bbf7d0' : '#e2e8f0',
+              color: '#166534',
+              fontWeight: 600,
+              cursor: hasSelection ? 'pointer' : 'not-allowed',
+            }}
+          >
+            Testen
+          </button>
+          <span style={{ fontSize: 12, color: '#64748b' }}>
+            {hasSelection ? 'Sound ausprobieren, um die Lautstärke zu prüfen.' : 'Noch kein Sound hinterlegt.'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AssetsTab() {
   const { state, dispatch } = useApp();
@@ -200,67 +273,74 @@ export default function AssetsTab() {
             bleibt das Event stumm.
           </p>
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <input
-            type="checkbox"
-            checked={soundSettings.enabled}
-            onChange={(event) =>
-              updateSoundSettings(
-                (draft) => {
-                  draft.enabled = event.target.checked;
-                },
-                event.target.checked ? 'Sounds aktiviert' : 'Sounds deaktiviert',
-              )
-            }
-          />
-          Sound-Effekte aktiv
-        </label>
-        <label style={{ display: 'grid', gap: 6, maxWidth: 320 }}>
-          <span>Gesamtlautstärke: {masterVolumePercent}%</span>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={masterVolumePercent}
-            onChange={(event) => {
-              const value = Number.parseInt(event.target.value, 10) || 0;
-              updateSoundSettings((draft) => {
-                draft.masterVolume = Math.max(0, Math.min(1, value / 100));
-              });
-            }}
-          />
-        </label>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Event</th>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Audio</th>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Test</th>
-              </tr>
-            </thead>
-            <tbody>
-              {SOUND_EVENT_DETAILS.map(({ event, label, description }) => (
-                <AssetBindingRow
-                  key={event}
-                  event={event}
-                  label={label}
-                  description={description}
-                  audioOptions={audioOptions}
-                  audioValue={soundSettings.bindings?.[event] ?? null}
-                  onChange={handleBindingChange}
-                  onTest={handleTest}
-                />
-              ))}
-            </tbody>
-          </table>
+        <div
+          style={{
+            display: 'grid',
+            gap: 12,
+            padding: 16,
+            borderRadius: 12,
+            border: '1px solid #d0d7e6',
+            background: '#f8fafc',
+          }}
+        >
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={soundSettings.enabled}
+              onChange={(event) =>
+                updateSoundSettings(
+                  (draft) => {
+                    draft.enabled = event.target.checked;
+                  },
+                  event.target.checked ? 'Sounds aktiviert' : 'Sounds deaktiviert',
+                )
+              }
+            />
+            Sound-Effekte aktiv
+          </label>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span>Gesamtlautstärke: {masterVolumePercent}%</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={masterVolumePercent}
+              onChange={(event) => {
+                const value = Number.parseInt(event.target.value, 10) || 0;
+                updateSoundSettings((draft) => {
+                  draft.masterVolume = Math.max(0, Math.min(1, value / 100));
+                });
+              }}
+            />
+          </label>
         </div>
-        <div>
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div
+            style={{
+              display: 'grid',
+              gap: 16,
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            }}
+          >
+            {SOUND_EVENT_DETAILS.map(({ event, label, description }) => (
+              <SoundEventCard
+                key={event}
+                event={event}
+                label={label}
+                description={description}
+                options={audioOptions}
+                value={soundSettings.bindings?.[event] ?? null}
+                onSelect={handleBindingChange}
+                onTest={handleTest}
+              />
+            ))}
+          </div>
           <button
             type="button"
             onClick={handlePreload}
             disabled={preloadingSounds}
             style={{
+              justifySelf: 'start',
               padding: '8px 16px',
               borderRadius: 10,
               border: '1px solid #a855f7',

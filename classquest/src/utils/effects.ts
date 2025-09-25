@@ -10,6 +10,7 @@ import {
   DEFAULT_AUDIO_COOLDOWN_MS,
   DEFAULT_LOTTIE_COOLDOWN_MS,
 } from '~/types/settings';
+import { playSound } from '~/utils/sounds';
 
 type LottieOptions = { mount?: HTMLElement; center?: boolean; durationMs?: number };
 
@@ -457,10 +458,16 @@ export function triggerEventLottie(evt: AssetEvent, opts?: LottieOptions): void 
 
 export function playXpAwardedEffectsCoalesced(): void {
   const evt: AssetEvent = 'xp_awarded';
+  const triggerEffects = () => {
+    const result = playEventAudio(evt);
+    if (result === 'unavailable') {
+      void playSound('xp_awarded');
+    }
+    triggerEventLottie(evt, { center: true, durationMs: 900 });
+  };
   const windowMs = getCoalesceWindowMs(evt);
   if (windowMs <= 0 || typeof window === 'undefined') {
-    playEventAudio(evt);
-    triggerEventLottie(evt, { center: true, durationMs: 900 });
+    triggerEffects();
     return;
   }
   const existing = coalesceTimers.get(evt);
@@ -468,8 +475,7 @@ export function playXpAwardedEffectsCoalesced(): void {
     window.clearTimeout(existing);
   }
   const timeoutId = window.setTimeout(() => {
-    playEventAudio(evt);
-    triggerEventLottie(evt, { center: true, durationMs: 900 });
+    triggerEffects();
     coalesceTimers.delete(evt);
   }, windowMs);
   coalesceTimers.set(evt, timeoutId);
