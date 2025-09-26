@@ -1,7 +1,7 @@
 import { DEFAULT_SETTINGS } from './config';
 import { processAward } from './gameLogic';
 import { levelFromXP } from './xp';
-import { sanitizeAssetSettings, sanitizeSoundSettings } from '~/types/settings';
+import { sanitizeAssetSettings } from '~/types/settings';
 import type {
   AppState,
   ID,
@@ -71,7 +71,7 @@ export const createInitialState = (
   quests: [],
   logs: [],
   settings: (() => {
-    const { flags, assets, sounds, ...restSettings } = settings ?? {};
+    const { flags, assets, ...restSettings } = settings ?? {};
     const theme = normalizeThemeId(restSettings.theme ?? DEFAULT_SETTINGS.theme, DEFAULT_SETTINGS.theme);
     return {
       ...DEFAULT_SETTINGS,
@@ -82,7 +82,6 @@ export const createInitialState = (
         ...((flags ?? {}) as Record<string, boolean>),
       },
       assets: sanitizeAssetSettings(assets ?? DEFAULT_SETTINGS.assets),
-      sounds: sanitizeSoundSettings(sounds ?? DEFAULT_SETTINGS.sounds, DEFAULT_SETTINGS.sounds),
     } satisfies Settings;
   })(),
   version,

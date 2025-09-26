@@ -1,7 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useApp } from '~/app/AppContext';
-import { playEventAudio } from '~/utils/effects';
-import type { AssetEvent } from '~/types/settings';
 
 type Toast = { id: string; kind: 'success'|'info'|'error'; message: string; t: number };
 type Ctx = {
@@ -17,14 +15,9 @@ const makeToast = (kind: Toast['kind'], message: string): Toast => ({ id: makeId
 
 function useSfx(enabled: boolean) {
   const play = useCallback(
-    (kind: 'success' | 'error') => {
-      if (!enabled || typeof window === 'undefined') return;
-      const assetEvent: AssetEvent = kind === 'success' ? 'ui_success' : 'ui_error';
-      const result = playEventAudio(assetEvent);
-      if (result === 'played' || result === 'cooldown' || result === 'disabled') {
-        return;
-      }
-      // No fallback tone – only play configured UI sounds.
+    (_kind: 'success' | 'error') => {
+      if (!enabled) return;
+      // Sound effects are currently disabled.
     },
     [enabled],
   );

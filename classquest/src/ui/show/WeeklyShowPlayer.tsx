@@ -3,7 +3,6 @@ import { useApp } from '~/app/AppContext';
 import WeeklyShowSlide from '~/ui/show/WeeklyShowSlide';
 import { computeDeltasFromSnapshot, computeWeeklyDeltas, type WeeklyDelta } from '~/core/show/weekly';
 import { listSnapshots, type WeeklySnapshot } from '~/services/weeklyStorage';
-import { playSound, preloadSounds } from '~/utils/sounds';
 
 function formatDateLabel(snapshot: WeeklySnapshot): string {
   const created = new Date(snapshot.createdAt);
@@ -54,10 +53,6 @@ export default function WeeklyShowPlayer() {
       return () => window.removeEventListener('storage', handleStorage);
     }
     return () => undefined;
-  }, []);
-
-  React.useEffect(() => {
-    void preloadSounds();
   }, []);
 
   React.useEffect(() => {
@@ -124,7 +119,6 @@ export default function WeeklyShowPlayer() {
       return;
     }
     showcaseSignatureRef.current = signature;
-    void playSound('showcase_start');
   }, [deltas]);
 
   React.useEffect(() => {

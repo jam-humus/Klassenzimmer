@@ -18,9 +18,8 @@ import { levelFromXP } from '~/core/xp';
 import { addQuest, addStudent, awardQuest, createInitialState, setQuestActive } from '~/core/state';
 import { sanitizeState } from '~/core/schema/appState';
 import { migrateState } from '~/core/schema/migrate';
-import { sanitizeAssetSettings, sanitizeSoundSettings } from '~/types/settings';
+import { sanitizeAssetSettings } from '~/types/settings';
 import { setEffectsSettings } from '~/utils/effects';
-import { playSound, setSoundSettings } from '~/utils/sounds';
 
 type AwardPayload = { questId: ID; studentId?: ID; teamId?: ID; note?: string };
 
@@ -91,7 +90,7 @@ const normalizeStudentAvatar = (student: Student): Student => {
 };
 
 function normalizeSettings(settings?: Partial<Settings>): Settings {
-  const { assets, flags, sounds, ...rest } = settings ?? {};
+  const { assets, flags, ...rest } = settings ?? {};
   const merged: Settings = {
     ...DEFAULT_SETTINGS,
     ...rest,
@@ -100,7 +99,6 @@ function normalizeSettings(settings?: Partial<Settings>): Settings {
       ...((flags ?? {}) as Record<string, boolean>),
     },
     assets: sanitizeAssetSettings(assets ?? DEFAULT_SETTINGS.assets),
-    sounds: sanitizeSoundSettings(sounds ?? DEFAULT_SETTINGS.sounds, DEFAULT_SETTINGS.sounds),
   };
   merged.theme = normalizeThemeId(merged.theme ?? DEFAULT_SETTINGS.theme, DEFAULT_SETTINGS.theme);
   merged.avatarStageThresholds = sanitizeAvatarStageThresholds(merged.avatarStageThresholds);
@@ -662,7 +660,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const storage = React.useMemo(createStorageAdapter, []);
   const [state, dispatch] = React.useReducer(reducer, normalizeState(createInitialState(undefined, 1)));
   const hydratedRef = React.useRef(false);
-  const prevStateRef = React.useRef<AppState | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -692,36 +689,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     setEffectsSettings(state.settings);
-    setSoundSettings(state.settings);
   }, [state.settings]);
-
-  React.useEffect(() => {
-    if (!hydratedRef.current) {
-      prevStateRef.current = state;
-      return;
-    }
-    const prev = prevStateRef.current;
-    prevStateRef.current = state;
-    if (!prev) {
-      return;
-    }
-    const prevLogIds = new Set(prev.logs.map((log) => log.id));
-    const hasPositiveLog = state.logs.some((log) => !prevLogIds.has(log.id) && log.xp > 0);
-    if (hasPositiveLog) {
-      void playSound('xp_awarded');
-    }
-    const prevStudents = new Map(prev.students.map((student) => [student.id, student]));
-    state.students.forEach((student) => {
-      const before = prevStudents.get(student.id);
-      if (!before) return;
-      if (student.level > before.level) {
-        void playSound('level_up');
-      }
-      if (student.badges.length > before.badges.length) {
-        void playSound('badge_award');
-      }
-    });
-  }, [state]);
 
   return <Ctx.Provider value={{ state, dispatch }}>{children}</Ctx.Provider>;
 }

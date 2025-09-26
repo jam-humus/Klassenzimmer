@@ -20,7 +20,7 @@ export type AssetEvent =
   | 'import_success'
   | 'export_success';
 
-export type AssetKind = 'audio' | 'lottie' | 'image';
+export type AssetKind = 'lottie' | 'image';
 
 export interface AssetRef {
   key: string;
@@ -34,71 +34,43 @@ export type AssetBindingMap = Partial<Record<AssetEvent, string>>;
 export type AssetCooldownMap = Partial<Record<AssetEvent, number>>;
 
 export interface AssetCooldownSettings {
-  audioMs?: AssetCooldownMap;
   lottieMs?: AssetCooldownMap;
-  defaultAudioMs?: number;
   defaultLottieMs?: number;
   coalesceWindowMs?: AssetCooldownMap;
 }
 
-export type AppSoundEvent = 'xp_awarded' | 'level_up' | 'badge_award' | 'showcase_start';
-
-export interface SoundSettings {
-  enabled: boolean;
-  masterVolume: number;
-  bindings: Partial<Record<AppSoundEvent, string>>;
-}
-
-export const DEFAULT_AUDIO_COOLDOWN_MS = 250;
 export const DEFAULT_LOTTIE_COOLDOWN_MS = 600;
 export const DEFAULT_XP_COALESCE_WINDOW_MS = 300;
-
-export const APP_SOUND_EVENTS: Readonly<AppSoundEvent[]> = Object.freeze([
-  'xp_awarded',
-  'level_up',
-  'badge_award',
-  'showcase_start',
-]);
 
 const DEFAULT_COALESCE_WINDOW_MAP: Readonly<AssetCooldownMap> = Object.freeze({
   xp_awarded: DEFAULT_XP_COALESCE_WINDOW_MS,
 });
 
 const createDefaultCooldownSettings = (): AssetCooldownSettings => ({
-  audioMs: {},
   lottieMs: {},
-  defaultAudioMs: DEFAULT_AUDIO_COOLDOWN_MS,
   defaultLottieMs: DEFAULT_LOTTIE_COOLDOWN_MS,
   coalesceWindowMs: { ...DEFAULT_COALESCE_WINDOW_MAP },
 });
 
 const cloneCooldownSettings = (settings: AssetCooldownSettings | undefined): AssetCooldownSettings => {
   const defaults = createDefaultCooldownSettings();
-  const audioMs = settings?.audioMs ? { ...settings.audioMs } : {};
   const lottieMs = settings?.lottieMs ? { ...settings.lottieMs } : {};
   const coalesceWindowMs = settings?.coalesceWindowMs
     ? { ...settings.coalesceWindowMs }
     : { ...(defaults.coalesceWindowMs ?? {}) };
   return {
-    audioMs,
     lottieMs,
     coalesceWindowMs,
-    defaultAudioMs: clampNonNegative(settings?.defaultAudioMs, defaults.defaultAudioMs ?? DEFAULT_AUDIO_COOLDOWN_MS),
-    defaultLottieMs: clampNonNegative(
-      settings?.defaultLottieMs,
-      defaults.defaultLottieMs ?? DEFAULT_LOTTIE_COOLDOWN_MS,
-    ),
+    defaultLottieMs: clampNonNegative(settings?.defaultLottieMs, defaults.defaultLottieMs ?? DEFAULT_LOTTIE_COOLDOWN_MS),
   } satisfies AssetCooldownSettings;
 };
 
 export interface AssetSettings {
   library: Record<string, AssetRef>;
   bindings: {
-    audio: AssetBindingMap;
     lottie: AssetBindingMap;
     image: AssetBindingMap;
   };
-  audio: { masterVolume: number; enabled: boolean };
   animations: { enabled: boolean; preferReducedMotion: boolean };
   cooldown: AssetCooldownSettings;
 }
@@ -106,11 +78,9 @@ export interface AssetSettings {
 export const DEFAULT_ASSET_SETTINGS: Readonly<AssetSettings> = Object.freeze({
   library: {},
   bindings: {
-    audio: {},
     lottie: {},
     image: {},
   },
-  audio: { masterVolume: 1, enabled: true },
   animations: { enabled: true, preferReducedMotion: false },
   cooldown: createDefaultCooldownSettings(),
 });
@@ -118,11 +88,9 @@ export const DEFAULT_ASSET_SETTINGS: Readonly<AssetSettings> = Object.freeze({
 export const createDefaultAssetSettings = (): AssetSettings => ({
   library: {},
   bindings: {
-    audio: {},
     lottie: {},
     image: {},
   },
-  audio: { masterVolume: 1, enabled: true },
   animations: { enabled: true, preferReducedMotion: false },
   cooldown: createDefaultCooldownSettings(),
 });
@@ -140,13 +108,8 @@ export const cloneAssetSettings = (settings: AssetSettings): AssetSettings => ({
     ]),
   ),
   bindings: {
-    audio: { ...(settings.bindings?.audio ?? {}) },
     lottie: { ...(settings.bindings?.lottie ?? {}) },
     image: { ...(settings.bindings?.image ?? {}) },
-  },
-  audio: {
-    masterVolume: settings.audio?.masterVolume ?? 1,
-    enabled: settings.audio?.enabled ?? true,
   },
   animations: {
     enabled: settings.animations?.enabled ?? true,
@@ -155,7 +118,7 @@ export const cloneAssetSettings = (settings: AssetSettings): AssetSettings => ({
   cooldown: cloneCooldownSettings(settings.cooldown),
 });
 
-const VALID_ASSET_KINDS: AssetKind[] = ['audio', 'lottie', 'image'];
+const VALID_ASSET_KINDS: AssetKind[] = ['lottie', 'image'];
 
 const asAssetKind = (value: unknown): AssetKind | null =>
   typeof value === 'string' && (VALID_ASSET_KINDS as readonly string[]).includes(value)
@@ -226,22 +189,6 @@ const sanitizeCooldownMap = (value: unknown): AssetCooldownMap => {
   return result;
 };
 
-const sanitizeSoundBindingMap = <T extends string>(
-  value: unknown,
-  validEvents: readonly T[],
-): Partial<Record<T, string>> => {
-  if (typeof value !== 'object' || value === null) return {};
-  const result: Partial<Record<T, string>> = {};
-  Object.entries(value as Record<string, unknown>).forEach(([event, candidate]) => {
-    if (!validEvents.includes(event as T)) return;
-    if (typeof candidate !== 'string') return;
-    const trimmed = candidate.trim();
-    if (!trimmed) return;
-    result[event as T] = trimmed;
-  });
-  return result;
-};
-
 const sanitizeCooldownSettings = (
   value: unknown,
   defaults: AssetCooldownSettings | undefined,
@@ -252,16 +199,11 @@ const sanitizeCooldownSettings = (
       ? (value as Partial<AssetCooldownSettings> & Record<string, unknown>)
       : {};
 
-  const defaultAudioMs = clampNonNegative(
-    asNumber(record.defaultAudioMs),
-    baseDefaults.defaultAudioMs ?? DEFAULT_AUDIO_COOLDOWN_MS,
-  );
   const defaultLottieMs = clampNonNegative(
     asNumber(record.defaultLottieMs),
     baseDefaults.defaultLottieMs ?? DEFAULT_LOTTIE_COOLDOWN_MS,
   );
 
-  const audioMs = sanitizeCooldownMap(record.audioMs);
   const lottieMs = sanitizeCooldownMap(record.lottieMs);
 
   const baseCoalesce = baseDefaults.coalesceWindowMs
@@ -271,10 +213,8 @@ const sanitizeCooldownSettings = (
   const coalesceWindowMs = { ...baseCoalesce, ...coalesceInput };
 
   return {
-    audioMs,
     lottieMs,
     coalesceWindowMs,
-    defaultAudioMs,
     defaultLottieMs,
   } satisfies AssetCooldownSettings;
 };
@@ -294,16 +234,9 @@ export const sanitizeAssetSettings = (value: unknown): AssetSettings => {
 
   const bindingsInput = (record.bindings ?? {}) as Partial<AssetSettings['bindings']>;
   const bindings = {
-    audio: sanitizeAssetBindingMap(bindingsInput.audio),
     lottie: sanitizeAssetBindingMap(bindingsInput.lottie),
     image: sanitizeAssetBindingMap(bindingsInput.image),
   } satisfies AssetSettings['bindings'];
-
-  const audioInput = (record.audio ?? {}) as Partial<AssetSettings['audio']>;
-  const audio = {
-    masterVolume: clamp01(asNumber(audioInput.masterVolume), defaults.audio.masterVolume),
-    enabled: typeof audioInput.enabled === 'boolean' ? audioInput.enabled : defaults.audio.enabled,
-  } satisfies AssetSettings['audio'];
 
   const animationsInput = (record.animations ?? {}) as Partial<AssetSettings['animations']>;
   const animations = {
@@ -320,39 +253,7 @@ export const sanitizeAssetSettings = (value: unknown): AssetSettings => {
   return {
     library,
     bindings,
-    audio,
     animations,
     cooldown,
   } satisfies AssetSettings;
-};
-
-export const createDefaultSoundSettings = (): SoundSettings => ({
-  enabled: true,
-  masterVolume: 1,
-  bindings: {},
-});
-
-export const cloneSoundSettings = (settings: SoundSettings | undefined): SoundSettings => ({
-  enabled: settings?.enabled ?? true,
-  masterVolume: clamp01(settings?.masterVolume, 1),
-  bindings: { ...(settings?.bindings ?? {}) },
-});
-
-export const sanitizeSoundSettings = (
-  value: unknown,
-  defaults?: SoundSettings,
-): SoundSettings => {
-  const baseDefaults = defaults ?? createDefaultSoundSettings();
-  const record =
-    typeof value === 'object' && value !== null
-      ? (value as Partial<SoundSettings> & Record<string, unknown>)
-      : {};
-  const enabled = typeof record.enabled === 'boolean' ? record.enabled : baseDefaults.enabled;
-  const masterVolume = clamp01(asNumber(record.masterVolume), baseDefaults.masterVolume);
-  const bindings = sanitizeSoundBindingMap(record.bindings, APP_SOUND_EVENTS);
-  return {
-    enabled,
-    masterVolume,
-    bindings,
-  } satisfies SoundSettings;
 };

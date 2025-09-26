@@ -174,9 +174,7 @@ function AssetPreviewItem({ entry, onRename, onDelete }: AssetPreviewItemProps) 
             overflow: 'hidden',
           }}
         >
-          {entry.ref.type === 'audio' && url ? (
-            <audio controls preload="metadata" src={url} style={{ width: '100%' }} aria-label="Audio-Vorschau" />
-          ) : entry.ref.type === 'image' && url ? (
+          {entry.ref.type === 'image' && url ? (
             <img
               src={url}
               alt={`Vorschau von ${entry.ref.name}`}
