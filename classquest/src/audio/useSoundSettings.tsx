@@ -1,5 +1,4 @@
 import {
-  PropsWithChildren,
   createContext,
   useCallback,
   useContext,
@@ -7,6 +6,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import type { PropsWithChildren, JSX } from 'react';
 import { soundManager } from './SoundManager';
 import type { SoundSettings } from './types';
 import { eventBus } from '@/lib/EventBus';
@@ -102,11 +102,11 @@ export function SoundSettingsProvider({ children }: PropsWithChildren): JSX.Elem
   }, []);
 
   const setEnabled = useCallback((enabled: boolean) => {
-    setSettings((prev) => ({ ...prev, enabled }));
+    setSettings((prev: SoundSettings) => ({ ...prev, enabled }));
   }, []);
 
   const setVolume = useCallback((volume: number) => {
-    setSettings((prev) => ({ ...prev, volume: clampVolume(volume) }));
+    setSettings((prev: SoundSettings) => ({ ...prev, volume: clampVolume(volume) }));
   }, []);
 
   const value = useMemo<SoundSettingsContextValue>(
