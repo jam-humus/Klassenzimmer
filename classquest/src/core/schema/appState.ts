@@ -2,12 +2,9 @@ import * as z from 'zod';
 import { DEFAULT_SETTINGS } from '../config';
 import { normalizeThemeId } from '~/types/models';
 import {
-  DEFAULT_AUDIO_COOLDOWN_MS,
   DEFAULT_LOTTIE_COOLDOWN_MS,
   DEFAULT_XP_COALESCE_WINDOW_MS,
   sanitizeAssetSettings,
-  sanitizeSoundSettings,
-  createDefaultSoundSettings,
 } from '~/types/settings';
 
 import { sanitizeAvatarStageThresholds } from '../avatarStages';
@@ -84,7 +81,7 @@ export const LogEntry = z.object({
 
 const AssetRef = z.object({
   key: z.string().min(1),
-  type: z.enum(['audio', 'lottie', 'image']),
+  type: z.enum(['lottie', 'image']),
   name: z.string(),
   createdAt: z.number(),
 });
@@ -94,18 +91,14 @@ const AssetBindingMap = z.record(z.string(), z.string()).default({});
 const AssetCooldownMap = z.record(z.string(), z.number().nonnegative()).default({});
 
 const DEFAULT_COOLDOWN_SCHEMA_VALUE = {
-  audioMs: {},
   lottieMs: {},
-  defaultAudioMs: DEFAULT_AUDIO_COOLDOWN_MS,
   defaultLottieMs: DEFAULT_LOTTIE_COOLDOWN_MS,
   coalesceWindowMs: { xp_awarded: DEFAULT_XP_COALESCE_WINDOW_MS },
 } as const;
 
 const AssetCooldownSettingsSchema = z
   .object({
-    audioMs: AssetCooldownMap.optional(),
     lottieMs: AssetCooldownMap.optional(),
-    defaultAudioMs: z.number().nonnegative().optional(),
     defaultLottieMs: z.number().nonnegative().optional(),
     coalesceWindowMs: AssetCooldownMap.optional(),
   })
@@ -115,29 +108,15 @@ const AssetSettingsSchema = z.object({
   library: z.record(z.string(), AssetRef).default({}),
   bindings: z
     .object({
-      audio: AssetBindingMap,
       lottie: AssetBindingMap,
       image: AssetBindingMap,
     })
-    .default({ audio: {}, lottie: {}, image: {} }),
-  audio: z
-    .object({ masterVolume: z.number(), enabled: z.boolean() })
-    .default({ masterVolume: 1, enabled: true }),
+    .default({ lottie: {}, image: {} }),
   animations: z
     .object({ enabled: z.boolean(), preferReducedMotion: z.boolean() })
     .default({ enabled: true, preferReducedMotion: false }),
   cooldown: AssetCooldownSettingsSchema,
 });
-
-const SOUND_SETTINGS_DEFAULT = createDefaultSoundSettings();
-
-const SoundSettingsSchema = z
-  .object({
-    enabled: z.boolean(),
-    masterVolume: z.number(),
-    bindings: z.record(z.string(), z.string()).default({}),
-  })
-  .default(SOUND_SETTINGS_DEFAULT);
 
 export const Settings = z.object({
   className: z.string(),
@@ -158,7 +137,6 @@ export const Settings = z.object({
   classMilestoneStep: z.number().int().positive().optional(),
   classStarsName: z.string().optional(),
   assets: AssetSettingsSchema,
-  sounds: SoundSettingsSchema,
 });
 
 export const ClassProgress = z.object({
@@ -459,10 +437,6 @@ export function sanitizeState(raw: unknown): AppStateType | null {
 
   const settingsRecord = isRecord(raw.settings) ? raw.settings : {};
   const assets = sanitizeAssetSettings(settingsRecord.assets ?? DEFAULT_SETTINGS.assets);
-  const sounds = sanitizeSoundSettings(
-    settingsRecord.sounds ?? DEFAULT_SETTINGS.sounds,
-    DEFAULT_SETTINGS.sounds,
-  );
   const settings: AppStateType['settings'] = {
     className: asString(settingsRecord.className) ?? 'Meine Klasse',
     xpPerLevel: Math.max(1, Math.floor(asNumber(settingsRecord.xpPerLevel, 100)) || 1),
@@ -487,7 +461,6 @@ export function sanitizeState(raw: unknown): AppStateType | null {
       DEFAULT_SETTINGS.classMilestoneStep,
     classStarsName: asString(settingsRecord.classStarsName) ?? DEFAULT_SETTINGS.classStarsName,
     assets,
-    sounds,
   };
 
   const totalXP = Math.max(

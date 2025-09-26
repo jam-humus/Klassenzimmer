@@ -3,7 +3,6 @@ import { useApp } from '~/app/AppContext';
 import { AvatarView } from '~/ui/avatar/AvatarView';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
 import EvolutionSequence from '~/ui/show/EvolutionSequence';
-import { playSound } from '~/utils/sounds';
 import type { WeeklyDelta } from '~/core/show/weekly';
 
 const AVATAR_SIZE = 220;
@@ -54,23 +53,6 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
     const timer = window.setTimeout(() => setShowCurrentStage(true), 120);
     return () => window.clearTimeout(timer);
   }, [data.studentId]);
-
-  React.useEffect(() => {
-    if (!studentId) {
-      return;
-    }
-    if (phase === 'xp' && xpGain > 0) {
-      void playSound('xp_awarded');
-    }
-    if (phase === 'level') {
-      if (levelGain > 0) {
-        void playSound('level_up');
-      }
-    }
-    if (phase === 'badges' && hasNewBadges) {
-      void playSound('badge_award');
-    }
-  }, [evolved, hasNewBadges, levelGain, phase, studentId, xpGain]);
 
   if (!student) {
     return (
