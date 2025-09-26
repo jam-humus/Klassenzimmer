@@ -1,5 +1,5 @@
 import type { HowlOptions } from 'howler';
-import type { SoundKey } from './types';
+import { SOUND_KEYS, type SoundKey } from './types';
 
 export type SoundDefinition = {
   sources: string[];
@@ -43,8 +43,8 @@ export const SOUND_DEFINITIONS: Record<SoundKey, SoundDefinition> = {
   },
 };
 
-export const SOUND_KEYS = Object.keys(SOUND_DEFINITIONS) as SoundKey[];
-
 export const SOUND_COOLDOWNS_MS: Partial<Record<SoundKey, number>> = Object.fromEntries(
   SOUND_KEYS.map((key) => [key, SOUND_DEFINITIONS[key].cooldown ?? 0]),
 ) as Partial<Record<SoundKey, number>>;
+
+export { SOUND_KEYS };

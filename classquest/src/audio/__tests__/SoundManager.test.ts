@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
   const howlerVolumeMock = vi.fn();
   const howlerMuteMock = vi.fn();
   const resumeMock = vi.fn().mockResolvedValue(undefined);
+  const unloadMock = vi.fn();
 
   return {
     playMock,
@@ -19,8 +20,14 @@ const mocks = vi.hoisted(() => {
     howlerVolumeMock,
     howlerMuteMock,
     resumeMock,
+    unloadMock,
   };
 });
+
+const blobStoreMocks = vi.hoisted(() => ({
+  getObjectURL: vi.fn(async (id: string) => `blob://${id}`),
+  clearObjectURL: vi.fn(),
+}));
 
 vi.mock('howler', () => {
   class MockHowl {
@@ -35,6 +42,7 @@ vi.mock('howler', () => {
     volume = mocks.volumeMock;
     rate = mocks.rateMock;
     on = mocks.onMock;
+    unload = mocks.unloadMock;
   }
 
   const Howler = {
@@ -46,18 +54,24 @@ vi.mock('howler', () => {
   return { Howl: MockHowl, Howler };
 });
 
+vi.mock('~/services/blobStore', () => blobStoreMocks);
+
 import { soundManager } from '../SoundManager';
 
 const resetInternals = () => {
   const internals = soundManager as unknown as {
     lastPlay: Map<string, number>;
     cooldowns: Map<string, number>;
-    howls: Map<string, unknown>;
+    howls: Map<string, { unload: () => void }>;
+    overrideSources: Map<string, string[]>;
+    overrideBlobIds: Map<string, string>;
     initialized: boolean;
   };
   internals.lastPlay.clear();
   internals.cooldowns.clear();
   internals.howls.clear();
+  internals.overrideSources.clear();
+  internals.overrideBlobIds.clear();
   internals.initialized = false;
 };
 
@@ -68,8 +82,11 @@ describe('SoundManager', () => {
     mocks.volumeMock.mockClear();
     mocks.rateMock.mockClear();
     mocks.onMock.mockClear();
+    mocks.unloadMock.mockClear();
     mocks.howlerVolumeMock.mockClear();
     mocks.howlerMuteMock.mockClear();
+    blobStoreMocks.getObjectURL.mockClear();
+    blobStoreMocks.clearObjectURL.mockClear();
     resetInternals();
   });
 

@@ -1,6 +1,7 @@
 import * as z from 'zod';
 import { DEFAULT_SETTINGS } from '../config';
 import { normalizeThemeId } from '~/types/models';
+import { SOUND_KEYS, type SoundKey } from '~/audio/types';
 
 import { sanitizeAvatarStageThresholds } from '../avatarStages';
 export const ID = z.string().min(1);
@@ -82,6 +83,7 @@ export const Settings = z.object({
   allowNegativeXP: z.boolean().optional(),
   // non-breaking optional flags
   sfxEnabled: z.boolean().optional(),
+  soundOverrides: z.record(z.string(), z.string()).optional(),
   compactMode: z.boolean().optional(),
   shortcutsEnabled: z.boolean().optional(),
   onboardingCompleted: z.boolean().optional(),
@@ -245,6 +247,24 @@ const sanitizeFlags = (value: unknown): Record<string, boolean> | undefined => {
   return Object.fromEntries(entries);
 };
 
+const SOUND_KEY_SET = new Set<string>(SOUND_KEYS);
+
+const sanitizeSoundOverrides = (
+  value: unknown,
+): Partial<Record<SoundKey, string>> | undefined => {
+  if (!isRecord(value)) return undefined;
+  const entries = Object.entries(value)
+    .map(([key, candidate]) => {
+      if (!SOUND_KEY_SET.has(key)) return null;
+      const str = asString(candidate);
+      if (!str) return null;
+      return [key as SoundKey, str] as const;
+    })
+    .filter(Boolean) as [SoundKey, string][];
+  if (!entries.length) return undefined;
+  return Object.fromEntries(entries) as Partial<Record<SoundKey, string>>;
+};
+
 const QUEST_TYPES = ['daily', 'repeatable', 'oneoff'] as const;
 const QUEST_TARGETS = ['individual', 'team'] as const;
 
@@ -398,6 +418,9 @@ export function sanitizeState(raw: unknown): AppStateType | null {
     streakThresholdForBadge: Math.max(1, Math.floor(asNumber(settingsRecord.streakThresholdForBadge, 5)) || 1),
     allowNegativeXP: asBoolean(settingsRecord.allowNegativeXP, false),
     sfxEnabled: asBoolean(settingsRecord.sfxEnabled, DEFAULT_SETTINGS.sfxEnabled ?? false),
+    soundOverrides:
+      sanitizeSoundOverrides(settingsRecord.soundOverrides) ??
+      (DEFAULT_SETTINGS.soundOverrides ?? {}),
     compactMode: asBoolean(settingsRecord.compactMode, DEFAULT_SETTINGS.compactMode ?? false),
     shortcutsEnabled: asBoolean(settingsRecord.shortcutsEnabled, DEFAULT_SETTINGS.shortcutsEnabled ?? true),
     onboardingCompleted: asBoolean(settingsRecord.onboardingCompleted, false),

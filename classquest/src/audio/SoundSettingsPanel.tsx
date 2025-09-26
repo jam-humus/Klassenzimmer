@@ -1,20 +1,14 @@
 import type { ChangeEvent } from 'react';
 import { useCallback } from 'react';
 import { soundManager } from './SoundManager';
-import { SOUND_KEYS } from './sounds';
 import { useSoundSettings } from './useSoundSettings';
-import type { SoundKey } from './types';
-
-const SOUND_LABELS: Record<SoundKey, string> = {
-  'xp-grant': 'XP vergeben',
-  'level-up': 'Level-Up',
-  'badge-award': 'Badge vergeben',
-  'slideshow-avatar': 'Slideshow Avatar',
-  'slideshow-badge-flyin': 'Slideshow Badge-Fly-in',
-};
+import { SOUND_KEYS, SOUND_LABELS, type SoundKey } from './types';
+import { useApp } from '~/app/AppContext';
 
 export function SoundSettingsPanel(): JSX.Element {
   const { settings, setEnabled, setVolume } = useSoundSettings();
+  const { state } = useApp();
+  const overrides = state.settings.soundOverrides ?? {};
 
   const handleToggle = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -96,7 +90,14 @@ export function SoundSettingsPanel(): JSX.Element {
               onClick={() => handleTestSound(key)}
               type="button"
             >
-              {SOUND_LABELS[key]}
+              <span className="flex items-center justify-between gap-3">
+                <span>{SOUND_LABELS[key]}</span>
+                {overrides[key] ? (
+                  <span className="rounded-full bg-emerald-900/40 px-2 py-0.5 text-xs font-normal text-emerald-100">
+                    Benutzerdefiniert
+                  </span>
+                ) : null}
+              </span>
             </button>
           ))}
         </div>

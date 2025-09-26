@@ -1,3 +1,5 @@
+import type { SoundOverrides } from '~/audio/types';
+
 export type ID = string;
 
 export const THEME_IDS = ['system', 'light', 'dark', 'space'] as const;
@@ -83,6 +85,7 @@ export type Settings = {
   streakThresholdForBadge: number;
   allowNegativeXP?: boolean;
   sfxEnabled?: boolean;
+  soundOverrides?: SoundOverrides;
   compactMode?: boolean;
   shortcutsEnabled?: boolean;
   onboardingCompleted?: boolean;
