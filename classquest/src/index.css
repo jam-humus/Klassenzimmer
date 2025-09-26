@@ -25,8 +25,8 @@ body {
     Helvetica,
     Arial,
     sans-serif;
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--bg);
+  color: var(--text);
 }
 
 button,

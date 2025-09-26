@@ -11,6 +11,7 @@ import type {
   Student,
   Team,
 } from '~/types/models';
+import { normalizeThemeId } from '~/types/models';
 
 const sanitizeXP = (xp: number | undefined, allowNegative = false) => {
   if (typeof xp !== 'number' || Number.isNaN(xp)) return 0;
@@ -71,9 +72,11 @@ export const createInitialState = (
   logs: [],
   settings: (() => {
     const { flags, assets, sounds, ...restSettings } = settings ?? {};
+    const theme = normalizeThemeId(restSettings.theme ?? DEFAULT_SETTINGS.theme, DEFAULT_SETTINGS.theme);
     return {
       ...DEFAULT_SETTINGS,
       ...restSettings,
+      theme,
       flags: {
         ...(DEFAULT_SETTINGS.flags ?? {}),
         ...((flags ?? {}) as Record<string, boolean>),

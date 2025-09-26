@@ -4,6 +4,15 @@ export type { AssetEvent, AssetRef, AssetSettings, SoundSettings } from './setti
 
 export type ID = string;
 
+export const THEME_IDS = ['system', 'light', 'dark', 'space'] as const;
+export type ThemeId = (typeof THEME_IDS)[number];
+
+export const isThemeId = (value: unknown): value is ThemeId =>
+  typeof value === 'string' && (THEME_IDS as readonly string[]).includes(value as ThemeId);
+
+export const normalizeThemeId = (value: unknown, fallback: ThemeId = 'space'): ThemeId =>
+  isThemeId(value) ? value : fallback;
+
 export type BadgeRule =
   | {
       type: 'category_xp';
@@ -83,6 +92,7 @@ export type Settings = {
   onboardingCompleted?: boolean;
   animationsEnabled?: boolean;
   kidModeEnabled?: boolean;
+  theme?: ThemeId;
   flags?: Record<string, boolean>;
   classStarIconKey?: string | null;
   classMilestoneStep?: number;

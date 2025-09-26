@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useApp } from '~/app/AppContext';
-import type { BadgeDefinition, Category, ID, Quest, QuestType, Student, Team } from '~/types/models';
+import type { BadgeDefinition, Category, ID, Quest, QuestType, Student, Team, ThemeId } from '~/types/models';
 import AsyncButton from '~/ui/feedback/AsyncButton';
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import { EVENT_EXPORT_DATA, EVENT_IMPORT_DATA, EVENT_OPEN_SEASON_RESET } from '~/ui/shortcut/events';
@@ -2116,6 +2116,32 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
                 {stage1Threshold}–{stage2Threshold - 1} = Stufe 1 · Level ≥{stage2Threshold} = Stufe 2
               </small>
             </div>
+          </div>
+          <div style={{ display: 'grid', gap: 4 }}>
+            <label className="text-sm" style={{ color: 'var(--muted)', fontSize: 12 }}>
+              Theme
+            </label>
+            <select
+              value={state.settings.theme ?? 'space'}
+              onChange={(e) =>
+                dispatch({
+                  type: 'UPDATE_SETTINGS',
+                  updates: { theme: e.target.value as ThemeId },
+                })
+              }
+              style={{
+                background: 'var(--card)',
+                color: 'var(--text)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 10,
+                padding: '8px 12px',
+              }}
+            >
+              <option value="space">Space</option>
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+              <option value="system">System</option>
+            </select>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input
