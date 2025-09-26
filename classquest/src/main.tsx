@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { SoundSettingsProvider } from './audio/useSoundSettings';
 import { AppProvider } from './app/AppContext';
 import { FeedbackProvider } from './ui/feedback/FeedbackProvider';
 import { KeyScopeProvider } from './ui/shortcut/KeyScope';
@@ -16,23 +17,27 @@ const isShowRoute = typeof window !== 'undefined' && window.location.pathname.st
 
 const appTree = (
   <React.StrictMode>
-    <AppProvider>
-      <FeedbackProvider>
-        <KeyScopeProvider>
-          <App />
-        </KeyScopeProvider>
-      </FeedbackProvider>
-    </AppProvider>
+    <SoundSettingsProvider>
+      <AppProvider>
+        <FeedbackProvider>
+          <KeyScopeProvider>
+            <App />
+          </KeyScopeProvider>
+        </FeedbackProvider>
+      </AppProvider>
+    </SoundSettingsProvider>
   </React.StrictMode>
 );
 
 const showTree = (
   <React.StrictMode>
-    <AppProvider>
-      <FeedbackProvider>
-        <WeeklyShowPlayer />
-      </FeedbackProvider>
-    </AppProvider>
+    <SoundSettingsProvider>
+      <AppProvider>
+        <FeedbackProvider>
+          <WeeklyShowPlayer />
+        </FeedbackProvider>
+      </AppProvider>
+    </SoundSettingsProvider>
   </React.StrictMode>
 );
 
