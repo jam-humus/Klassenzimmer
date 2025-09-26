@@ -20,6 +20,7 @@ import { addQuest, addStudent, awardQuest, createInitialState, setQuestActive } 
 import { sanitizeState } from '~/core/schema/appState';
 import { migrateState } from '~/core/schema/migrate';
 import { setEffectsSettings } from '~/utils/effects';
+import { SOUND_KEYS, type SoundKey, type SoundOverrides } from '~/audio/types';
 
 type AwardPayload = { questId: ID; studentId?: ID; teamId?: ID; note?: string };
 
@@ -58,6 +59,33 @@ const createId = () => globalThis.crypto?.randomUUID?.() ?? Math.random().toStri
 
 const unique = <T,>(values: Iterable<T>) => Array.from(new Set(values));
 
+const SOUND_KEY_SET = new Set<SoundKey>(SOUND_KEYS);
+
+const sanitizeSoundOverrides = (input?: SoundOverrides | null): SoundOverrides => {
+  if (!input) {
+    return {};
+  }
+  const entries = Object.entries(input)
+    .map(([key, value]) => {
+      if (!SOUND_KEY_SET.has(key as SoundKey)) {
+        return null;
+      }
+      if (typeof value !== 'string') {
+        return null;
+      }
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+      return [key as SoundKey, trimmed] as const;
+    })
+    .filter(Boolean) as [SoundKey, string][];
+  if (!entries.length) {
+    return {};
+  }
+  return Object.fromEntries(entries) as SoundOverrides;
+};
+
 const normalizeAvatarPack = (pack?: Student['avatarPack']): NonNullable<Student['avatarPack']> => {
   const rawKeys = Array.isArray(pack?.stageKeys) ? pack?.stageKeys ?? [] : [];
   const stageKeys = Array.from({ length: AVATAR_STAGE_COUNT }, (_, index) => {
@@ -90,10 +118,14 @@ const normalizeStudentAvatar = (student: Student): Student => {
 };
 
 function normalizeSettings(settings?: Partial<Settings>): Settings {
-  const { flags, ...rest } = settings ?? {};
+  const { flags, soundOverrides, ...rest } = settings ?? {};
   const merged: Settings = {
     ...DEFAULT_SETTINGS,
     ...rest,
+    soundOverrides: sanitizeSoundOverrides({
+      ...(DEFAULT_SETTINGS.soundOverrides ?? {}),
+      ...(soundOverrides ?? {}),
+    }),
     flags: {
       ...(DEFAULT_SETTINGS.flags ?? {}),
       ...((flags ?? {}) as Record<string, boolean>),
@@ -112,6 +144,9 @@ function normalizeSettings(settings?: Partial<Settings>): Settings {
       ? merged.classStarsName.trim()
       : DEFAULT_SETTINGS.classStarsName;
   merged.classStarsName = starsName;
+  if (!merged.soundOverrides || Object.keys(merged.soundOverrides).length === 0) {
+    merged.soundOverrides = {};
+  }
   if (merged.onboardingCompleted == null) {
     merged.onboardingCompleted = false;
   }

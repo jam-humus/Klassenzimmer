@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useApp } from '~/app/AppContext';
+import { soundManager } from '~/audio/SoundManager';
+import type { SoundKey } from '~/audio/types';
 
 type Toast = { id: string; kind: 'success'|'info'|'error'; message: string; t: number };
 type Ctx = {
@@ -17,7 +19,9 @@ function useSfx(enabled: boolean) {
   const play = useCallback(
     (_kind: 'success' | 'error') => {
       if (!enabled) return;
-      // Sound effects are currently disabled.
+      soundManager.unlock();
+      const key: SoundKey = _kind === 'success' ? 'badge-award' : 'slideshow-badge-flyin';
+      soundManager.play(key);
     },
     [enabled],
   );
@@ -28,6 +32,15 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
   const { state } = useApp();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const sfx = useSfx(Boolean(state.settings?.sfxEnabled));
+  useEffect(() => {
+    void (async () => {
+      try {
+        await soundManager.configure(state.settings.soundOverrides);
+      } catch (error) {
+        console.warn('Konnte Sound-Konfiguration nicht anwenden', error);
+      }
+    })();
+  }, [state.settings.soundOverrides]);
   const success = useCallback((message: string) => {
     setToasts((t) => [makeToast('success', message), ...t].slice(0, 5));
     sfx('success');

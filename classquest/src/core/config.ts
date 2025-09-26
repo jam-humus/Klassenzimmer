@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS: Required<Settings> = {
   streakThresholdForBadge: 5,
   allowNegativeXP: false,
   sfxEnabled: false,
+  soundOverrides: {},
   animationsEnabled: true,
   kidModeEnabled: false,
   compactMode: false,

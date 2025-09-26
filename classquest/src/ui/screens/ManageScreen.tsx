@@ -11,6 +11,8 @@ import StudentDetailScreen from '~/ui/screens/StudentDetailScreen';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
 import { CollapsibleSection, useCollapsibleState } from '~/ui/components/CollapsibleSection';
 import ManageSnapshots from '~/ui/manage/ManageSnapshots';
+import { SOUND_KEYS, SOUND_LABELS, type SoundKey } from '~/audio/types';
+import { soundManager } from '~/audio/SoundManager';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
 
@@ -35,6 +37,8 @@ const describeBadgeRule = (definition: BadgeDefinition, categories: Category[]) 
 const ACCEPTED_IMAGE_TYPES = new Set(['image/png', 'image/webp', 'image/jpeg', 'image/jpg']);
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const STAR_ICON_RECOMMENDED_BYTES = 512 * 1024;
+const SOUND_FILE_ACCEPT = 'audio/*';
+const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
 type FeedbackApi = ReturnType<typeof useFeedback>;
 
 const srOnly: React.CSSProperties = {
@@ -121,6 +125,154 @@ function validateImageFile(
 type ManageScreenProps = {
   onOpenSeasonReset?: () => void;
 };
+
+const isExternalSoundReference = (value?: string | null): boolean =>
+  typeof value === 'string' && /^(https?:|data:|blob:)/i.test(value.trim());
+
+function validateAudioFile(file: File, feedback: FeedbackApi): boolean {
+  if (!file) {
+    return false;
+  }
+  if (file.type && !file.type.startsWith('audio/')) {
+    feedback.error('Bitte eine Audiodatei auswählen (z.\u202fB. MP3 oder OGG).');
+    return false;
+  }
+  if (file.size > MAX_AUDIO_BYTES) {
+    const maxSizeMb = (MAX_AUDIO_BYTES / (1024 * 1024)).toFixed(1);
+    feedback.error(`Audiodatei ist zu groß (max. ${maxSizeMb} MB).`);
+    return false;
+  }
+  return true;
+}
+
+type SoundUploadRowProps = {
+  soundKey: SoundKey;
+  label: string;
+  override?: string;
+  pending: boolean;
+  onUpload: (key: SoundKey, file: File) => Promise<void> | void;
+  onRemove: (key: SoundKey) => Promise<void> | void;
+  onPreview: (key: SoundKey) => void;
+};
+
+const SoundUploadRow = React.memo(function SoundUploadRow({
+  soundKey,
+  label,
+  override,
+  pending,
+  onUpload,
+  onRemove,
+  onPreview,
+}: SoundUploadRowProps) {
+  const inputId = useId();
+  const status = override
+    ? isExternalSoundReference(override)
+      ? 'Benutzerdefinierte URL'
+      : 'Benutzerdefinierte Datei'
+    : 'Standardsound';
+  const shortened = override && override.length > 32 ? `${override.slice(0, 18)}…${override.slice(-6)}` : override;
+
+  const handleFileChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file) return;
+      await onUpload(soundKey, file);
+    },
+    [onUpload, soundKey],
+  );
+
+  const handleRemove = useCallback(() => {
+    void onRemove(soundKey);
+  }, [onRemove, soundKey]);
+
+  const handlePreview = useCallback(() => {
+    onPreview(soundKey);
+  }, [onPreview, soundKey]);
+
+  return (
+    <li
+      style={{
+        display: 'grid',
+        gap: 8,
+        padding: 12,
+        border: '1px solid #d0d7e6',
+        borderRadius: 12,
+        background: '#fff',
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span style={{ fontWeight: 600 }}>{label}</span>
+        <span style={{ fontSize: 12, color: '#475569' }}>
+          {status}
+          {override ? ` · ${shortened}` : ''}
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+        <button
+          type="button"
+          onClick={handlePreview}
+          disabled={pending}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 10,
+            border: '1px solid #cbd5f5',
+            background: pending ? '#e2e8f0' : '#f8fafc',
+            cursor: pending ? 'not-allowed' : 'pointer',
+          }}
+        >
+          Anhören
+        </button>
+        <label
+          htmlFor={inputId}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 10,
+            border: '1px solid #cbd5f5',
+            background: '#10b981',
+            color: '#022c22',
+            fontWeight: 600,
+            cursor: pending ? 'not-allowed' : 'pointer',
+            opacity: pending ? 0.6 : 1,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <span>{override ? 'Ersetzen' : 'Hochladen'}</span>
+          <input
+            id={inputId}
+            type="file"
+            accept={SOUND_FILE_ACCEPT}
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+            disabled={pending}
+          />
+        </label>
+        {override ? (
+          <button
+            type="button"
+            onClick={handleRemove}
+            disabled={pending}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 10,
+              border: '1px solid #fecaca',
+              background: pending ? '#fee2e2' : '#fee2e2',
+              color: '#991b1b',
+              cursor: pending ? 'not-allowed' : 'pointer',
+            }}
+          >
+            Entfernen
+          </button>
+        ) : null}
+        {pending ? (
+          <span style={{ fontSize: 12, color: '#475569' }}>Wird gespeichert…</span>
+        ) : null}
+      </div>
+    </li>
+  );
+});
 
 function makeId() {
   return globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
@@ -834,6 +986,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const [badgeIconPreview, setBadgeIconPreview] = useState<string | null>(null);
   const [badgeIconFile, setBadgeIconFile] = useState<File | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [soundPending, setSoundPending] = useState<Record<SoundKey, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const csvInputRef = useRef<HTMLInputElement | null>(null);
   const badgeIconInputRef = useRef<HTMLInputElement | null>(null);
@@ -843,6 +996,7 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const [undoTicker, setUndoTicker] = useState(0);
   const [detailStudentId, setDetailStudentId] = useState<string | null>(null);
   const starIconKey = state.settings.classStarIconKey ?? null;
+  const soundOverrides = useMemo(() => state.settings.soundOverrides ?? {}, [state.settings.soundOverrides]);
 
   const xpPerLevelValue = Math.max(1, Math.round(state.settings.xpPerLevel ?? DEFAULT_SETTINGS.xpPerLevel));
   const stageThresholds = state.settings.avatarStageThresholds ?? DEFAULT_SETTINGS.avatarStageThresholds;
@@ -935,6 +1089,71 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
     const next = !allSectionsOpen;
     collapsibleSections.forEach((section) => section.setOpen(next));
   }, [allSectionsOpen, collapsibleSections]);
+
+  const setSoundPendingForKey = useCallback((key: SoundKey, value: boolean) => {
+    setSoundPending((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const handleSoundPreview = useCallback((key: SoundKey) => {
+    soundManager.unlock();
+    soundManager.play(key);
+  }, []);
+
+  const handleSoundUpload = useCallback(
+    async (key: SoundKey, file: File) => {
+      if (!validateAudioFile(file, feedback)) {
+        return;
+      }
+      setSoundPendingForKey(key, true);
+      try {
+        const storedId = await putBlob(file);
+        const previous = soundOverrides[key];
+        if (previous && !isExternalSoundReference(previous)) {
+          await deleteBlob(previous).catch((error) => {
+            console.warn('Konnte vorherige Audiodatei nicht entfernen', error);
+          });
+        }
+        const nextOverrides = { ...soundOverrides, [key]: storedId };
+        dispatch({ type: 'UPDATE_SETTINGS', updates: { soundOverrides: nextOverrides } });
+        await soundManager.configure(nextOverrides);
+        feedback.success('Sound gespeichert.');
+      } catch (error) {
+        console.error('Fehler beim Speichern der Audiodatei', error);
+        feedback.error('Audiodatei konnte nicht gespeichert werden.');
+      } finally {
+        setSoundPendingForKey(key, false);
+      }
+    },
+    [dispatch, feedback, soundOverrides, setSoundPendingForKey],
+  );
+
+  const handleSoundRemove = useCallback(
+    async (key: SoundKey) => {
+      const current = soundOverrides[key];
+      if (!current) {
+        return;
+      }
+      setSoundPendingForKey(key, true);
+      try {
+        if (!isExternalSoundReference(current)) {
+          await deleteBlob(current).catch((error) => {
+            console.warn('Konnte Audiodatei nicht löschen', error);
+          });
+        }
+        const nextOverrides = { ...soundOverrides };
+        delete nextOverrides[key];
+        dispatch({ type: 'UPDATE_SETTINGS', updates: { soundOverrides: nextOverrides } });
+        await soundManager.configure(nextOverrides);
+        feedback.info('Sound entfernt.');
+      } catch (error) {
+        console.error('Fehler beim Entfernen der Audiodatei', error);
+        feedback.error('Audiodatei konnte nicht entfernt werden.');
+      } finally {
+        setSoundPendingForKey(key, false);
+      }
+    },
+    [dispatch, feedback, soundOverrides, setSoundPendingForKey],
+  );
 
   const updateBadgeIcon = useCallback((file: File | null) => {
     setBadgeIconFile(file);
@@ -2156,6 +2375,37 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             />
             Soundeffekte aktivieren
           </label>
+          <div
+            style={{
+              border: '1px solid #d0d7e6',
+              borderRadius: 12,
+              padding: 12,
+              display: 'grid',
+              gap: 12,
+              background: '#fff',
+            }}
+          >
+            <div style={{ display: 'grid', gap: 4 }}>
+              <span style={{ fontWeight: 600 }}>Benutzerdefinierte Sounds</span>
+              <span style={{ fontSize: 12, color: '#475569' }}>
+                Lade eigene Audiodateien für Ereignisse hoch (max. {(MAX_AUDIO_BYTES / (1024 * 1024)).toFixed(1)} MB).
+              </span>
+            </div>
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 8 }}>
+              {SOUND_KEYS.map((key) => (
+                <SoundUploadRow
+                  key={key}
+                  soundKey={key}
+                  label={SOUND_LABELS[key]}
+                  override={soundOverrides[key]}
+                  pending={Boolean(soundPending[key])}
+                  onUpload={handleSoundUpload}
+                  onRemove={handleSoundRemove}
+                  onPreview={handleSoundPreview}
+                />
+              ))}
+            </ul>
+          </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input
               type="checkbox"
