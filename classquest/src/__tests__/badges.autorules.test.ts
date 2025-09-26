@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { selectStudentCategoryXp, shouldAutoAward } from '~/core/selectors/badges';
 import type { AppState, Student, BadgeDefinition } from '~/types/models';
-import { createDefaultAssetSettings } from '~/types/settings';
 
 type Mutable<T> = {
   -readonly [K in keyof T]: T[K];
@@ -91,7 +90,6 @@ const baseState: Mutable<AppState> = {
     classMilestoneStep: 1000,
     classStarIconKey: null,
     classStarsName: 'Stern',
-    assets: createDefaultAssetSettings(),
   },
   version: 1,
   classProgress: { totalXP: 0, stars: 0 },

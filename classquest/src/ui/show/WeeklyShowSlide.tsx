@@ -25,8 +25,6 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
   const levelGain = Math.max(0, data.levelEnd - data.levelStart);
   const hasNewBadges = data.newBadges.length > 0;
   const evolved = data.avatarStageEnd > data.avatarStageStart;
-  const studentId = student?.id;
-
   React.useEffect(() => {
     setPhase('intro');
     const timers: number[] = [];

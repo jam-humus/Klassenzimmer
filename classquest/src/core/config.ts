@@ -1,5 +1,4 @@
 import type { Settings } from '~/types/models';
-import { createDefaultAssetSettings } from '~/types/settings';
 export const DEFAULT_SETTINGS: Required<Settings> = {
   className: 'Meine Klasse',
   xpPerLevel: 100,
@@ -17,5 +16,4 @@ export const DEFAULT_SETTINGS: Required<Settings> = {
   classStarIconKey: null,
   classMilestoneStep: 1000,
   classStarsName: 'Stern',
-  assets: createDefaultAssetSettings(),
 };

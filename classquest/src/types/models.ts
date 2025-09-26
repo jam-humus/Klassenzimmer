@@ -1,7 +1,3 @@
-import type { AssetSettings } from './settings';
-
-export type { AssetEvent, AssetRef, AssetSettings } from './settings';
-
 export type ID = string;
 
 export const THEME_IDS = ['system', 'light', 'dark', 'space'] as const;
@@ -97,7 +93,6 @@ export type Settings = {
   classStarIconKey?: string | null;
   classMilestoneStep?: number;
   classStarsName?: string;
-  assets: AssetSettings;
 };
 
 export type BadgeDefinition = {
