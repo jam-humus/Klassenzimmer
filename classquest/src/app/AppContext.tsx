@@ -20,7 +20,8 @@ import { addQuest, addStudent, awardQuest, createInitialState, setQuestActive } 
 import { sanitizeState } from '~/core/schema/appState';
 import { migrateState } from '~/core/schema/migrate';
 import { setEffectsSettings } from '~/utils/effects';
-import { SOUND_KEYS, type SoundKey, type SoundOverrides } from '~/audio/types';
+import { SOUND_KEYS, type SoundKey, type SoundOverride, type SoundOverrides } from '~/audio/types';
+import { normalizeAudioFormat } from '~/audio/format';
 
 type AwardPayload = { questId: ID; studentId?: ID; teamId?: ID; note?: string };
 
@@ -61,28 +62,53 @@ const unique = <T,>(values: Iterable<T>) => Array.from(new Set(values));
 
 const SOUND_KEY_SET = new Set<SoundKey>(SOUND_KEYS);
 
-const sanitizeSoundOverrides = (input?: SoundOverrides | null): SoundOverrides => {
+const sanitizeSoundOverrides = (
+  input?: SoundOverrides | Record<string, unknown> | null,
+): SoundOverrides => {
   if (!input) {
     return {};
   }
+
   const entries = Object.entries(input)
     .map(([key, value]) => {
       if (!SOUND_KEY_SET.has(key as SoundKey)) {
         return null;
       }
-      if (typeof value !== 'string') {
-        return null;
+
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) {
+          return null;
+        }
+        return [key as SoundKey, { source: trimmed } satisfies SoundOverride];
       }
-      const trimmed = value.trim();
-      if (!trimmed) {
-        return null;
+
+      if (value && typeof value === 'object') {
+        const source =
+          typeof (value as { source?: unknown }).source === 'string'
+            ? (value as { source?: string }).source.trim()
+            : '';
+        if (!source) {
+          return null;
+        }
+        const rawFormat = (value as { format?: unknown }).format;
+        const normalizedFormat = normalizeAudioFormat(
+          typeof rawFormat === 'string' || Array.isArray(rawFormat) ? rawFormat : undefined,
+        );
+        if (normalizedFormat) {
+          return [key as SoundKey, { source, format: normalizedFormat } satisfies SoundOverride];
+        }
+        return [key as SoundKey, { source } satisfies SoundOverride];
       }
-      return [key as SoundKey, trimmed] as const;
+
+      return null;
     })
-    .filter(Boolean) as [SoundKey, string][];
+    .filter((entry): entry is [SoundKey, SoundOverride] => Boolean(entry));
+
   if (!entries.length) {
     return {};
   }
+
   return Object.fromEntries(entries) as SoundOverrides;
 };
 

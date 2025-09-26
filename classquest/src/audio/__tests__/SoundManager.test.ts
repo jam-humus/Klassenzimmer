@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => {
 
 const blobStoreMocks = vi.hoisted(() => ({
   getObjectURL: vi.fn(async (id: string) => `blob://${id}`),
+  getBlob: vi.fn(async () => null),
   clearObjectURL: vi.fn(),
 }));
 
@@ -63,15 +64,13 @@ const resetInternals = () => {
     lastPlay: Map<string, number>;
     cooldowns: Map<string, number>;
     howls: Map<string, { unload: () => void }>;
-    overrideSources: Map<string, string[]>;
-    overrideBlobIds: Map<string, string>;
+    overrideConfigs: Map<string, unknown>;
     initialized: boolean;
   };
   internals.lastPlay.clear();
   internals.cooldowns.clear();
   internals.howls.clear();
-  internals.overrideSources.clear();
-  internals.overrideBlobIds.clear();
+  internals.overrideConfigs.clear();
   internals.initialized = false;
 };
 
@@ -86,6 +85,7 @@ describe('SoundManager', () => {
     mocks.howlerVolumeMock.mockClear();
     mocks.howlerMuteMock.mockClear();
     blobStoreMocks.getObjectURL.mockClear();
+    blobStoreMocks.getBlob.mockClear();
     blobStoreMocks.clearObjectURL.mockClear();
     resetInternals();
   });
@@ -134,5 +134,26 @@ describe('SoundManager', () => {
 
     soundManager.setVolume(2);
     expect(mocks.howlerVolumeMock).toHaveBeenLastCalledWith(1);
+  });
+
+  it('applies override formats and html5 playback for blobs', async () => {
+    const internals = soundManager as unknown as {
+      overrideConfigs: Map<string, { format?: string | string[]; html5?: boolean }>;
+      howls: Map<string, { options: unknown }>;
+    };
+
+    blobStoreMocks.getBlob.mockResolvedValueOnce({ type: 'audio/mpeg' } as unknown as Blob);
+
+    await soundManager.configure({ 'xp-grant': { source: 'blob-id' } });
+
+    const override = internals.overrideConfigs.get('xp-grant');
+    expect(override?.format).toBe('mp3');
+    expect(override?.html5).toBe(true);
+
+    soundManager.init();
+
+    const howl = internals.howls.get('xp-grant') as { options: { format?: unknown; html5?: unknown } } | undefined;
+    expect(howl?.options.format).toEqual(['mp3']);
+    expect(howl?.options.html5).toBe(true);
   });
 });
