@@ -191,7 +191,7 @@ class SoundManager {
         ...(definition.options ?? {}),
       });
 
-      howl.on('loaderror', (_id, error) => {
+      howl.on('loaderror', (_id: number, error: unknown) => {
         console.warn(`[SoundManager] Failed to load sound "${key}"`, error);
       });
 
