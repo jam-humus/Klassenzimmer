@@ -1,4 +1,3 @@
-import type { ComponentType } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Clock3,
@@ -14,6 +13,7 @@ import {
   Target,
   Users2,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import ThemeProvider from '@/theme/ThemeProvider';
 import AppShell from '@/components/layout/AppShell';
 import '@/styles/theme.css';
@@ -46,7 +46,7 @@ type NavItem = {
   id: AppTab;
   label: string;
   aria: string;
-  icon: ComponentType<{ className?: string; size?: number }>;
+  icon: LucideIcon;
 };
 
 const PRIMARY_NAV_ITEMS: NavItem[] = [
