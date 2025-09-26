@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { LocalStorageAdapter, STORAGE_KEY } from '~/services/storage/localStorage';
 import type { AppState } from '~/types/models';
 import { sanitizeState } from '~/core/schema/appState';
-import { createDefaultAssetSettings } from '~/types/settings';
 
 type GlobalWithStorage = typeof globalThis & { localStorage?: Storage };
 
@@ -44,7 +43,6 @@ const sampleState = (): AppState => ({
     xpPerLevel: 100,
     streakThresholdForBadge: 5,
     allowNegativeXP: false,
-    assets: createDefaultAssetSettings(),
   },
   version: 1,
   classProgress: { totalXP: 10, stars: 0 },

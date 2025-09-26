@@ -1,11 +1,6 @@
 import * as z from 'zod';
 import { DEFAULT_SETTINGS } from '../config';
 import { normalizeThemeId } from '~/types/models';
-import {
-  DEFAULT_LOTTIE_COOLDOWN_MS,
-  DEFAULT_XP_COALESCE_WINDOW_MS,
-  sanitizeAssetSettings,
-} from '~/types/settings';
 
 import { sanitizeAvatarStageThresholds } from '../avatarStages';
 export const ID = z.string().min(1);
@@ -79,45 +74,6 @@ export const LogEntry = z.object({
   questCategoryId: ID.optional().nullable(),
 });
 
-const AssetRef = z.object({
-  key: z.string().min(1),
-  type: z.enum(['lottie', 'image']),
-  name: z.string(),
-  createdAt: z.number(),
-});
-
-const AssetBindingMap = z.record(z.string(), z.string()).default({});
-
-const AssetCooldownMap = z.record(z.string(), z.number().nonnegative()).default({});
-
-const DEFAULT_COOLDOWN_SCHEMA_VALUE = {
-  lottieMs: {},
-  defaultLottieMs: DEFAULT_LOTTIE_COOLDOWN_MS,
-  coalesceWindowMs: { xp_awarded: DEFAULT_XP_COALESCE_WINDOW_MS },
-} as const;
-
-const AssetCooldownSettingsSchema = z
-  .object({
-    lottieMs: AssetCooldownMap.optional(),
-    defaultLottieMs: z.number().nonnegative().optional(),
-    coalesceWindowMs: AssetCooldownMap.optional(),
-  })
-  .default(DEFAULT_COOLDOWN_SCHEMA_VALUE);
-
-const AssetSettingsSchema = z.object({
-  library: z.record(z.string(), AssetRef).default({}),
-  bindings: z
-    .object({
-      lottie: AssetBindingMap,
-      image: AssetBindingMap,
-    })
-    .default({ lottie: {}, image: {} }),
-  animations: z
-    .object({ enabled: z.boolean(), preferReducedMotion: z.boolean() })
-    .default({ enabled: true, preferReducedMotion: false }),
-  cooldown: AssetCooldownSettingsSchema,
-});
-
 export const Settings = z.object({
   className: z.string(),
   xpPerLevel: z.number().positive(),
@@ -136,7 +92,6 @@ export const Settings = z.object({
   classStarIconKey: z.string().optional().nullable(),
   classMilestoneStep: z.number().int().positive().optional(),
   classStarsName: z.string().optional(),
-  assets: AssetSettingsSchema,
 });
 
 export const ClassProgress = z.object({
@@ -436,7 +391,6 @@ export function sanitizeState(raw: unknown): AppStateType | null {
   }
 
   const settingsRecord = isRecord(raw.settings) ? raw.settings : {};
-  const assets = sanitizeAssetSettings(settingsRecord.assets ?? DEFAULT_SETTINGS.assets);
   const settings: AppStateType['settings'] = {
     className: asString(settingsRecord.className) ?? 'Meine Klasse',
     xpPerLevel: Math.max(1, Math.floor(asNumber(settingsRecord.xpPerLevel, 100)) || 1),
@@ -460,7 +414,6 @@ export function sanitizeState(raw: unknown): AppStateType | null {
       Math.max(1, Math.floor(asNumber(settingsRecord.classMilestoneStep, DEFAULT_SETTINGS.classMilestoneStep)) || 1) ||
       DEFAULT_SETTINGS.classMilestoneStep,
     classStarsName: asString(settingsRecord.classStarsName) ?? DEFAULT_SETTINGS.classStarsName,
-    assets,
   };
 
   const totalXP = Math.max(

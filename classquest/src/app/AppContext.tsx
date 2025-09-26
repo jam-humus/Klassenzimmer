@@ -13,12 +13,12 @@ import type {
 import { normalizeThemeId } from '~/types/models';
 import { DEFAULT_SETTINGS } from '~/core/config';
 import { AVATAR_STAGE_COUNT, sanitizeAvatarStageThresholds } from '~/core/avatarStages';
+import { ASSETS_ENABLED } from '~/config';
 import { createStorageAdapter } from '~/services/storage';
 import { levelFromXP } from '~/core/xp';
 import { addQuest, addStudent, awardQuest, createInitialState, setQuestActive } from '~/core/state';
 import { sanitizeState } from '~/core/schema/appState';
 import { migrateState } from '~/core/schema/migrate';
-import { sanitizeAssetSettings } from '~/types/settings';
 import { setEffectsSettings } from '~/utils/effects';
 
 type AwardPayload = { questId: ID; studentId?: ID; teamId?: ID; note?: string };
@@ -90,7 +90,7 @@ const normalizeStudentAvatar = (student: Student): Student => {
 };
 
 function normalizeSettings(settings?: Partial<Settings>): Settings {
-  const { assets, flags, ...rest } = settings ?? {};
+  const { flags, ...rest } = settings ?? {};
   const merged: Settings = {
     ...DEFAULT_SETTINGS,
     ...rest,
@@ -98,7 +98,6 @@ function normalizeSettings(settings?: Partial<Settings>): Settings {
       ...(DEFAULT_SETTINGS.flags ?? {}),
       ...((flags ?? {}) as Record<string, boolean>),
     },
-    assets: sanitizeAssetSettings(assets ?? DEFAULT_SETTINGS.assets),
   };
   merged.theme = normalizeThemeId(merged.theme ?? DEFAULT_SETTINGS.theme, DEFAULT_SETTINGS.theme);
   merged.avatarStageThresholds = sanitizeAvatarStageThresholds(merged.avatarStageThresholds);
@@ -688,7 +687,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [state, storage]);
 
   React.useEffect(() => {
-    setEffectsSettings(state.settings);
+    setEffectsSettings(ASSETS_ENABLED ? state.settings : null);
   }, [state.settings]);
 
   return <Ctx.Provider value={{ state, dispatch }}>{children}</Ctx.Provider>;
