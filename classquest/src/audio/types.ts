@@ -16,7 +16,12 @@ export const SOUND_LABELS: Record<SoundKey, string> = {
   'slideshow-badge-flyin': 'Slideshow Badge-Fly-in',
 };
 
-export type SoundOverrides = Partial<Record<SoundKey, string>>;
+export type SoundOverride = {
+  source: string;
+  format?: string | string[];
+};
+
+export type SoundOverrides = Partial<Record<SoundKey, SoundOverride>>;
 
 export type PlayOptions = {
   volume?: number;

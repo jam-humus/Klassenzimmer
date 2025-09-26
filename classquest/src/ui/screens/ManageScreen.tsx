@@ -11,7 +11,8 @@ import StudentDetailScreen from '~/ui/screens/StudentDetailScreen';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
 import { CollapsibleSection, useCollapsibleState } from '~/ui/components/CollapsibleSection';
 import ManageSnapshots from '~/ui/manage/ManageSnapshots';
-import { SOUND_KEYS, SOUND_LABELS, type SoundKey } from '~/audio/types';
+import { SOUND_KEYS, SOUND_LABELS, type SoundKey, type SoundOverride, type SoundOverrides } from '~/audio/types';
+import { audioFormatFromMime } from '~/audio/format';
 import { soundManager } from '~/audio/SoundManager';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
@@ -126,8 +127,37 @@ type ManageScreenProps = {
   onOpenSeasonReset?: () => void;
 };
 
-const isExternalSoundReference = (value?: string | null): boolean =>
-  typeof value === 'string' && /^(https?:|data:|blob:)/i.test(value.trim());
+const EXTERNAL_SOUND_PATTERN = /^(https?:|data:|blob:)/i;
+
+const getOverrideSource = (override?: SoundOverride | string | null): string | null => {
+  if (!override) {
+    return null;
+  }
+  if (typeof override === 'string') {
+    const trimmed = override.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  const source = typeof override.source === 'string' ? override.source.trim() : '';
+  return source.length > 0 ? source : null;
+};
+
+const isExternalSoundReference = (value?: SoundOverride | string | null): boolean => {
+  const source = getOverrideSource(value);
+  return typeof source === 'string' && EXTERNAL_SOUND_PATTERN.test(source);
+};
+
+const deriveFormatFromFile = (file: File): string | undefined => {
+  const fromMime = audioFormatFromMime(file.type);
+  if (fromMime) {
+    return fromMime;
+  }
+  const name = typeof file.name === 'string' ? file.name : '';
+  const match = name.match(/\.([a-z0-9]+)$/i);
+  if (match?.[1]) {
+    return match[1].toLowerCase();
+  }
+  return undefined;
+};
 
 function validateAudioFile(file: File, feedback: FeedbackApi): boolean {
   if (!file) {
@@ -148,7 +178,7 @@ function validateAudioFile(file: File, feedback: FeedbackApi): boolean {
 type SoundUploadRowProps = {
   soundKey: SoundKey;
   label: string;
-  override?: string;
+  override?: SoundOverride | string;
   pending: boolean;
   onUpload: (key: SoundKey, file: File) => Promise<void> | void;
   onRemove: (key: SoundKey) => Promise<void> | void;
@@ -165,12 +195,16 @@ const SoundUploadRow = React.memo(function SoundUploadRow({
   onPreview,
 }: SoundUploadRowProps) {
   const inputId = useId();
-  const status = override
+  const overrideSource = getOverrideSource(override);
+  const status = overrideSource
     ? isExternalSoundReference(override)
       ? 'Benutzerdefinierte URL'
       : 'Benutzerdefinierte Datei'
     : 'Standardsound';
-  const shortened = override && override.length > 32 ? `${override.slice(0, 18)}…${override.slice(-6)}` : override;
+  const shortened =
+    overrideSource && overrideSource.length > 32
+      ? `${overrideSource.slice(0, 18)}…${overrideSource.slice(-6)}`
+      : overrideSource;
 
   const handleFileChange = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,7 +239,7 @@ const SoundUploadRow = React.memo(function SoundUploadRow({
         <span style={{ fontWeight: 600 }}>{label}</span>
         <span style={{ fontSize: 12, color: '#475569' }}>
           {status}
-          {override ? ` · ${shortened}` : ''}
+          {overrideSource ? ` · ${shortened}` : ''}
         </span>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
@@ -996,7 +1030,10 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const [undoTicker, setUndoTicker] = useState(0);
   const [detailStudentId, setDetailStudentId] = useState<string | null>(null);
   const starIconKey = state.settings.classStarIconKey ?? null;
-  const soundOverrides = useMemo(() => state.settings.soundOverrides ?? {}, [state.settings.soundOverrides]);
+  const soundOverrides = useMemo<SoundOverrides>(
+    () => state.settings.soundOverrides ?? {},
+    [state.settings.soundOverrides],
+  );
 
   const xpPerLevelValue = Math.max(1, Math.round(state.settings.xpPerLevel ?? DEFAULT_SETTINGS.xpPerLevel));
   const stageThresholds = state.settings.avatarStageThresholds ?? DEFAULT_SETTINGS.avatarStageThresholds;
@@ -1108,12 +1145,18 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
       try {
         const storedId = await putBlob(file);
         const previous = soundOverrides[key];
-        if (previous && !isExternalSoundReference(previous)) {
-          await deleteBlob(previous).catch((error) => {
+        const previousSource = getOverrideSource(previous);
+        if (previousSource && !isExternalSoundReference(previous)) {
+          await deleteBlob(previousSource).catch((error) => {
             console.warn('Konnte vorherige Audiodatei nicht entfernen', error);
           });
         }
-        const nextOverrides = { ...soundOverrides, [key]: storedId };
+        const format = deriveFormatFromFile(file);
+        const overrideEntry: SoundOverride = { source: storedId };
+        if (format) {
+          overrideEntry.format = format;
+        }
+        const nextOverrides: SoundOverrides = { ...soundOverrides, [key]: overrideEntry };
         dispatch({ type: 'UPDATE_SETTINGS', updates: { soundOverrides: nextOverrides } });
         await soundManager.configure(nextOverrides);
         feedback.success('Sound gespeichert.');
@@ -1135,12 +1178,13 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
       }
       setSoundPendingForKey(key, true);
       try {
-        if (!isExternalSoundReference(current)) {
-          await deleteBlob(current).catch((error) => {
+        const currentSource = getOverrideSource(current);
+        if (currentSource && !isExternalSoundReference(current)) {
+          await deleteBlob(currentSource).catch((error) => {
             console.warn('Konnte Audiodatei nicht löschen', error);
           });
         }
-        const nextOverrides = { ...soundOverrides };
+        const nextOverrides: SoundOverrides = { ...soundOverrides };
         delete nextOverrides[key];
         dispatch({ type: 'UPDATE_SETTINGS', updates: { soundOverrides: nextOverrides } });
         await soundManager.configure(nextOverrides);

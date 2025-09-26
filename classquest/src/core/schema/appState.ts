@@ -1,7 +1,8 @@
 import * as z from 'zod';
 import { DEFAULT_SETTINGS } from '../config';
 import { normalizeThemeId } from '~/types/models';
-import { SOUND_KEYS, type SoundKey } from '~/audio/types';
+import { SOUND_KEYS, type SoundKey, type SoundOverride } from '~/audio/types';
+import { normalizeAudioFormat } from '~/audio/format';
 
 import { sanitizeAvatarStageThresholds } from '../avatarStages';
 export const ID = z.string().min(1);
@@ -75,6 +76,14 @@ export const LogEntry = z.object({
   questCategoryId: ID.optional().nullable(),
 });
 
+const SoundOverrideValue = z.union([
+  z.string(),
+  z.object({
+    source: z.string(),
+    format: z.union([z.string(), z.array(z.string())]).optional(),
+  }),
+]);
+
 export const Settings = z.object({
   className: z.string(),
   xpPerLevel: z.number().positive(),
@@ -83,7 +92,7 @@ export const Settings = z.object({
   allowNegativeXP: z.boolean().optional(),
   // non-breaking optional flags
   sfxEnabled: z.boolean().optional(),
-  soundOverrides: z.record(z.string(), z.string()).optional(),
+  soundOverrides: z.record(z.string(), SoundOverrideValue).optional(),
   compactMode: z.boolean().optional(),
   shortcutsEnabled: z.boolean().optional(),
   onboardingCompleted: z.boolean().optional(),
@@ -251,18 +260,36 @@ const SOUND_KEY_SET = new Set<string>(SOUND_KEYS);
 
 const sanitizeSoundOverrides = (
   value: unknown,
-): Partial<Record<SoundKey, string>> | undefined => {
+): Partial<Record<SoundKey, SoundOverride>> | undefined => {
   if (!isRecord(value)) return undefined;
   const entries = Object.entries(value)
     .map(([key, candidate]) => {
       if (!SOUND_KEY_SET.has(key)) return null;
-      const str = asString(candidate);
-      if (!str) return null;
-      return [key as SoundKey, str] as const;
+
+      if (typeof candidate === 'string') {
+        const trimmed = candidate.trim();
+        if (!trimmed) return null;
+        return [key as SoundKey, { source: trimmed } satisfies SoundOverride];
+      }
+
+      if (isRecord(candidate)) {
+        const source = asString(candidate.source);
+        if (!source) return null;
+        const rawFormat = candidate.format;
+        const normalizedFormat = normalizeAudioFormat(
+          typeof rawFormat === 'string' || Array.isArray(rawFormat) ? rawFormat : undefined,
+        );
+        if (normalizedFormat) {
+          return [key as SoundKey, { source, format: normalizedFormat } satisfies SoundOverride];
+        }
+        return [key as SoundKey, { source } satisfies SoundOverride];
+      }
+
+      return null;
     })
-    .filter(Boolean) as [SoundKey, string][];
+    .filter((entry): entry is [SoundKey, SoundOverride] => Boolean(entry));
   if (!entries.length) return undefined;
-  return Object.fromEntries(entries) as Partial<Record<SoundKey, string>>;
+  return Object.fromEntries(entries) as Partial<Record<SoundKey, SoundOverride>>;
 };
 
 const QUEST_TYPES = ['daily', 'repeatable', 'oneoff'] as const;

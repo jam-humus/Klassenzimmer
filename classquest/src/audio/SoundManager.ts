@@ -1,10 +1,26 @@
-import { Howl, Howler } from 'howler';
+import { Howl, Howler, type HowlOptions } from 'howler';
 import { SOUND_DEFINITIONS, SOUND_KEYS, SOUND_COOLDOWNS_MS } from './sounds';
-import type { PlayOptions, SoundKey, SoundOverrides } from './types';
-import { getObjectURL, clearObjectURL } from '~/services/blobStore';
+import {
+  audioFormatFromMime,
+  normalizeAudioFormat,
+  inferAudioFormatFromSource,
+  extractMimeFromDataUrl,
+} from './format';
+import type { PlayOptions, SoundKey, SoundOverride, SoundOverrides } from './types';
+import { getBlob, getObjectURL, clearObjectURL } from '~/services/blobStore';
 
 const SAFE_MIN_VOLUME = 0;
 const SAFE_MAX_VOLUME = 1;
+
+const EXTERNAL_SOURCE_PATTERN = /^(https?:|data:|blob:)/i;
+const BLOB_OR_DATA_PATTERN = /^(blob:|data:)/i;
+
+type OverrideConfig = {
+  sources: string[];
+  blobId?: string;
+  format?: string | string[];
+  html5?: boolean;
+};
 
 class SoundManager {
   private howls = new Map<SoundKey, Howl>();
@@ -14,13 +30,12 @@ class SoundManager {
   private unlocked = false;
   private muted = false;
   private masterVolume = 1;
-  private overrideSources = new Map<SoundKey, string[]>();
-  private overrideBlobIds = new Map<SoundKey, string>();
+  private overrideConfigs = new Map<SoundKey, OverrideConfig>();
 
   async configure(overrides: SoundOverrides | undefined): Promise<void> {
     const entries = overrides ?? {};
     for (const key of SOUND_KEYS) {
-      const override = typeof entries[key] === 'string' ? entries[key] : undefined;
+      const override = entries[key] as SoundOverride | string | undefined;
       await this.applyOverrideForKey(key, override);
     }
   }
@@ -155,9 +170,9 @@ class SoundManager {
   }
 
   private getSourcesForKey(key: SoundKey): string[] {
-    const override = this.overrideSources.get(key);
-    if (override && override.length) {
-      return override;
+    const override = this.overrideConfigs.get(key);
+    if (override?.sources?.length) {
+      return override.sources;
     }
     return SOUND_DEFINITIONS[key]?.sources ?? [];
   }
@@ -184,12 +199,31 @@ class SoundManager {
     }
 
     try {
-      const howl = new Howl({
+      const baseOptions = definition.options ?? {};
+      const override = this.overrideConfigs.get(key);
+      const howlOptions: HowlOptions = {
+        ...baseOptions,
         src: sources,
-        html5: false,
-        preload: true,
-        ...(definition.options ?? {}),
-      });
+      };
+
+      if (howlOptions.preload === undefined) {
+        howlOptions.preload = true;
+      }
+
+      if (override?.html5 !== undefined) {
+        howlOptions.html5 = override.html5;
+      } else if (howlOptions.html5 === undefined) {
+        howlOptions.html5 = false;
+      }
+
+      const normalizedFormat = normalizeAudioFormat(override?.format);
+      if (normalizedFormat) {
+        howlOptions.format = Array.isArray(normalizedFormat)
+          ? normalizedFormat
+          : [normalizedFormat];
+      }
+
+      const howl = new Howl(howlOptions);
 
       howl.on('loaderror', (_id: number, error: unknown) => {
         console.warn(`[SoundManager] Failed to load sound "${key}"`, error);
@@ -201,39 +235,110 @@ class SoundManager {
     }
   }
 
-  private async applyOverrideForKey(key: SoundKey, override: string | undefined): Promise<void> {
-    const trimmed = typeof override === 'string' ? override.trim() : '';
-    let resolved: string[] | null = null;
-    let blobId: string | null = null;
+  private normalizeOverride(override: SoundOverride | string | undefined): SoundOverride | null {
+    if (!override) {
+      return null;
+    }
+    if (typeof override === 'string') {
+      const trimmed = override.trim();
+      if (!trimmed) {
+        return null;
+      }
+      return { source: trimmed } satisfies SoundOverride;
+    }
+    const source = typeof override.source === 'string' ? override.source.trim() : '';
+    if (!source) {
+      return null;
+    }
+    const normalizedFormat = normalizeAudioFormat(override.format);
+    if (normalizedFormat) {
+      return { source, format: normalizedFormat } satisfies SoundOverride;
+    }
+    return { source } satisfies SoundOverride;
+  }
 
-    if (trimmed) {
-      if (/^(https?:|data:|blob:)/i.test(trimmed)) {
-        resolved = [trimmed];
+  private async resolveOverride(
+    key: SoundKey,
+    override: SoundOverride | string | undefined,
+  ): Promise<OverrideConfig | null> {
+    const normalized = this.normalizeOverride(override);
+    if (!normalized) {
+      return null;
+    }
+
+    const source = normalized.source;
+    let formatValue = normalized.format;
+    const considerFormat = (candidate?: string | string[] | null) => {
+      if (formatValue) {
+        return;
+      }
+      const normalizedCandidate = normalizeAudioFormat(candidate);
+      if (normalizedCandidate) {
+        formatValue = normalizedCandidate;
+      }
+    };
+
+    let resolvedSources: string[] | undefined;
+    let blobId: string | undefined;
+    let html5: boolean | undefined;
+
+    if (EXTERNAL_SOURCE_PATTERN.test(source)) {
+      resolvedSources = [source];
+      if (BLOB_OR_DATA_PATTERN.test(source)) {
+        html5 = true;
+      }
+      if (source.startsWith('data:')) {
+        considerFormat(audioFormatFromMime(extractMimeFromDataUrl(source)));
       } else {
-        const url = await getObjectURL(trimmed);
-        if (url) {
-          resolved = [url];
-          blobId = trimmed;
-        } else {
-          console.warn(`[SoundManager] Unable to resolve audio blob "${trimmed}"`);
+        considerFormat(inferAudioFormatFromSource(source));
+      }
+    } else {
+      const url = await getObjectURL(source);
+      if (url) {
+        resolvedSources = [url];
+        blobId = source;
+        html5 = true;
+        try {
+          const blob = await getBlob(source);
+          if (blob?.type) {
+            considerFormat(audioFormatFromMime(blob.type));
+          }
+        } catch (error) {
+          console.warn(`[SoundManager] Unable to read audio blob "${source}"`, error);
         }
+      } else {
+        console.warn(`[SoundManager] Unable to resolve audio blob "${source}"`);
       }
     }
 
-    const previousBlob = this.overrideBlobIds.get(key);
-    if (previousBlob && previousBlob !== blobId) {
-      clearObjectURL(previousBlob);
-      this.overrideBlobIds.delete(key);
+    if (!resolvedSources || !resolvedSources.length) {
+      return null;
     }
 
-    if (blobId) {
-      this.overrideBlobIds.set(key, blobId);
+    considerFormat(inferAudioFormatFromSource(source));
+
+    return {
+      sources: resolvedSources,
+      blobId,
+      format: formatValue,
+      html5,
+    } satisfies OverrideConfig;
+  }
+
+  private async applyOverrideForKey(
+    key: SoundKey,
+    override: SoundOverride | string | undefined,
+  ): Promise<void> {
+    const resolved = await this.resolveOverride(key, override);
+    const previous = this.overrideConfigs.get(key);
+    if (previous?.blobId && previous.blobId !== resolved?.blobId) {
+      clearObjectURL(previous.blobId);
     }
 
-    if (resolved && resolved.length) {
-      this.overrideSources.set(key, resolved);
+    if (resolved) {
+      this.overrideConfigs.set(key, resolved);
     } else {
-      this.overrideSources.delete(key);
+      this.overrideConfigs.delete(key);
     }
 
     if (this.initialized) {
