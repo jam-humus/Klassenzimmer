@@ -11,8 +11,7 @@ import {
   EVENT_TOGGLE_GROUP_FILTER,
   EVENT_UNDO_PERFORMED,
 } from './events';
-
-type Tab = 'award' | 'leaderboard' | 'overview' | 'log' | 'manage' | 'info';
+import type { AppTab } from '~/types/navigation';
 
 type PaletteItem = {
   id: string;
@@ -25,40 +24,53 @@ type PaletteItem = {
 type CommandPaletteProps = {
   open: boolean;
   onClose: () => void;
-  setTab: (tab: Tab) => void;
+  setTab: (tab: AppTab) => void;
   onOpenSeasonReset: () => void;
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function createPaletteItems(
   params: {
-    setTab: (tab: Tab) => void;
+    setTab: (tab: AppTab) => void;
     onOpenSeasonReset: () => void;
     dispatch: ReturnType<typeof useApp>['dispatch'];
     state: ReturnType<typeof useApp>['state'];
   },
 ): PaletteItem[] {
   const { state, dispatch, setTab, onOpenSeasonReset } = params;
-  const afterTab = (tab: Tab, fn: () => void) => {
+  const afterTab = (tab: AppTab, fn: () => void) => {
     setTab(tab);
     window.setTimeout(fn, 20);
   };
 
   const navItems: PaletteItem[] = [
-    { id: 'nav-award', label: 'Gehe zu: Vergeben', group: 'Navigation', keywords: 'award', run: () => setTab('award') },
     {
-      id: 'nav-leaderboard',
-      label: 'Gehe zu: Leaderboard',
+      id: 'nav-dashboard',
+      label: 'Gehe zu: Dashboard',
       group: 'Navigation',
-      keywords: 'ranking',
-      run: () => setTab('leaderboard'),
+      keywords: 'dashboard start home',
+      run: () => setTab('dashboard'),
     },
     {
-      id: 'nav-overview',
-      label: 'Gehe zu: Überblick',
+      id: 'nav-students',
+      label: 'Gehe zu: Schüler:innen',
       group: 'Navigation',
-      keywords: 'overview klasse klassenübersicht',
-      run: () => setTab('overview'),
+      keywords: 'schüler studenten übersicht',
+      run: () => setTab('students'),
+    },
+    {
+      id: 'nav-rewards',
+      label: 'Gehe zu: Belohnungen',
+      group: 'Navigation',
+      keywords: 'award belohnung xp',
+      run: () => setTab('rewards'),
+    },
+    {
+      id: 'nav-goals',
+      label: 'Gehe zu: Klassenziele',
+      group: 'Navigation',
+      keywords: 'ziele klasse fortschritt leaderboard',
+      run: () => setTab('goals'),
     },
     { id: 'nav-log', label: 'Gehe zu: Protokoll', group: 'Navigation', keywords: 'log', run: () => setTab('log') },
     { id: 'nav-manage', label: 'Gehe zu: Verwalten', group: 'Navigation', keywords: 'manage', run: () => setTab('manage') },
@@ -107,7 +119,7 @@ export function createPaletteItems(
       label: 'Alle auswählen (Vergeben)',
       group: 'Aktionen',
       run: () => {
-        afterTab('award', () => window.dispatchEvent(new Event(EVENT_SELECT_ALL)));
+        afterTab('rewards', () => window.dispatchEvent(new Event(EVENT_SELECT_ALL)));
       },
     },
   ];
@@ -118,7 +130,7 @@ export function createPaletteItems(
     group: 'Schüler',
     keywords: student.alias,
     run: () => {
-      afterTab('award', () => {
+      afterTab('rewards', () => {
         window.dispatchEvent(new CustomEvent(EVENT_FOCUS_STUDENT, { detail: student.id }));
       });
     },
@@ -132,7 +144,7 @@ export function createPaletteItems(
       group: 'Quests',
       keywords: quest.name,
       run: () => {
-        afterTab('award', () => {
+        afterTab('rewards', () => {
           window.dispatchEvent(new CustomEvent(EVENT_SET_ACTIVE_QUEST, { detail: quest.id }));
         });
       },
@@ -142,13 +154,13 @@ export function createPaletteItems(
     id: `group-${team.id}`,
     label: `Gruppe filtern: ${team.name}`,
     group: 'Gruppen',
-    keywords: team.name,
-    run: () => {
-      afterTab('award', () => {
-        window.dispatchEvent(new CustomEvent(EVENT_TOGGLE_GROUP_FILTER, { detail: team.id }));
-      });
-    },
-  }));
+      keywords: team.name,
+      run: () => {
+        afterTab('rewards', () => {
+          window.dispatchEvent(new CustomEvent(EVENT_TOGGLE_GROUP_FILTER, { detail: team.id }));
+        });
+      },
+    }));
 
   return [...navItems, ...actions, ...studentItems, ...questItems, ...groupItems];
 }

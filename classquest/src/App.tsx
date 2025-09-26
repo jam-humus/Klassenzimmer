@@ -1,4 +1,19 @@
+import type { ComponentType } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Clock3,
+  HelpCircle,
+  Info,
+  LayoutDashboard,
+  Moon,
+  PlaySquare,
+  Search,
+  Settings,
+  Sparkles,
+  Sun,
+  Target,
+  Users2,
+} from 'lucide-react';
 import ThemeProvider from '@/theme/ThemeProvider';
 import AppShell from '@/components/layout/AppShell';
 import '@/styles/theme.css';
@@ -13,6 +28,7 @@ import ClassOverviewScreen from '~/ui/screens/ClassOverviewScreen';
 import LogScreen from '~/ui/screens/LogScreen';
 import ManageScreen from '~/ui/screens/ManageScreen';
 import InfoScreen from '~/ui/screens/InfoScreen';
+import DashboardScreen from '~/ui/screens/DashboardScreen';
 import CommandPalette from '~/ui/shortcut/CommandPalette';
 import HelpOverlay from '~/ui/shortcut/HelpOverlay';
 import { useKeydown } from '~/ui/shortcut/KeyScope';
@@ -23,22 +39,33 @@ import {
   EVENT_SELECT_ALL,
   EVENT_UNDO_PERFORMED,
 } from '~/ui/shortcut/events';
+import type { ThemeId } from '~/types/models';
+import { KEYBOARD_TAB_ORDER, type AppTab } from '~/types/navigation';
 
-type Tab = 'award' | 'leaderboard' | 'overview' | 'log' | 'manage' | 'info';
+type NavItem = {
+  id: AppTab;
+  label: string;
+  aria: string;
+  icon: ComponentType<{ className?: string; size?: number }>;
+};
 
-const TABS: Array<{ id: Tab; label: string; aria: string }> = [
-  { id: 'award', label: 'Vergeben', aria: 'XP vergeben' },
-  { id: 'leaderboard', label: 'Leaderboard', aria: 'Leaderboard anzeigen' },
-  { id: 'overview', label: 'Überblick', aria: 'Klassenüberblick anzeigen' },
-  { id: 'log', label: 'Protokoll', aria: 'Aktivitätsprotokoll öffnen' },
-  { id: 'manage', label: 'Verwalten', aria: 'Schüler und Quests verwalten' },
-  { id: 'info', label: 'Info', aria: 'Info & Hilfe anzeigen' },
+const PRIMARY_NAV_ITEMS: NavItem[] = [
+  { id: 'dashboard', label: 'Dashboard', aria: 'Dashboard anzeigen', icon: LayoutDashboard },
+  { id: 'students', label: 'Schüler:innen', aria: 'Schülerübersicht öffnen', icon: Users2 },
+  { id: 'rewards', label: 'Belohnungen', aria: 'Belohnungen vergeben', icon: Sparkles },
+  { id: 'goals', label: 'Klassenziele', aria: 'Klassenziele anzeigen', icon: Target },
+  { id: 'manage', label: 'Verwalten', aria: 'Einstellungen und Verwaltung öffnen', icon: Settings },
+];
+
+const SECONDARY_NAV_ITEMS: NavItem[] = [
+  { id: 'log', label: 'Protokoll', aria: 'Aktivitätenprotokoll anzeigen', icon: Clock3 },
+  { id: 'info', label: 'Info & Hilfe', aria: 'Info und Hilfe anzeigen', icon: Info },
 ];
 
 export default function App() {
   const { state, dispatch } = useApp();
   const feedback = useFeedback();
-  const [tab, setTab] = useState<Tab>('award');
+  const [tab, setTab] = useState<AppTab>('dashboard');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
@@ -58,13 +85,13 @@ export default function App() {
 
   useEffect(() => {
     if (shouldShowFirstRun) {
-      setTab('award');
+      setTab('dashboard');
     }
   }, [shouldShowFirstRun]);
 
   useEffect(() => {
     const handleNavigate = (event: Event) => {
-      const detail = (event as CustomEvent<{ tab?: Tab }>).detail;
+      const detail = (event as CustomEvent<{ tab?: AppTab }>).detail;
       if (!detail?.tab) {
         return;
       }
@@ -114,13 +141,13 @@ export default function App() {
           return;
         }
 
-        if (!mod && lower === 'a' && tab === 'award') {
+        if (!mod && lower === 'a' && tab === 'rewards') {
           event.preventDefault();
           window.dispatchEvent(new Event(EVENT_SELECT_ALL));
           return;
         }
 
-        if (!mod && key === 'Escape' && tab === 'award') {
+        if (!mod && key === 'Escape' && tab === 'rewards') {
           event.preventDefault();
           window.dispatchEvent(new Event(EVENT_CLEAR_SELECTION));
           return;
@@ -128,8 +155,11 @@ export default function App() {
 
         if (!mod && /^[1-6]$/.test(key)) {
           event.preventDefault();
-          const nextTabs: Tab[] = ['award', 'leaderboard', 'overview', 'log', 'manage', 'info'];
-          setTab(nextTabs[Number(key) - 1]);
+          const index = Number(key) - 1;
+          const next = KEYBOARD_TAB_ORDER[index];
+          if (next) {
+            setTab(next);
+          }
         }
       },
       [paletteOpen, helpOpen, resetOpen, closeOverlays, dispatch, tab],
@@ -148,57 +178,158 @@ export default function App() {
     setResetOpen(true);
   }, []);
 
+  const handleThemeToggle = useCallback(() => {
+    const themes: ThemeId[] = ['space', 'light', 'dark'];
+    const current = state.settings.theme ?? 'space';
+    const nextIndex = (themes.indexOf(current) + 1) % themes.length;
+    const nextTheme = themes[nextIndex];
+    dispatch({ type: 'UPDATE_SETTINGS', updates: { theme: nextTheme } });
+    feedback.info(nextTheme === 'space' ? 'Theme: Space' : nextTheme === 'light' ? 'Theme: Hell' : 'Theme: Dunkel');
+  }, [dispatch, feedback, state.settings.theme]);
+
+  const openWeeklyShow = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.pathname = '/show';
+    window.open(url.toString(), '_blank', 'noopener');
+  }, []);
+
+  const handleAddXpShortcut = useCallback(() => {
+    setTab('rewards');
+  }, []);
+
+  const themeIcon = useMemo(() => {
+    const current = state.settings.theme ?? 'space';
+    return current === 'dark' ? Sun : Moon;
+  }, [state.settings.theme]);
+
+  const ThemeIcon = themeIcon;
+
   return (
     <ThemeProvider>
       <AppShell>
-        <div className="app-shell">
-          <header className="app-header">
-            <h1 className="app-brand">{state.settings.className || 'ClassQuest'}</h1>
-            <nav role="tablist" aria-label="Hauptnavigation" className="app-tabs">
-              {TABS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === item.id}
-                  aria-label={item.aria}
-                  className="app-tab"
-                  onClick={() => setTab(item.id)}
-                >
-                  {item.label}
-                </button>
-              ))}
+        <div className="layout-root">
+          <aside className="layout-sidebar" aria-label="Hauptnavigation">
+            <div className="sidebar-brand">
+              <span className="sidebar-brand__badge">CQ</span>
+              <div className="sidebar-brand__meta">
+                <span className="sidebar-brand__title">ClassQuest</span>
+                <span className="sidebar-brand__subtitle">Klassenabenteuer</span>
+              </div>
+            </div>
+            <nav className="sidebar-nav" aria-label="Hauptbereiche">
+              {PRIMARY_NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="sidebar-nav__item"
+                    aria-current={tab === item.id ? 'page' : undefined}
+                    aria-label={item.aria}
+                    onClick={() => setTab(item.id)}
+                  >
+                    <Icon className="sidebar-nav__icon" size={20} aria-hidden />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
             </nav>
-          </header>
+            <nav className="sidebar-nav sidebar-nav--secondary" aria-label="Weitere Bereiche">
+              {SECONDARY_NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="sidebar-nav__item sidebar-nav__item--secondary"
+                    aria-current={tab === item.id ? 'page' : undefined}
+                    aria-label={item.aria}
+                    onClick={() => setTab(item.id)}
+                  >
+                    <Icon className="sidebar-nav__icon" size={20} aria-hidden />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </aside>
 
-          {shouldShowFirstRun ? (
-            <FirstRunWizard
-              onDone={() => {
-                setTab('manage');
-              }}
-            />
-          ) : (
-            <>
-              {tab === 'award' && <AwardScreen />}
-              {tab === 'leaderboard' && <LeaderboardScreen />}
-              {tab === 'overview' && <ClassOverviewScreen />}
-              {tab === 'log' && <LogScreen />}
-              {tab === 'manage' && <ManageScreen onOpenSeasonReset={openSeasonReset} />}
-              {tab === 'info' && <InfoScreen />}
-            </>
-          )}
+          <div className="layout-main">
+            <header className="layout-topbar">
+              <button
+                type="button"
+                className="topbar-class"
+                aria-label="Klasse wechseln"
+                onClick={() => setTab('manage')}
+              >
+                <div className="topbar-class__name">{state.settings.className || 'ClassQuest'}</div>
+                <div className="topbar-class__meta">Klassenübersicht</div>
+              </button>
+              <div className="topbar-actions">
+                <button
+                  type="button"
+                  className="topbar-button"
+                  onClick={() => setPaletteOpen(true)}
+                  aria-label="Suchen oder Aktionen ausführen"
+                >
+                  <Search size={18} aria-hidden />
+                  <span className="topbar-button__label">Suchen</span>
+                  <kbd className="topbar-button__shortcut">⌘K</kbd>
+                </button>
+                <button
+                  type="button"
+                  className="topbar-button"
+                  onClick={openWeeklyShow}
+                >
+                  <PlaySquare size={18} aria-hidden />
+                  <span className="topbar-button__label">Weekly Show</span>
+                </button>
+                <button type="button" className="icon-button" onClick={handleThemeToggle} aria-label="Theme wechseln">
+                  <ThemeIcon size={18} aria-hidden />
+                </button>
+                <button type="button" className="icon-button" onClick={() => setHelpOpen(true)} aria-label="Hilfe anzeigen">
+                  <HelpCircle size={18} aria-hidden />
+                </button>
+              </div>
+            </header>
 
-          <div className="toast-region" aria-live="polite" aria-atomic="true" id="toast-region" />
-
-          <CommandPalette
-            open={paletteOpen}
-            onClose={() => setPaletteOpen(false)}
-            setTab={setTab}
-            onOpenSeasonReset={openSeasonReset}
-          />
-          <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
-          <SeasonResetDialog open={resetOpen} onCancel={() => setResetOpen(false)} onConfirm={handleSeasonReset} />
+            <main className="layout-content" role="tabpanel">
+              {shouldShowFirstRun ? (
+                <FirstRunWizard
+                  onDone={() => {
+                    setTab('manage');
+                  }}
+                />
+              ) : (
+                <>
+                  {tab === 'dashboard' && (
+                    <DashboardScreen
+                      onAddXp={handleAddXpShortcut}
+                      onOpenWeeklyShow={openWeeklyShow}
+                    />
+                  )}
+                  {tab === 'students' && <ClassOverviewScreen />}
+                  {tab === 'rewards' && <AwardScreen />}
+                  {tab === 'goals' && <LeaderboardScreen />}
+                  {tab === 'log' && <LogScreen />}
+                  {tab === 'manage' && <ManageScreen onOpenSeasonReset={openSeasonReset} />}
+                  {tab === 'info' && <InfoScreen />}
+                </>
+              )}
+            </main>
+          </div>
         </div>
+
+        <div className="toast-region" aria-live="polite" aria-atomic="true" id="toast-region" />
+
+        <CommandPalette
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          setTab={setTab}
+          onOpenSeasonReset={openSeasonReset}
+        />
+        <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+        <SeasonResetDialog open={resetOpen} onCancel={() => setResetOpen(false)} onConfirm={handleSeasonReset} />
       </AppShell>
     </ThemeProvider>
   );
