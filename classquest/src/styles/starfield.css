@@ -1,0 +1,24 @@
+.star-sky { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.star-sky::before,
+.star-sky::after {
+  content: "";
+  position: absolute; inset: 0;
+  background-repeat: repeat;
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, #ffffffaa 40%, transparent 41%),
+    radial-gradient(1px 1px at 100px 200px, #bfe3ff99 40%, transparent 41%),
+    radial-gradient(1px 1px at 300px 400px, #ffd26b99 40%, transparent 41%);
+  animation: star-drift 120s linear infinite; opacity: .55;
+}
+.star-sky::after { filter: blur(1px); opacity: .35; animation-duration: 180s; }
+@keyframes star-drift { to { transform: translate3d(-2000px,-1000px,0); } }
+
+/* optional wallpaper base: replace with /space/wallpapers/nebula.jpg if desired */
+.wallpaper-underlay {
+  position: fixed; inset:0; z-index: -1;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(76, 110, 207, 0.35), transparent 55%),
+    radial-gradient(circle at 80% 30%, rgba(108, 213, 255, 0.25), transparent 50%),
+    radial-gradient(circle at 12% 75%, rgba(255, 166, 43, 0.2), transparent 55%),
+    linear-gradient(180deg, rgba(7,11,22,.88), rgba(7,11,22,.96));
+}

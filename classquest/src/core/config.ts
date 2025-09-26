@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: Required<Settings> = {
   compactMode: false,
   shortcutsEnabled: true,
   onboardingCompleted: false,
+  theme: 'space',
   flags: { virtualize: false } as Record<string, boolean>,
   classStarIconKey: null,
   classMilestoneStep: 1000,

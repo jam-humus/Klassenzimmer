@@ -10,6 +10,7 @@ import type {
   Student,
   Team,
 } from '~/types/models';
+import { normalizeThemeId } from '~/types/models';
 import { DEFAULT_SETTINGS } from '~/core/config';
 import { AVATAR_STAGE_COUNT, sanitizeAvatarStageThresholds } from '~/core/avatarStages';
 import { createStorageAdapter } from '~/services/storage';
@@ -101,6 +102,7 @@ function normalizeSettings(settings?: Partial<Settings>): Settings {
     assets: sanitizeAssetSettings(assets ?? DEFAULT_SETTINGS.assets),
     sounds: sanitizeSoundSettings(sounds ?? DEFAULT_SETTINGS.sounds, DEFAULT_SETTINGS.sounds),
   };
+  merged.theme = normalizeThemeId(merged.theme ?? DEFAULT_SETTINGS.theme, DEFAULT_SETTINGS.theme);
   merged.avatarStageThresholds = sanitizeAvatarStageThresholds(merged.avatarStageThresholds);
   const rawStarKey =
     typeof merged.classStarIconKey === 'string' ? merged.classStarIconKey.trim() : merged.classStarIconKey;

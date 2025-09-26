@@ -1,0 +1,25 @@
+:root {
+  --bg: #0b0f1a;
+  --card: #12182a;
+  --text: #e6f0ff;
+  --accent: #ffa62b;
+  --accent-2: #6ad5ff;
+  --muted: #8ea2c2;
+  --ring: #ffd26b;
+}
+
+html[data-theme="space"] {
+  --bg: #070b16;
+  --card: #0e1528;
+  --text: #e9f2ff;
+  --accent: #ffa62b;
+  --accent-2: #6ad5ff;
+  --muted: #8ea2c2;
+  --ring: #ffd26b;
+}
+
+/* Optional: Platzhalter für andere Themes */
+html[data-theme="dark"] { }
+html[data-theme="light"] { }
+
+body { background: var(--bg); color: var(--text); }

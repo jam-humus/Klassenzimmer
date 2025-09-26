@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import ThemeProvider from '@/theme/ThemeProvider';
+import AppShell from '@/components/layout/AppShell';
+import '@/styles/theme.css';
+import '@/styles/starfield.css';
 import './App.css';
 import { useApp } from '~/app/AppContext';
 import { useFeedback } from '~/ui/feedback/FeedbackProvider';
@@ -145,53 +149,57 @@ export default function App() {
   }, []);
 
   return (
-    <div className="app-shell">
-      <header className="app-header">
-        <h1 className="app-brand">{state.settings.className || 'ClassQuest'}</h1>
-        <nav role="tablist" aria-label="Hauptnavigation" className="app-tabs">
-          {TABS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === item.id}
-              aria-label={item.aria}
-              className="app-tab"
-              onClick={() => setTab(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-      </header>
+    <ThemeProvider>
+      <AppShell>
+        <div className="app-shell">
+          <header className="app-header">
+            <h1 className="app-brand">{state.settings.className || 'ClassQuest'}</h1>
+            <nav role="tablist" aria-label="Hauptnavigation" className="app-tabs">
+              {TABS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === item.id}
+                  aria-label={item.aria}
+                  className="app-tab"
+                  onClick={() => setTab(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          </header>
 
-      {shouldShowFirstRun ? (
-        <FirstRunWizard
-          onDone={() => {
-            setTab('manage');
-          }}
-        />
-      ) : (
-        <>
-          {tab === 'award' && <AwardScreen />}
-          {tab === 'leaderboard' && <LeaderboardScreen />}
-          {tab === 'overview' && <ClassOverviewScreen />}
-          {tab === 'log' && <LogScreen />}
-          {tab === 'manage' && <ManageScreen onOpenSeasonReset={openSeasonReset} />}
-          {tab === 'info' && <InfoScreen />}
-        </>
-      )}
+          {shouldShowFirstRun ? (
+            <FirstRunWizard
+              onDone={() => {
+                setTab('manage');
+              }}
+            />
+          ) : (
+            <>
+              {tab === 'award' && <AwardScreen />}
+              {tab === 'leaderboard' && <LeaderboardScreen />}
+              {tab === 'overview' && <ClassOverviewScreen />}
+              {tab === 'log' && <LogScreen />}
+              {tab === 'manage' && <ManageScreen onOpenSeasonReset={openSeasonReset} />}
+              {tab === 'info' && <InfoScreen />}
+            </>
+          )}
 
-      <div className="toast-region" aria-live="polite" aria-atomic="true" id="toast-region" />
+          <div className="toast-region" aria-live="polite" aria-atomic="true" id="toast-region" />
 
-      <CommandPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        setTab={setTab}
-        onOpenSeasonReset={openSeasonReset}
-      />
-      <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
-      <SeasonResetDialog open={resetOpen} onCancel={() => setResetOpen(false)} onConfirm={handleSeasonReset} />
-    </div>
+          <CommandPalette
+            open={paletteOpen}
+            onClose={() => setPaletteOpen(false)}
+            setTab={setTab}
+            onOpenSeasonReset={openSeasonReset}
+          />
+          <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+          <SeasonResetDialog open={resetOpen} onCancel={() => setResetOpen(false)} onConfirm={handleSeasonReset} />
+        </div>
+      </AppShell>
+    </ThemeProvider>
   );
 }

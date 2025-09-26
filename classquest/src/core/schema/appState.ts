@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { DEFAULT_SETTINGS } from '../config';
+import { normalizeThemeId } from '~/types/models';
 import {
   DEFAULT_AUDIO_COOLDOWN_MS,
   DEFAULT_LOTTIE_COOLDOWN_MS,
@@ -151,6 +152,7 @@ export const Settings = z.object({
   onboardingCompleted: z.boolean().optional(),
   animationsEnabled: z.boolean().optional(),
   kidModeEnabled: z.boolean().optional(),
+  theme: z.enum(['system', 'light', 'dark', 'space']).optional(),
   flags: z.record(z.string(), z.boolean()).optional(),
   classStarIconKey: z.string().optional().nullable(),
   classMilestoneStep: z.number().int().positive().optional(),
@@ -473,6 +475,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
     onboardingCompleted: asBoolean(settingsRecord.onboardingCompleted, false),
     animationsEnabled: asBoolean(settingsRecord.animationsEnabled, DEFAULT_SETTINGS.animationsEnabled ?? true),
     kidModeEnabled: asBoolean(settingsRecord.kidModeEnabled, DEFAULT_SETTINGS.kidModeEnabled ?? false),
+    theme: normalizeThemeId(settingsRecord.theme, DEFAULT_SETTINGS.theme),
     flags: sanitizeFlags(settingsRecord.flags),
     classStarIconKey: (() => {
       const raw = settingsRecord.classStarIconKey;
