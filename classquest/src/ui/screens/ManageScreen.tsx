@@ -10,7 +10,6 @@ import { DEFAULT_SETTINGS } from '~/core/config';
 import StudentDetailScreen from '~/ui/screens/StudentDetailScreen';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
 import { CollapsibleSection, useCollapsibleState } from '~/ui/components/CollapsibleSection';
-import AssetsTab from '~/screens/manage/AssetsTab';
 import ManageSnapshots from '~/ui/manage/ManageSnapshots';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
@@ -899,7 +898,6 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
   const badgesCollapse = useCollapsibleState('manage-badges', true);
   const questsCollapse = useCollapsibleState('manage-quests', true);
   const groupsCollapse = useCollapsibleState('manage-groups', true);
-  const assetsCollapse = useCollapsibleState('manage-assets', true);
   const settingsCollapse = useCollapsibleState('manage-settings', true);
   const resetCollapse = useCollapsibleState('manage-season-reset', true);
   const backupCollapse = useCollapsibleState('manage-backup', true);
@@ -914,7 +912,6 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
         badgesCollapse,
         questsCollapse,
         groupsCollapse,
-        assetsCollapse,
         settingsCollapse,
         resetCollapse,
         backupCollapse,
@@ -927,7 +924,6 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
       badgesCollapse,
       questsCollapse,
       groupsCollapse,
-      assetsCollapse,
       settingsCollapse,
       resetCollapse,
       backupCollapse,
@@ -2059,11 +2055,6 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
           {sortedTeams.length === 0 && <em>Noch keine Gruppen angelegt.</em>}
         </ul>
       </CollapsibleSection>
-
-      <CollapsibleSection id="manage-assets" title="Assets" state={assetsCollapse}>
-        <AssetsTab />
-      </CollapsibleSection>
-
       <CollapsibleSection id="manage-settings" title="Einstellungen" state={settingsCollapse}>
         <div style={{ display: 'grid', gap: 8 }}>
           <div
