@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { eventBus } from '@/lib/EventBus';
 import { processAward } from '~/core/gameLogic';
 import type { AppState, Quest, Student } from '~/types/models';
 
@@ -54,6 +55,7 @@ describe('processAward', () => {
   it('updates xp, level and logs for repeatable quests', () => {
     const quest = createQuest();
     const state = createState();
+    const emitSpy = vi.spyOn(eventBus, 'emit');
 
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2024, 0, 1, 9));
@@ -66,6 +68,12 @@ describe('processAward', () => {
       level: 1,
       streaks: { 'quest-1': 1 },
       lastAwardedDay: { 'quest-1': '2024-01-01' },
+    });
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    expect(emitSpy).toHaveBeenCalledWith({
+      type: 'xp:granted',
+      amount: 50,
+      newSegmentXP: 50,
     });
     expect(updated.logs).toHaveLength(1);
     expect(updated.logs[0]).toMatchObject({
@@ -81,11 +89,18 @@ describe('processAward', () => {
   it('prevents xp from dropping below zero when negatives are disallowed', () => {
     const quest = createQuest({ xp: -100 });
     const state = createState({ xp: 40 });
+    const emitSpy = vi.spyOn(eventBus, 'emit');
 
     const updated = processAward(state, 'student-1', quest);
 
     expect(updated.students[0].xp).toBe(0);
     expect(updated.students[0].level).toBe(1);
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    expect(emitSpy).toHaveBeenCalledWith({
+      type: 'xp:granted',
+      amount: -100,
+      newSegmentXP: 0,
+    });
   });
 
   it('allows negative xp when configured', () => {
@@ -99,15 +114,23 @@ describe('processAward', () => {
         allowNegativeXP: true,
       },
     } satisfies AppState;
+    const emitSpy = vi.spyOn(eventBus, 'emit');
 
     const updated = processAward(state, 'student-1', quest);
 
     expect(updated.students[0].xp).toBe(-50);
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    expect(emitSpy).toHaveBeenCalledWith({
+      type: 'xp:granted',
+      amount: -60,
+      newSegmentXP: -50,
+    });
   });
 
   it('ignores repeat awards for daily quests on the same day', () => {
     const quest = createQuest({ type: 'daily' });
     const state = createState();
+    const emitSpy = vi.spyOn(eventBus, 'emit');
 
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2024, 0, 1, 9));
@@ -117,11 +140,13 @@ describe('processAward', () => {
 
     expect(twice).toBe(once);
     expect(twice.logs).toHaveLength(1);
+    expect(emitSpy).toHaveBeenCalledTimes(1);
   });
 
   it('tracks streaks across consecutive days and awards badges', () => {
     const quest = createQuest({ type: 'daily', name: 'Mathe' });
     const state = createState();
+    const emitSpy = vi.spyOn(eventBus, 'emit');
 
     vi.useFakeTimers();
 
@@ -141,11 +166,28 @@ describe('processAward', () => {
     vi.setSystemTime(new Date(2024, 0, 4, 9));
     const reset = processAward(second, 'student-1', quest);
     expect(reset.students[0].streaks['quest-1']).toBe(1);
+    expect(emitSpy).toHaveBeenCalledTimes(3);
+    expect(emitSpy).toHaveBeenNthCalledWith(1, {
+      type: 'xp:granted',
+      amount: 50,
+      newSegmentXP: 50,
+    });
+    expect(emitSpy).toHaveBeenNthCalledWith(2, {
+      type: 'xp:granted',
+      amount: 50,
+      newSegmentXP: 100,
+    });
+    expect(emitSpy).toHaveBeenNthCalledWith(3, {
+      type: 'xp:granted',
+      amount: 50,
+      newSegmentXP: 150,
+    });
   });
 
   it('prevents one-off quests from being repeated', () => {
     const quest = createQuest({ type: 'oneoff' });
     const state = createState();
+    const emitSpy = vi.spyOn(eventBus, 'emit');
 
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2024, 0, 1, 9));
@@ -155,13 +197,16 @@ describe('processAward', () => {
 
     expect(second).toBe(first);
     expect(first.logs).toHaveLength(1);
+    expect(emitSpy).toHaveBeenCalledTimes(1);
   });
 
   it('returns original state when the student does not exist', () => {
     const quest = createQuest();
     const state = createState();
+    const emitSpy = vi.spyOn(eventBus, 'emit');
 
     const result = processAward(state, 'missing', quest);
     expect(result).toBe(state);
+    expect(emitSpy).not.toHaveBeenCalled();
   });
 });
