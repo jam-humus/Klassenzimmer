@@ -1,3 +1,4 @@
+import { eventBus } from '@/lib/EventBus';
 import { DEFAULT_SETTINGS } from './config';
 import { todayKey, levelFromXP } from './xp';
 import { shouldAutoAward } from './selectors/badges';
@@ -175,6 +176,12 @@ export function processAward(state: AppState, studentId: ID, quest: Quest, note?
 
   const logs = [...state.logs, log];
   const finalStudent = appendAutoBadges(state, updatedStudent, logs);
+
+  eventBus.emit({
+    type: 'xp:granted',
+    amount: quest.xp,
+    newSegmentXP: finalStudent.xp,
+  });
 
   return {
     ...state,
