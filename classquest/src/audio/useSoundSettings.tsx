@@ -8,6 +8,7 @@ import {
 } from 'react';
 import type { PropsWithChildren, JSX } from 'react';
 import { soundManager } from './SoundManager';
+import { queueAppSound } from './soundQueue';
 import type { SoundSettings } from './types';
 import { eventBus } from '@/lib/EventBus';
 
@@ -90,9 +91,9 @@ export function SoundSettingsProvider({ children }: PropsWithChildren): JSX.Elem
   }, [settings.volume]);
 
   useEffect(() => {
-    const offXp = eventBus.on('xp:granted', () => soundManager.play('xp-grant'));
-    const offLevel = eventBus.on('level:up', () => soundManager.play('level-up'));
-    const offBadge = eventBus.on('badge:awarded', () => soundManager.play('badge-award'));
+    const offXp = eventBus.on('xp:granted', () => queueAppSound('xp_awarded'));
+    const offLevel = eventBus.on('level:up', () => queueAppSound('level_up'));
+    const offBadge = eventBus.on('badge:awarded', () => queueAppSound('badge_award'));
 
     return () => {
       offXp();

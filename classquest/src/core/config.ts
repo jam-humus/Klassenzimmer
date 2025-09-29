@@ -17,4 +17,5 @@ export const DEFAULT_SETTINGS: Required<Settings> = {
   classStarIconKey: null,
   classMilestoneStep: 1000,
   classStarsName: 'Stern',
+  xpAwardCooldownMs: 350,
 };
