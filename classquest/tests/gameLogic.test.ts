@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { eventBus } from '@/lib/EventBus';
 import { processAward } from '~/core/gameLogic';
+import { calculateClassProgress } from '~/core/classProgress';
 import type { AppState, Quest, Student } from '~/types/models';
 
 const createStudent = (overrides: Partial<Student> = {}): Student => ({
@@ -17,6 +18,7 @@ const createStudent = (overrides: Partial<Student> = {}): Student => ({
 const createState = (studentOverrides: Partial<Student> = {}): AppState => {
   const student = createStudent(studentOverrides);
   const totalXP = Math.max(0, student.xp);
+  const classMilestoneStep = 1000;
   return {
     students: [student],
     teams: [],
@@ -28,9 +30,12 @@ const createState = (studentOverrides: Partial<Student> = {}): AppState => {
       xpPerLevel: 100,
       streakThresholdForBadge: 2,
       allowNegativeXP: false,
+      classMilestoneStep,
+      classStarIconKey: null,
+      classStarsName: 'Stern',
     },
     version: 1,
-    classProgress: { totalXP, stars: Math.floor(totalXP / 1000) },
+    classProgress: calculateClassProgress(totalXP, classMilestoneStep),
     badgeDefs: [],
   };
 };
@@ -112,6 +117,9 @@ describe('processAward', () => {
         xpPerLevel: 100,
         streakThresholdForBadge: 2,
         allowNegativeXP: true,
+        classMilestoneStep: 1000,
+        classStarIconKey: null,
+        classStarsName: 'Stern',
       },
     } satisfies AppState;
     const emitSpy = vi.spyOn(eventBus, 'emit');

@@ -1,18 +1,18 @@
 import { eventBus } from '@/lib/EventBus';
 import { DEFAULT_SETTINGS } from './config';
+import { calculateClassProgress, normalizeClassMilestoneStep } from './classProgress';
 import { todayKey, levelFromXP } from './xp';
 import { shouldAutoAward } from './selectors/badges';
 import type { Student, Quest, LogEntry, AppState, ID } from '~/types/models';
 
 const getClassMilestoneStep = (state: AppState) =>
-  Math.max(1, state.settings.classMilestoneStep ?? DEFAULT_SETTINGS.classMilestoneStep);
+  normalizeClassMilestoneStep(state.settings.classMilestoneStep ?? DEFAULT_SETTINGS.classMilestoneStep);
 
 const applyClassProgressDelta = (state: AppState, deltaXP: number) => {
   const prev = Math.max(0, state.classProgress?.totalXP ?? 0);
   const totalXP = Math.max(0, prev + deltaXP);
   const step = getClassMilestoneStep(state);
-  const stars = Math.floor(totalXP / step);
-  return { totalXP, stars };
+  return calculateClassProgress(totalXP, step);
 };
 
 const awardStreak = (

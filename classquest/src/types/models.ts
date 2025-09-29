@@ -76,6 +76,9 @@ export type LogEntry = {
 export type ClassProgress = {
   totalXP: number;
   stars: number;
+  step: number;
+  stepXP: number;
+  remainingXP: number;
 };
 
 export type Settings = {

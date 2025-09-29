@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useApp } from '~/app/AppContext';
-import { selectClassProgress } from '~/core/selectors/classProgress';
+import { selectClassProgressView } from '~/core/selectors/classProgress';
 import { ClassProgressBar } from '~/ui/components/ClassProgressBar';
 import '~/ui/screens/dashboard.css';
 
@@ -24,8 +24,8 @@ function formatTimestamp(timestamp: number) {
   }
 }
 
-function SegmentedXpBar({ total, step }: { total: number; step: number }) {
-  const progress = step > 0 ? Math.min(1, (total % step) / step) : 0;
+function SegmentedXpBar({ current, step }: { current: number; step: number }) {
+  const progress = step > 0 ? Math.min(1, current / step) : 0;
   const percent = Math.round(progress * 100);
   return (
     <div className="dashboard-xpbar" aria-label="Fortschritt zum nächsten Stern">
@@ -60,7 +60,7 @@ function StarRow({ stars }: { stars: number }) {
 
 export default function DashboardScreen({ onAddXp, onOpenWeeklyShow }: DashboardScreenProps) {
   const { state } = useApp();
-  const classProgress = selectClassProgress(state);
+  const classProgress = selectClassProgressView(state);
   const aliasById = useMemo(
     () => new Map(state.students.map((student) => [student.id, student.alias])),
     [state.students],
@@ -74,7 +74,7 @@ export default function DashboardScreen({ onAddXp, onOpenWeeklyShow }: Dashboard
 
   const remaining = numberFormatter.format(Math.max(0, classProgress.remaining));
   const step = numberFormatter.format(classProgress.step);
-  const segmentTotal = numberFormatter.format(classProgress.total % classProgress.step);
+  const segmentTotal = numberFormatter.format(classProgress.current);
 
   return (
     <div className="dashboard">
@@ -113,7 +113,7 @@ export default function DashboardScreen({ onAddXp, onOpenWeeklyShow }: Dashboard
               XP hinzufügen
             </button>
           </header>
-          <SegmentedXpBar total={classProgress.total} step={classProgress.step} />
+          <SegmentedXpBar current={classProgress.current} step={classProgress.step} />
           <StarRow stars={classProgress.stars} />
           <ClassProgressBar />
         </section>
