@@ -99,6 +99,7 @@ export type Settings = {
   classStarIconKey?: string | null;
   classMilestoneStep?: number;
   classStarsName?: string;
+  xpAwardCooldownMs?: number;
 };
 
 export type BadgeDefinition = {

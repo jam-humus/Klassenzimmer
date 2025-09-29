@@ -174,7 +174,7 @@ describe('processAward', () => {
     vi.setSystemTime(new Date(2024, 0, 4, 9));
     const reset = processAward(second, 'student-1', quest);
     expect(reset.students[0].streaks['quest-1']).toBe(1);
-    expect(emitSpy).toHaveBeenCalledTimes(3);
+    expect(emitSpy).toHaveBeenCalledTimes(5);
     expect(emitSpy).toHaveBeenNthCalledWith(1, {
       type: 'xp:granted',
       amount: 50,
@@ -185,7 +185,13 @@ describe('processAward', () => {
       amount: 50,
       newSegmentXP: 100,
     });
-    expect(emitSpy).toHaveBeenNthCalledWith(3, {
+    expect(emitSpy).toHaveBeenNthCalledWith(3, { type: 'level:up', newLevel: 2 });
+    expect(emitSpy).toHaveBeenNthCalledWith(4, {
+      type: 'badge:awarded',
+      badgeId: 'streak-quest-1',
+      studentId: 'student-1',
+    });
+    expect(emitSpy).toHaveBeenNthCalledWith(5, {
       type: 'xp:granted',
       amount: 50,
       newSegmentXP: 150,

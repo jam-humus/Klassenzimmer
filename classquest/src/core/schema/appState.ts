@@ -104,6 +104,7 @@ export const Settings = z.object({
   classStarIconKey: z.string().optional().nullable(),
   classMilestoneStep: z.number().int().positive().optional(),
   classStarsName: z.string().optional(),
+  xpAwardCooldownMs: z.number().int().positive().optional(),
 });
 
 export const ClassProgress = z.object({
@@ -468,6 +469,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
       Math.max(1, Math.floor(asNumber(settingsRecord.classMilestoneStep, DEFAULT_SETTINGS.classMilestoneStep)) || 1) ||
       DEFAULT_SETTINGS.classMilestoneStep,
     classStarsName: asString(settingsRecord.classStarsName) ?? DEFAULT_SETTINGS.classStarsName,
+    xpAwardCooldownMs: Math.max(0, Math.floor(asNumber(settingsRecord.xpAwardCooldownMs, 350))),
   };
 
   const totalXP = Math.max(

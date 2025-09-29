@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   addQuest,
   addStudent,
@@ -6,10 +6,16 @@ import {
   assignStudentToTeam,
   awardQuest,
   createInitialState,
+  resetXpAwardCooldown,
   setQuestActive,
 } from '~/core/state';
 
+beforeEach(() => {
+  resetXpAwardCooldown();
+});
+
 afterEach(() => {
+  resetXpAwardCooldown();
   vi.restoreAllMocks();
   vi.useRealTimers();
 });

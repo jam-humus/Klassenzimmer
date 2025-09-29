@@ -183,6 +183,18 @@ export function processAward(state: AppState, studentId: ID, quest: Quest, note?
     newSegmentXP: finalStudent.xp,
   });
 
+  if (finalStudent.level > student.level) {
+    eventBus.emit({ type: 'level:up', newLevel: finalStudent.level });
+  }
+
+  const previousBadges = student.badges ?? [];
+  const previousBadgeKeys = new Set(previousBadges.map((badge) => `${badge.id}:${badge.awardedAt}`));
+  finalStudent.badges
+    .filter((badge) => !previousBadgeKeys.has(`${badge.id}:${badge.awardedAt}`))
+    .forEach((badge) => {
+      eventBus.emit({ type: 'badge:awarded', badgeId: badge.id, studentId });
+    });
+
   return {
     ...state,
     students: state.students.map((s) => (s.id === studentId ? finalStudent : s)),

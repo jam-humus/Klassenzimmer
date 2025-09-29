@@ -159,6 +159,11 @@ function normalizeSettings(settings?: Partial<Settings>): Settings {
       ? merged.classStarsName.trim()
       : DEFAULT_SETTINGS.classStarsName;
   merged.classStarsName = starsName;
+  const cooldown =
+    typeof merged.xpAwardCooldownMs === 'number' && Number.isFinite(merged.xpAwardCooldownMs)
+      ? Math.max(0, Math.floor(merged.xpAwardCooldownMs))
+      : DEFAULT_SETTINGS.xpAwardCooldownMs;
+  merged.xpAwardCooldownMs = cooldown;
   if (!merged.soundOverrides || Object.keys(merged.soundOverrides).length === 0) {
     merged.soundOverrides = {};
   }
