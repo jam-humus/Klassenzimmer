@@ -1,15 +1,19 @@
 import React from 'react';
 import { useApp } from '~/app/AppContext';
-import { selectClassProgress } from '~/core/selectors/classProgress';
+import { selectClassProgressView } from '~/core/selectors/classProgress';
 import { getObjectURL } from '~/services/blobStore';
 
 const numberFormatter = new Intl.NumberFormat('de-DE');
 
 export function ClassProgressBar() {
   const { state } = useApp();
-  const { step, total, stars, nextTarget, remaining, ratio } = selectClassProgress(state);
+  const view = selectClassProgressView(state);
   const starLabel = state.settings.classStarsName ?? 'Stern';
-  const percent = Math.round(ratio * 100);
+  const percent = Math.round(view.pct * 100);
+  const formattedCurrent = numberFormatter.format(view.current);
+  const formattedStep = numberFormatter.format(view.step);
+  const formattedRemaining = numberFormatter.format(view.remaining);
+  const formattedStars = numberFormatter.format(view.stars);
   const [starIconUrl, setStarIconUrl] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -47,27 +51,22 @@ export function ClassProgressBar() {
         border: '1px solid rgba(15,23,42,0.08)',
         display: 'flex',
         flexDirection: 'column',
-        gap: 12,
+        gap: 16,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Klassen-XP</h2>
-          <p style={{ margin: '4px 0 0', color: 'rgba(15,23,42,0.68)', fontSize: 14 }} aria-live="polite">
-            {numberFormatter.format(total)} / {numberFormatter.format(nextTarget)} XP · noch{' '}
-            {numberFormatter.format(remaining)} XP bis zum nächsten {starLabel}
+          <p style={{ margin: '6px 0 0', color: 'rgba(15,23,42,0.7)', fontSize: 14 }} aria-live="polite">
+            {formattedCurrent} / {formattedStep} XP – noch {formattedRemaining} XP bis zum nächsten {starLabel}
           </p>
         </div>
         <div
-          style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 26, fontWeight: 700, color: '#047857' }}
-          aria-label="Gesammelte Sterne"
+          style={{ display: 'flex', alignItems: 'center', gap: 12 }}
+          aria-label={`Gesammelte ${starLabel}: ${formattedStars}`}
         >
-          {starIconUrl ? (
-            <img src={starIconUrl} alt="" aria-hidden style={{ width: 28, height: 28, objectFit: 'contain' }} />
-          ) : (
-            <span aria-hidden>⭐</span>
-          )}
-          <span>{numberFormatter.format(stars)}</span>
+          <StarBadge iconUrl={starIconUrl} />
+          <span style={{ fontSize: 28, fontWeight: 700, color: '#047857' }}>{formattedStars}</span>
         </div>
       </div>
       <div
@@ -78,9 +77,9 @@ export function ClassProgressBar() {
         aria-valuetext={`${percent}%`}
         style={{
           position: 'relative',
-          height: 12,
+          height: 14,
           borderRadius: 999,
-          background: 'rgba(15,23,42,0.08)',
+          background: 'rgba(15,23,42,0.1)',
           overflow: 'hidden',
         }}
       >
@@ -89,12 +88,48 @@ export function ClassProgressBar() {
             width: `${percent}%`,
             height: '100%',
             borderRadius: 999,
-            background: 'linear-gradient(90deg, rgba(16,185,129,0.9), rgba(5,150,105,1))',
-            transition: 'width 160ms ease-out',
+            background: 'linear-gradient(90deg, rgba(16,185,129,1), rgba(5,150,105,0.9))',
+            boxShadow: '0 0 12px rgba(16,185,129,0.45)',
+            transition: 'width 300ms ease',
           }}
         />
       </div>
-      <div style={{ fontSize: 12, color: 'rgba(15,23,42,0.6)' }}>Stern-Schrittgröße: {numberFormatter.format(step)} XP</div>
+      <div style={{ fontSize: 12, color: 'rgba(15,23,42,0.6)' }}>Schrittgröße: {formattedStep} XP</div>
     </section>
+  );
+}
+
+function StarBadge({ iconUrl }: { iconUrl: string | null }) {
+  if (iconUrl) {
+    return (
+      <img
+        src={iconUrl}
+        alt=""
+        aria-hidden
+        style={{
+          width: 32,
+          height: 32,
+          objectFit: 'contain',
+          filter: 'drop-shadow(0 4px 12px rgba(255,210,107,0.6))',
+        }}
+      />
+    );
+  }
+
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: 'inline-block',
+        width: 32,
+        height: 32,
+        background: 'conic-gradient(from 0deg, #ffd26b, #fff2a1, #ffd26b)',
+        filter: 'drop-shadow(0 4px 12px rgba(255,210,107,0.65))',
+        WebkitMaskImage:
+          "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22black%22 d=%22M12 2l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 8.8l6.5-.9z%22/></svg>')",
+        WebkitMaskSize: 'contain',
+        WebkitMaskRepeat: 'no-repeat',
+      }}
+    />
   );
 }

@@ -92,7 +92,7 @@ const baseState: Mutable<AppState> = {
     classStarsName: 'Stern',
   },
   version: 1,
-  classProgress: { totalXP: 0, stars: 0 },
+  classProgress: { totalXP: 0, stars: 0, step: 1000, stepXP: 0, remainingXP: 1000 },
   badgeDefs: [],
   categories: [
     { id: 'cat-homework', name: 'homework', color: null },

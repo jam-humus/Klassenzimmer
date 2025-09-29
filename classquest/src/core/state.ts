@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS } from './config';
+import { calculateClassProgress, normalizeClassMilestoneStep } from './classProgress';
 import { processAward } from './gameLogic';
 import { levelFromXP } from './xp';
 import type {
@@ -64,29 +65,34 @@ const buildTeam = (team: Team, existingStudents: Student[]) => {
 export const createInitialState = (
   settings?: Partial<Settings>,
   version = 1,
-): AppState => ({
-  students: [],
-  teams: [],
-  quests: [],
-  logs: [],
-  settings: (() => {
-    const { flags, ...restSettings } = settings ?? {};
-    const theme = normalizeThemeId(restSettings.theme ?? DEFAULT_SETTINGS.theme, DEFAULT_SETTINGS.theme);
-    return {
-      ...DEFAULT_SETTINGS,
-      ...restSettings,
-      theme,
-      flags: {
-        ...(DEFAULT_SETTINGS.flags ?? {}),
-        ...((flags ?? {}) as Record<string, boolean>),
-      },
-    } satisfies Settings;
-  })(),
-  version,
-  classProgress: { totalXP: 0, stars: 0 },
-  badgeDefs: [],
-  categories: [],
-});
+): AppState => {
+  const { flags, ...restSettings } = settings ?? {};
+  const theme = normalizeThemeId(restSettings.theme ?? DEFAULT_SETTINGS.theme, DEFAULT_SETTINGS.theme);
+  const normalizedSettings: Settings = {
+    ...DEFAULT_SETTINGS,
+    ...restSettings,
+    theme,
+    flags: {
+      ...(DEFAULT_SETTINGS.flags ?? {}),
+      ...((flags ?? {}) as Record<string, boolean>),
+    },
+  };
+  normalizedSettings.classMilestoneStep = normalizeClassMilestoneStep(
+    normalizedSettings.classMilestoneStep,
+  );
+
+  return {
+    students: [],
+    teams: [],
+    quests: [],
+    logs: [],
+    settings: normalizedSettings,
+    version,
+    classProgress: calculateClassProgress(0, normalizedSettings.classMilestoneStep),
+    badgeDefs: [],
+    categories: [],
+  };
+};
 
 type StudentInput = {
   id: ID;

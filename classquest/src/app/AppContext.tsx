@@ -1,15 +1,5 @@
 import React from 'react';
-import type {
-  AppState,
-  BadgeDefinition,
-  ClassProgress,
-  ID,
-  LogEntry,
-  Quest,
-  Settings,
-  Student,
-  Team,
-} from '~/types/models';
+import type { AppState, BadgeDefinition, ID, LogEntry, Quest, Settings, Student, Team } from '~/types/models';
 import { normalizeThemeId } from '~/types/models';
 import { DEFAULT_SETTINGS } from '~/core/config';
 import { AVATAR_STAGE_COUNT, sanitizeAvatarStageThresholds } from '~/core/avatarStages';
@@ -19,6 +9,7 @@ import { levelFromXP } from '~/core/xp';
 import { addQuest, addStudent, awardQuest, createInitialState, setQuestActive } from '~/core/state';
 import { sanitizeState } from '~/core/schema/appState';
 import { migrateState } from '~/core/schema/migrate';
+import { computeClassProgress, normalizeClassMilestoneStep } from '~/core/classProgress';
 import { setEffectsSettings } from '~/utils/effects';
 import { SOUND_KEYS, type SoundKey, type SoundOverride, type SoundOverrides } from '~/audio/types';
 import { normalizeAudioFormat } from '~/audio/format';
@@ -162,9 +153,7 @@ function normalizeSettings(settings?: Partial<Settings>): Settings {
   const rawStarKey =
     typeof merged.classStarIconKey === 'string' ? merged.classStarIconKey.trim() : merged.classStarIconKey;
   merged.classStarIconKey = rawStarKey && typeof rawStarKey === 'string' && rawStarKey.length > 0 ? rawStarKey : null;
-  const rawStep = Number.isFinite(Number(merged.classMilestoneStep)) ? Number(merged.classMilestoneStep) : undefined;
-  const normalizedStep = rawStep && rawStep > 0 ? Math.round(rawStep) : DEFAULT_SETTINGS.classMilestoneStep;
-  merged.classMilestoneStep = normalizedStep;
+  merged.classMilestoneStep = normalizeClassMilestoneStep(merged.classMilestoneStep);
   const starsName =
     typeof merged.classStarsName === 'string' && merged.classStarsName.trim().length > 0
       ? merged.classStarsName.trim()
@@ -282,16 +271,6 @@ function markOnboardingComplete(state: AppState): AppState {
 }
 
 const arraysEqual = (a: ID[], b: ID[]) => a.length === b.length && a.every((value, index) => value === b[index]);
-
-const computeClassProgress = (students: Student[], settings: Settings): ClassProgress => {
-  const step = Math.max(1, settings.classMilestoneStep ?? DEFAULT_SETTINGS.classMilestoneStep);
-  const totalXP = Math.max(
-    0,
-    students.reduce((sum, student) => sum + (Number.isFinite(student.xp) ? student.xp : 0), 0),
-  );
-  const stars = Math.floor(totalXP / step);
-  return { totalXP, stars };
-};
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -597,11 +576,12 @@ function reducer(state: AppState, action: Action): AppState {
         lastAwardedDay: {},
         badges: [],
       }));
+      const classProgress = computeClassProgress(students, state.settings);
       return {
         ...state,
         students,
         logs: [],
-        classProgress: { totalXP: 0, stars: 0 },
+        classProgress,
       };
     }
     case 'ADD_GROUP': {

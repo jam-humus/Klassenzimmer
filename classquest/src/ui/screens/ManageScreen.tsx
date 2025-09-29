@@ -2408,6 +2408,27 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
             />
             Negative XP erlauben (Shop kann unter 0 gehen)
           </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 600 }}>XP pro Klassen-Stern</span>
+            <input
+              type="number"
+              min={1}
+              step={10}
+              value={state.settings.classMilestoneStep}
+              onChange={(e) => {
+                const numeric = Number.parseInt(e.target.value, 10);
+                const step = Number.isFinite(numeric) ? Math.max(1, numeric) : 1;
+                dispatch({ type: 'UPDATE_SETTINGS', updates: { classMilestoneStep: step } });
+              }}
+              style={{
+                width: 120,
+                padding: '8px 10px',
+                borderRadius: 10,
+                border: '1px solid #cbd5f5',
+              }}
+            />
+            <span style={{ fontSize: 12, color: '#475569' }}>Bestimmt die XP bis zum nächsten Klassen-Stern</span>
+          </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input
               type="checkbox"

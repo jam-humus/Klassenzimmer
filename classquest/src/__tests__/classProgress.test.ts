@@ -12,10 +12,14 @@ describe('class progress tracking', () => {
 
     expect(result.classProgress.totalXP).toBe(1200);
     expect(result.classProgress.stars).toBe(1);
+    expect(result.classProgress.step).toBe(state.settings.classMilestoneStep);
+    expect(result.classProgress.stepXP).toBe(200);
+    expect(result.classProgress.remainingXP).toBe(800);
 
     const summary = selectClassProgress(result);
     expect(summary.remaining).toBe(800);
-    expect(summary.nextTarget).toBe(2000);
+    expect(summary.step).toBe(result.settings.classMilestoneStep);
+    expect(summary.stepXP).toBe(200);
   });
 
   it('clamps total XP at zero when penalties would go negative', () => {
@@ -29,6 +33,8 @@ describe('class progress tracking', () => {
 
     expect(result.classProgress.totalXP).toBe(0);
     expect(result.classProgress.stars).toBe(0);
+    expect(result.classProgress.stepXP).toBe(0);
+    expect(result.classProgress.remainingXP).toBe(result.classProgress.step);
   });
 
   it('selectClassProgress respects custom milestone steps', () => {
@@ -37,15 +43,14 @@ describe('class progress tracking', () => {
     state = {
       ...state,
       settings: { ...state.settings, classMilestoneStep: 200 },
-      classProgress: { totalXP: 450, stars: 2 },
+      classProgress: { totalXP: 450, stars: 2, step: 200, stepXP: 50, remainingXP: 150 },
     };
 
     const summary = selectClassProgress(state);
 
     expect(summary.step).toBe(200);
     expect(summary.stars).toBe(2);
-    expect(summary.nextTarget).toBe(600);
+    expect(summary.stepXP).toBe(50);
     expect(summary.remaining).toBe(150);
-    expect(Math.round(summary.ratio * 100)).toBe(75);
   });
 });

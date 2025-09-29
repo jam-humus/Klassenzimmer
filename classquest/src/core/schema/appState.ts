@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { DEFAULT_SETTINGS } from '../config';
+import { calculateClassProgress } from '../classProgress';
 import { normalizeThemeId } from '~/types/models';
 import { SOUND_KEYS, type SoundKey, type SoundOverride } from '~/audio/types';
 import { normalizeAudioFormat } from '~/audio/format';
@@ -108,6 +109,9 @@ export const Settings = z.object({
 export const ClassProgress = z.object({
   totalXP: z.number().min(0),
   stars: z.number().min(0),
+  step: z.number().min(1),
+  stepXP: z.number().min(0),
+  remainingXP: z.number().min(0),
 });
 
 export const BadgeDefinition = z.object({
@@ -470,11 +474,7 @@ export function sanitizeState(raw: unknown): AppStateType | null {
     0,
     students.reduce((sum, student) => sum + (Number.isFinite(student.xp) ? student.xp : 0), 0),
   );
-  const step = Math.max(1, settings.classMilestoneStep ?? DEFAULT_SETTINGS.classMilestoneStep);
-  const classProgress: AppStateType['classProgress'] = {
-    totalXP,
-    stars: Math.floor(totalXP / step),
-  };
+  const classProgress = calculateClassProgress(totalXP, settings.classMilestoneStep);
 
   const version = Math.max(1, Math.trunc(asNumber(raw.version, 1)) || 1);
   const badgeDefs = sanitizeBadgeDefs(raw.badgeDefs);
