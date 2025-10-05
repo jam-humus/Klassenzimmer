@@ -258,13 +258,13 @@ export const awardQuest = (state: AppState, { questId, studentId, teamId, note }
     const gainedBadge = (after.badges?.length ?? 0) > (before.badges?.length ?? 0);
     const leveledUp = after.level > before.level;
 
-    queueAppSound('xp_awarded', timestamp);
-    if (leveledUp) {
-      queueAppSound('level_up', timestamp);
-    }
-    if (gainedBadge) {
-      queueAppSound('badge_award', timestamp);
-    }
+    const prioritizedEvent = gainedBadge
+      ? 'badge_award'
+      : leveledUp
+        ? 'level_up'
+        : 'xp_awarded';
+
+    queueAppSound(prioritizedEvent, timestamp);
 
     return { state: nextState, changed: true };
   };
