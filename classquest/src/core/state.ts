@@ -28,36 +28,6 @@ const getTimestamp = (): number => {
   return Date.now();
 };
 
-const lastXpAwardAtByStudent = new Map<ID, number>();
-
-const getCooldownMs = (state: AppState): number => {
-  const raw = state.settings.xpAwardCooldownMs;
-  const fallback = DEFAULT_SETTINGS.xpAwardCooldownMs;
-  const numeric =
-    typeof raw === 'number' && Number.isFinite(raw) ? raw : fallback ?? 350;
-  return Math.max(0, Math.floor(numeric));
-};
-
-export const canAwardXp = (state: AppState, studentId: ID, now = getTimestamp()): boolean => {
-  const cooldown = getCooldownMs(state);
-  if (cooldown <= 0) {
-    return true;
-  }
-  const last = lastXpAwardAtByStudent.get(studentId);
-  if (last == null) {
-    return true;
-  }
-  return now - last >= cooldown;
-};
-
-const markXpAwarded = (studentId: ID, now: number): void => {
-  lastXpAwardAtByStudent.set(studentId, now);
-};
-
-export const resetXpAwardCooldown = (): void => {
-  lastXpAwardAtByStudent.clear();
-};
-
 const updateTeamMembership = (teams: Team[], teamId: ID | undefined, studentId: ID) =>
   teams.map((team) => {
     const members = new Set(team.memberIds);
@@ -269,12 +239,11 @@ export const awardQuest = (state: AppState, { questId, studentId, teamId, note }
     return state;
   }
 
-  const awardStudent = (currentState: AppState, targetId: ID): { state: AppState; changed: boolean } => {
+  const awardStudent = (
+    currentState: AppState,
+    targetId: ID,
+  ): { state: AppState; changed: boolean } => {
     const timestamp = getTimestamp();
-    if (!canAwardXp(currentState, targetId, timestamp)) {
-      return { state: currentState, changed: false };
-    }
-
     const before = currentState.students.find((s) => s.id === targetId);
     if (!before) {
       return { state: currentState, changed: false };
@@ -289,15 +258,13 @@ export const awardQuest = (state: AppState, { questId, studentId, teamId, note }
     const gainedBadge = (after.badges?.length ?? 0) > (before.badges?.length ?? 0);
     const leveledUp = after.level > before.level;
 
+    queueAppSound('xp_awarded', timestamp);
+    if (leveledUp) {
+      queueAppSound('level_up', timestamp);
+    }
     if (gainedBadge) {
       queueAppSound('badge_award', timestamp);
-    } else if (leveledUp) {
-      queueAppSound('level_up', timestamp);
-    } else {
-      queueAppSound('xp_awarded', timestamp);
     }
-
-    markXpAwarded(targetId, timestamp);
 
     return { state: nextState, changed: true };
   };

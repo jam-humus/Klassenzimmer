@@ -10,10 +10,22 @@ const APP_PRIORITY: Record<AppSoundEvent, number> = {
   badge_award: 3,
 };
 
+const SOUND_COOLDOWN_MS: Record<AppSoundEvent, number> = {
+  xp_awarded: 200,
+  level_up: 250,
+  badge_award: 300,
+};
+
 const SNAP_PRIORITY: Record<SnapshotSoundEvent, number> = {
   snap_xp: 1,
   snap_level: 2,
   snap_badge: 3,
+};
+
+const SNAP_SOUND_COOLDOWN_MS: Record<SnapshotSoundEvent, number> = {
+  snap_xp: 200,
+  snap_level: 250,
+  snap_badge: 300,
 };
 
 const APP_SOUND_MAP: Record<AppSoundEvent, SoundKey> = {
@@ -34,6 +46,9 @@ let appPending: { evt: AppSoundEvent; prio: number } | null = null;
 let appTimer: ReturnType<typeof setTimeout> | null = null;
 let snapPending: { evt: SnapshotSoundEvent; prio: number } | null = null;
 let snapTimer: ReturnType<typeof setTimeout> | null = null;
+
+const lastAppPlayedAt = new Map<AppSoundEvent, number>();
+const lastSnapPlayedAt = new Map<SnapshotSoundEvent, number>();
 
 const getTimestamp = (): number => {
   if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
@@ -56,7 +71,14 @@ const flushAppQueue = (): void => {
   appPending = null;
   clearTimer(appTimer);
   appTimer = null;
+  const now = getTimestamp();
+  const cooldown = SOUND_COOLDOWN_MS[evt] ?? 0;
+  const last = lastAppPlayedAt.get(evt);
+  if (cooldown > 0 && last != null && now - last < cooldown) {
+    return;
+  }
   soundManager.play(APP_SOUND_MAP[evt]);
+  lastAppPlayedAt.set(evt, now);
 };
 
 const flushSnapshotQueue = (): void => {
@@ -67,7 +89,14 @@ const flushSnapshotQueue = (): void => {
   snapPending = null;
   clearTimer(snapTimer);
   snapTimer = null;
+  const now = getTimestamp();
+  const cooldown = SNAP_SOUND_COOLDOWN_MS[evt] ?? 0;
+  const last = lastSnapPlayedAt.get(evt);
+  if (cooldown > 0 && last != null && now - last < cooldown) {
+    return;
+  }
   soundManager.play(SNAP_SOUND_MAP[evt]);
+  lastSnapPlayedAt.set(evt, now);
 };
 
 const scheduleFlush = (type: 'app' | 'snap'): void => {
@@ -118,4 +147,6 @@ export function resetSoundQueues(): void {
   clearTimer(snapTimer);
   appTimer = null;
   snapTimer = null;
+  lastAppPlayedAt.clear();
+  lastSnapPlayedAt.clear();
 }
