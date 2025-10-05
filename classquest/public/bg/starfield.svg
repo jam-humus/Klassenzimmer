@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+  <rect width="240" height="240" fill="#050915" />
+  <g fill="#22d3ee" opacity="0.55">
+    <circle cx="32" cy="28" r="1.5" />
+    <circle cx="120" cy="54" r="1" />
+    <circle cx="200" cy="96" r="1.8" />
+    <circle cx="82" cy="142" r="1.2" />
+    <circle cx="30" cy="184" r="1.6" />
+    <circle cx="176" cy="210" r="1.4" />
+  </g>
+  <g fill="#fb923c" opacity="0.45">
+    <circle cx="64" cy="92" r="1.1" />
+    <circle cx="188" cy="44" r="1.4" />
+    <circle cx="148" cy="168" r="1.2" />
+    <circle cx="32" cy="132" r="1" />
+  </g>
+  <g fill="#e5e7eb" opacity="0.8">
+    <circle cx="24" cy="48" r="0.8" />
+    <circle cx="104" cy="22" r="0.6" />
+    <circle cx="228" cy="66" r="0.7" />
+    <circle cx="96" cy="198" r="0.6" />
+    <circle cx="210" cy="182" r="0.8" />
+    <circle cx="54" cy="218" r="0.6" />
+  </g>
+  <g stroke="#ffffff" stroke-width="0.4" opacity="0.45">
+    <line x1="0" y1="120" x2="240" y2="120" stroke-dasharray="1 11" />
+    <line x1="120" y1="0" x2="120" y2="240" stroke-dasharray="1 9" />
+  </g>
+</svg>

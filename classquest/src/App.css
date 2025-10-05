@@ -146,6 +146,16 @@
   gap: 12px;
 }
 
+.topbar-theme {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 86%, rgba(255, 255, 255, 0.08));
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
 .topbar-button {
   display: inline-flex;
   align-items: center;

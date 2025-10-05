@@ -4,19 +4,17 @@ import {
   HelpCircle,
   Info,
   LayoutDashboard,
-  Moon,
   PlaySquare,
   Search,
   Settings,
   Sparkles,
-  Sun,
   Target,
   Users2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import ThemeProvider from '@/theme/ThemeProvider';
 import AppShell from '@/components/layout/AppShell';
-import '@/styles/theme.css';
+import '@/styles/globals.css';
 import '@/styles/starfield.css';
 import './App.css';
 import { useApp } from '~/app/AppContext';
@@ -39,7 +37,8 @@ import {
   EVENT_SELECT_ALL,
   EVENT_UNDO_PERFORMED,
 } from '~/ui/shortcut/events';
-import type { ThemeId } from '~/types/models';
+import ThemeToggle from '@/components/ui/ThemeToggle';
+import AccentSelect from '@/components/ui/AccentSelect';
 import { KEYBOARD_TAB_ORDER, type AppTab } from '~/types/navigation';
 
 type NavItem = {
@@ -178,15 +177,6 @@ export default function App() {
     setResetOpen(true);
   }, []);
 
-  const handleThemeToggle = useCallback(() => {
-    const themes: ThemeId[] = ['space', 'light', 'dark'];
-    const current = state.settings.theme ?? 'space';
-    const nextIndex = (themes.indexOf(current) + 1) % themes.length;
-    const nextTheme = themes[nextIndex];
-    dispatch({ type: 'UPDATE_SETTINGS', updates: { theme: nextTheme } });
-    feedback.info(nextTheme === 'space' ? 'Theme: Space' : nextTheme === 'light' ? 'Theme: Hell' : 'Theme: Dunkel');
-  }, [dispatch, feedback, state.settings.theme]);
-
   const openWeeklyShow = useCallback(() => {
     const url = new URL(window.location.href);
     url.pathname = '/show';
@@ -196,13 +186,6 @@ export default function App() {
   const handleAddXpShortcut = useCallback(() => {
     setTab('rewards');
   }, []);
-
-  const themeIcon = useMemo(() => {
-    const current = state.settings.theme ?? 'space';
-    return current === 'dark' ? Sun : Moon;
-  }, [state.settings.theme]);
-
-  const ThemeIcon = themeIcon;
 
   return (
     <ThemeProvider>
@@ -284,9 +267,10 @@ export default function App() {
                   <PlaySquare size={18} aria-hidden />
                   <span className="topbar-button__label">Weekly Show</span>
                 </button>
-                <button type="button" className="icon-button" onClick={handleThemeToggle} aria-label="Theme wechseln">
-                  <ThemeIcon size={18} aria-hidden />
-                </button>
+                <div className="topbar-theme">
+                  <ThemeToggle />
+                  <AccentSelect />
+                </div>
                 <button type="button" className="icon-button" onClick={() => setHelpOpen(true)} aria-label="Hilfe anzeigen">
                   <HelpCircle size={18} aria-hidden />
                 </button>
