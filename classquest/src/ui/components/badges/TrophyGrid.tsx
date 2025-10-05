@@ -4,16 +4,17 @@ import type { Badge } from '~/types/models';
 
 const tileStyle: React.CSSProperties = {
   position: 'relative',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 12,
-  padding: 16,
-  borderRadius: 18,
+  display: 'grid',
+  gridTemplateRows: '1fr auto',
+  placeItems: 'center',
+  gap: 10,
+  width: 120,
+  height: 120,
+  padding: 14,
+  borderRadius: 20,
   border: '1px solid rgba(148,163,184,0.35)',
-  background: 'linear-gradient(180deg, rgba(248,250,252,0.85), rgba(226,232,240,0.75))',
-  boxShadow: '0 16px 40px rgba(15,23,42,0.12)',
+  background: 'linear-gradient(180deg, rgba(248,250,252,0.92), rgba(226,232,240,0.82))',
+  boxShadow: '0 16px 36px rgba(15,23,42,0.12)',
   transition: 'transform 0.18s ease, box-shadow 0.18s ease',
 };
 
@@ -34,10 +35,14 @@ const tooltipStyle: React.CSSProperties = {
 };
 
 const captionStyle: React.CSSProperties = {
-  fontSize: 14,
+  fontSize: 13,
   fontWeight: 600,
   color: '#0f172a',
   textAlign: 'center',
+  maxWidth: '100%',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
 };
 
 type TrophyGridProps = {
@@ -77,11 +82,20 @@ function TrophyTile({ badge }: { badge: Badge }) {
         style={{
           ...tileStyle,
           transform: hover ? 'translateY(-4px) scale(1.02)' : 'translateY(0)',
-          boxShadow: hover ? '0 22px 50px rgba(14,116,144,0.25)' : tileStyle.boxShadow,
+          boxShadow: hover ? '0 22px 48px rgba(14,116,144,0.22)' : tileStyle.boxShadow,
           cursor: 'pointer',
         }}
       >
-        <BadgeIcon name={badge.name} iconKey={badge.iconKey} size={88} />
+        <div
+          style={{
+            width: 64,
+            height: 64,
+            display: 'grid',
+            placeItems: 'center',
+          }}
+        >
+          <BadgeIcon name={badge.name} iconKey={badge.iconKey} size={64} />
+        </div>
         <span style={captionStyle}>{badge.name}</span>
       </button>
       <div
@@ -128,8 +142,8 @@ export function TrophyGrid({ badges, emptyMessage = 'Noch keine Abzeichen – st
         margin: 0,
         padding: 0,
         display: 'grid',
-        gap: 18,
-        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        gap: 16,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
       }}
     >
       {sortedBadges.map((badge) => (

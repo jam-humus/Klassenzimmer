@@ -15,6 +15,7 @@ export default function AccentSelect() {
           onClick={() => setAccent(option.id)}
           aria-pressed={accent === option.id}
           aria-label={option.label}
+          title={option.label}
         />
       ))}
     </div>
