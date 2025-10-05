@@ -8,15 +8,22 @@ type AwardBadgeButtonProps = {
 };
 
 const buttonStyle: CSSProperties = {
-  borderRadius: 12,
-  border: '1px solid #cbd5f5',
-  background: '#fff',
-  padding: '8px 12px',
+  borderRadius: 999,
+  border: '1.5px solid var(--accent)',
+  background: 'color-mix(in oklab, var(--accent), transparent 92%)',
+  padding: '10px 16px',
   fontSize: 13,
   fontWeight: 600,
-  color: '#1e293b',
+  color: 'var(--accent)',
   cursor: 'pointer',
-  boxShadow: '0 6px 14px rgba(15,23,42,0.08)',
+  boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
+  transition: 'background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
+};
+
+const buttonHoverStyle: CSSProperties = {
+  background: 'color-mix(in oklab, var(--accent), transparent 86%)',
+  boxShadow: '0 14px 32px rgba(15,23,42,0.14)',
+  transform: 'translateY(-1px)',
 };
 
 const popoverStyle: CSSProperties = {
@@ -63,6 +70,7 @@ const optionDescriptionStyle: CSSProperties = {
 export default function AwardBadgeButton({ student }: AwardBadgeButtonProps) {
   const { state, dispatch } = useApp();
   const [open, setOpen] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const badgeDefs = useMemo(() => {
@@ -102,10 +110,14 @@ export default function AwardBadgeButton({ student }: AwardBadgeButtonProps) {
     <div ref={containerRef} style={{ position: 'relative', display: 'inline-flex' }}>
       <button
         type="button"
-        style={buttonStyle}
+        style={{ ...buttonStyle, ...(hovered ? buttonHoverStyle : undefined) }}
         onClick={() => setOpen((value) => !value)}
         aria-haspopup="listbox"
         aria-expanded={open}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onFocus={() => setHovered(true)}
+        onBlur={() => setHovered(false)}
       >
         🏅 Badge vergeben
       </button>

@@ -39,14 +39,21 @@ type ProfilePaneProps = {
 
 const containerStyle: CSSProperties = { display: 'flex', height: '100%', minHeight: 0 };
 const sidebarStyle: CSSProperties = {
-  width: 280,
-  padding: '18px 16px',
-  borderRight: '1px solid #d0d7e6',
-  background: '#f1f5f9',
+  width: 292,
+  padding: '24px 18px',
+  borderRight: '1px solid rgba(148,163,184,0.35)',
+  background: 'rgba(248,250,252,0.82)',
+  backdropFilter: 'blur(12px)',
+  boxShadow: 'inset -1px 0 0 rgba(15,23,42,0.08)',
   overflowY: 'auto',
 };
 const listStyle: CSSProperties = { listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 };
-const mainStyle: CSSProperties = { flex: 1, minWidth: 0, overflowY: 'auto', padding: 24 };
+const mainStyle: CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  overflowY: 'auto',
+  padding: '28px clamp(20px, 4vw, 36px)',
+};
 const detailsStyle: CSSProperties = {
   background: '#fff',
   borderRadius: 24,
@@ -132,7 +139,9 @@ export default function ClassOverviewScreen() {
   return (
     <div style={containerStyle}>
       <aside style={sidebarStyle}>
-        <h2 style={{ margin: '0 0 12px', fontSize: 18 }}>Klassenübersicht</h2>
+        <h2 style={{ margin: '0 0 16px', fontSize: 18, lineHeight: '1.6', color: '#0f172a' }}>
+          Klassenübersicht
+        </h2>
         {students.length === 0 ? (
           <p style={{ margin: 0, color: '#475569' }}>Noch keine Schüler angelegt.</p>
         ) : (
@@ -147,16 +156,21 @@ export default function ClassOverviewScreen() {
                     onClick={() => setSelectedId(student.id)}
                     style={{
                       width: '100%',
-                      borderRadius: 14,
-                      border: '1px solid #cbd5f5',
-                      padding: '10px 12px',
-                      background: selected ? '#dbeafe' : '#fff',
+                      borderRadius: 18,
+                      border: '1px solid rgba(148,163,184,0.35)',
+                      padding: '12px 14px',
+                      background: selected ? 'rgba(219,234,254,0.9)' : 'rgba(255,255,255,0.7)',
+                      backdropFilter: 'blur(10px)',
                       cursor: 'pointer',
                       textAlign: 'left',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 12,
-                      boxShadow: selected ? '0 6px 18px rgba(37, 99, 235, 0.18)' : 'none',
+                      gap: 14,
+                      boxShadow: selected
+                        ? '0 12px 30px rgba(37,99,235,0.18)'
+                        : '0 6px 16px rgba(15,23,42,0.06)',
+                      transition: 'background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
+                      transform: selected ? 'translateY(-1px)' : 'translateY(0)',
                     }}
                   >
                     <AvatarView
@@ -171,8 +185,10 @@ export default function ClassOverviewScreen() {
                       rounded="xl"
                     />
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{student.alias}</div>
-                      <div style={{ fontSize: 12, color: '#475569' }}>
+                      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 2, color: '#0f172a' }}>
+                        {student.alias}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'rgba(71,85,105,0.9)' }}>
                         {formatNumber(student.xp)} XP · Level {student.level}
                       </div>
                     </div>

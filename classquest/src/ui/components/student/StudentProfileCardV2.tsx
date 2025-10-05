@@ -104,10 +104,12 @@ export function StudentProfileCardV2({
         padding: '6px 14px',
         borderRadius: 999,
         background: 'linear-gradient(90deg, #f97316, #fb7185)',
-        color: '#fff',
+        color: 'rgba(15,23,42,0.85)',
         fontWeight: 700,
         fontSize: 14,
-        boxShadow: '0 12px 28px rgba(249,115,22,0.35)',
+        boxShadow:
+          '0 0 0 1px rgba(15,23,42,0.18), 0 12px 28px rgba(249,115,22,0.35)',
+        textShadow: '0 1px 0 rgba(255,255,255,0.45)',
       }}
     >
       Level {student.level}
@@ -120,7 +122,7 @@ export function StudentProfileCardV2({
       style={{
         display: 'grid',
         gap: 24,
-        padding: 28,
+        padding: 'clamp(24px, 4vw, 32px)',
         borderRadius: 32,
         border: '1px solid rgba(148,163,184,0.35)',
         background: 'linear-gradient(180deg, rgba(15,23,42,0.9), rgba(15,23,42,0.82))',
@@ -174,7 +176,7 @@ export function StudentProfileCardV2({
             flex: '1 1 280px',
             minWidth: 240,
             display: 'grid',
-            gap: 18,
+            gap: 16,
             alignContent: 'start',
           }}
         >
@@ -206,18 +208,31 @@ export function StudentProfileCardV2({
             </div>
             {levelPill}
           </div>
-          <div style={{ display: 'grid', gap: 10 }}>
-            <div style={{ fontSize: 14, color: 'rgba(226,232,240,0.9)' }}>
-              {formatNumber(progress.inLevel)} / {formatNumber(xpPerLevel)} XP in diesem Level
+          <div style={{ display: 'grid', gap: 16 }}>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                fontSize: 14,
+                color: 'rgba(226,232,240,0.85)',
+              }}
+            >
+              <span>Level-Fortschritt</span>
+              <span style={{ fontWeight: 600, color: '#f8fafc' }}>
+                {formatNumber(progress.inLevel)} / {formatNumber(xpPerLevel)} XP
+              </span>
             </div>
             <div
               aria-hidden
               style={{
                 height: 14,
                 borderRadius: 999,
-                background: 'rgba(30,41,59,0.65)',
+                background: 'rgba(15,23,42,0.16)',
                 overflow: 'hidden',
-                border: '1px solid rgba(148,163,184,0.45)',
+                border: '1px solid rgba(15,23,42,0.24)',
               }}
             >
               <div
@@ -225,8 +240,9 @@ export function StudentProfileCardV2({
                   width: `${Math.round(progress.ratio * 100)}%`,
                   height: '100%',
                   borderRadius: 999,
-                  background: 'linear-gradient(90deg, #22d3ee, #38bdf8)',
-                  boxShadow: '0 12px 28px rgba(8,145,178,0.45)',
+                  background:
+                    'linear-gradient(90deg, var(--accent), color-mix(in oklab, var(--accent), white 12%))',
+                  boxShadow: '0 10px 24px rgba(34,211,238,0.25)',
                 }}
               />
             </div>
@@ -238,7 +254,7 @@ export function StudentProfileCardV2({
             style={{
               display: 'flex',
               flexWrap: 'wrap',
-              gap: 12,
+              gap: 16,
               alignItems: 'center',
             }}
           >
@@ -264,11 +280,11 @@ export function StudentProfileCardV2({
       </div>
 
       <section style={{ display: 'grid', gap: 10 }}>
-        <h2 style={{ margin: 0, fontSize: 18, color: '#e2e8f0' }}>Top-Kategorien</h2>
+        <h2 style={{ margin: 0, fontSize: 18, lineHeight: '1.6', color: '#e2e8f0' }}>Top-Kategorien</h2>
         {topCategories.length === 0 ? (
           <p style={{ margin: 0, color: 'rgba(226,232,240,0.75)' }}>Noch keine Kategorien vergeben.</p>
         ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
             {topCategories.map((entry) => {
               const ratio = categoriesTotal > 0 ? Math.round((entry.xp / categoriesTotal) * 100) : 0;
               return (

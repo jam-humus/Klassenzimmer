@@ -98,24 +98,31 @@ body {
   width: 1.9rem;
   height: 1.9rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
   cursor: pointer;
   position: relative;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.accent-swatch:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.32);
 }
 
 .accent-swatch:focus-visible {
   outline: 3px solid var(--ring);
   outline-offset: 2px;
+  transform: translateY(-1px);
 }
 
 .accent-swatch[data-active='true']::after {
   content: '';
   position: absolute;
-  inset: -4px;
+  inset: -3px;
   border-radius: inherit;
   border: 2px solid var(--accent);
-  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent), transparent 60%);
+  box-shadow: 0 0 0 6px color-mix(in oklab, var(--accent), transparent 72%);
 }
 
 [data-bg='none'] .app-shell::before {
