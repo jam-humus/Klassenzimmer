@@ -1,25 +1,80 @@
-:root {
-  --bg: #0b0f1a;
-  --card: #12182a;
-  --text: #e6f0ff;
-  --accent: #ffa62b;
-  --accent-2: #6ad5ff;
-  --muted: #8ea2c2;
-  --ring: #ffd26b;
+:root,
+:root[data-theme='dark'] {
+  --bg: #0b1220;
+  --bg-rgb: 11 18 32;
+  --fg: #e5e7eb;
+  --fg-rgb: 229 231 235;
+  --muted: #9aa4b2;
+  --muted-rgb: 154 164 178;
+  --card: #0f172a;
+  --card-rgb: 15 23 42;
+  --card-fg: #e5e7eb;
+  --card-fg-rgb: 229 231 235;
+  --ring: #22d3ee;
+  --ring-rgb: 34 211 238;
+  --accent: #22d3ee;
+  --accent-rgb: 34 211 238;
+  --success: #10b981;
+  --success-rgb: 16 185 129;
+  --warning: #f59e0b;
+  --warning-rgb: 245 158 11;
+  --info: #60a5fa;
+  --info-rgb: 96 165 250;
+  --surface-glass: color-mix(in srgb, var(--bg) 85%, transparent);
+  --text: var(--fg);
+  --accent-2: color-mix(in oklab, var(--accent) 70%, white 30%);
 }
 
-html[data-theme="space"] {
-  --bg: #070b16;
-  --card: #0e1528;
-  --text: #e9f2ff;
-  --accent: #ffa62b;
-  --accent-2: #6ad5ff;
-  --muted: #8ea2c2;
-  --ring: #ffd26b;
+:root[data-theme='light'] {
+  --bg: #f8fafc;
+  --bg-rgb: 248 250 252;
+  --fg: #0f172a;
+  --fg-rgb: 15 23 42;
+  --muted: #475569;
+  --muted-rgb: 71 85 105;
+  --card: #ffffff;
+  --card-rgb: 255 255 255;
+  --card-fg: #0f172a;
+  --card-fg-rgb: 15 23 42;
+  --ring: #2563eb;
+  --ring-rgb: 37 99 235;
+  --accent: #ef4444;
+  --accent-rgb: 239 68 68;
+  --success: #16a34a;
+  --success-rgb: 22 163 74;
+  --warning: #f59e0b;
+  --warning-rgb: 245 158 11;
+  --info: #2563eb;
+  --info-rgb: 37 99 235;
+  --surface-glass: color-mix(in srgb, var(--bg) 92%, rgba(15, 23, 42, 0.08));
+  --text: var(--fg);
+  --accent-2: color-mix(in oklab, var(--accent) 60%, #2563eb 40%);
 }
 
-/* Optional: Platzhalter für andere Themes */
-html[data-theme="dark"] { }
-html[data-theme="light"] { }
+:root[data-accent='electricBlue'] {
+  --accent: #22d3ee;
+  --accent-rgb: 34 211 238;
+  --ring: #22d3ee;
+  --ring-rgb: 34 211 238;
+}
 
-body { background: var(--bg); color: var(--text); }
+:root[data-accent='vividOrange'] {
+  --accent: #fb923c;
+  --accent-rgb: 251 146 60;
+  --ring: #fb923c;
+  --ring-rgb: 251 146 60;
+}
+
+:root[data-accent='magentaPop'] {
+  --accent: #e879f9;
+  --accent-rgb: 232 121 249;
+  --ring: #e879f9;
+  --ring-rgb: 232 121 249;
+}
+
+:root[data-accent='emerald'] {
+  --accent: #34d399;
+  --accent-rgb: 52 211 153;
+  --ring: #34d399;
+  --ring-rgb: 52 211 153;
+}
