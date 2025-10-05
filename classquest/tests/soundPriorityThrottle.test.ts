@@ -54,6 +54,56 @@ describe('sound priority and throttling', () => {
     expect(soundManager.play).toHaveBeenCalledWith('badge-award');
   });
 
+  it('plays only the level sound when a quest causes a level up', async () => {
+    let state = createInitialState();
+    state = addStudent(state, { id: 's1', alias: 'Alice', xp: 90 });
+    state = addQuest(state, {
+      id: 'q1',
+      name: 'Quest',
+      xp: 20,
+      type: 'repeatable',
+      target: 'individual',
+      active: true,
+    });
+
+    state = awardQuest(state, { questId: 'q1', studentId: 's1' });
+
+    await advance(200);
+
+    expect(soundManager.play).toHaveBeenCalledTimes(1);
+    expect(soundManager.play).toHaveBeenCalledWith('level-up');
+  });
+
+  it('plays only the badge sound when a quest grants a new badge', async () => {
+    let state = createInitialState();
+    state = {
+      ...state,
+      badgeDefs: [
+        {
+          id: 'total-120',
+          name: 'Total XP 120',
+          rule: { type: 'total_xp', threshold: 120 },
+        },
+      ],
+    };
+    state = addStudent(state, { id: 's1', alias: 'Alice', xp: 110 });
+    state = addQuest(state, {
+      id: 'q1',
+      name: 'Quest',
+      xp: 15,
+      type: 'repeatable',
+      target: 'individual',
+      active: true,
+    });
+
+    state = awardQuest(state, { questId: 'q1', studentId: 's1' });
+
+    await advance(200);
+
+    expect(soundManager.play).toHaveBeenCalledTimes(1);
+    expect(soundManager.play).toHaveBeenCalledWith('badge-award');
+  });
+
   it('throttles repeated xp events while still awarding xp', async () => {
     let state = createInitialState();
     state = addStudent(state, { id: 's1', alias: 'Alice' });
