@@ -6,16 +6,10 @@ import {
   assignStudentToTeam,
   awardQuest,
   createInitialState,
-  resetXpAwardCooldown,
   setQuestActive,
 } from '~/core/state';
 
-beforeEach(() => {
-  resetXpAwardCooldown();
-});
-
 afterEach(() => {
-  resetXpAwardCooldown();
   vi.restoreAllMocks();
   vi.useRealTimers();
 });

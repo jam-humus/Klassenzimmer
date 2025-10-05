@@ -10,7 +10,6 @@ import { useFeedback } from '~/ui/feedback/FeedbackProvider';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Quest, Team } from '~/types/models';
 import { playXpAwardedEffectsCoalesced } from '~/utils/effects';
-import { canAwardXp } from '~/core/state';
 import { playLottieOverlay } from '~/ui/anim/playLottie';
 
 const TILE_MIN_WIDTH = 240;
@@ -83,7 +82,6 @@ export default function AwardScreen() {
     () => allStudents.filter((student) => selected.has(student.id)).map((student) => student.id),
     [allStudents, selected],
   );
-  const canAwardStudent = useCallback((id: string) => canAwardXp(state, id), [state]);
   const virtualize = Boolean(state.settings.flags?.virtualize);
   const columnCount = Math.max(1, columns || 1);
   const rowCount = Math.ceil(students.length / columnCount);
@@ -258,14 +256,11 @@ export default function AwardScreen() {
 
   const awardStudent = useCallback(
     (studentId: string, quest: Quest) => {
-      if (!canAwardStudent(studentId)) {
-        return false;
-      }
       dispatch({ type: 'AWARD', payload: { questId: quest.id, studentId } });
       playXpAwardedEffectsCoalesced();
       return true;
     },
-    [dispatch, canAwardStudent],
+    [dispatch],
   );
 
   const awardSelected = useCallback(() => {
@@ -319,8 +314,7 @@ export default function AwardScreen() {
       const team = groups.find((t) => t.id === teamId);
       if (!team) return;
       if (activeQuest.target === 'team') {
-        const hasEligibleMembers = team.memberIds.some((memberId) => canAwardStudent(memberId));
-        if (!hasEligibleMembers) {
+        if (team.memberIds.length === 0) {
           return;
         }
         dispatch({ type: 'AWARD', payload: { questId: activeQuest.id, teamId: team.id } });
@@ -344,7 +338,7 @@ export default function AwardScreen() {
       showUndoToast(activeQuest, label);
       feedback.success(`${activeQuest.name} an ${label}`);
     },
-    [activeQuest, groups, dispatch, awardStudent, canAwardStudent, showUndoToast, feedback],
+    [activeQuest, groups, dispatch, awardStudent, showUndoToast, feedback],
   );
 
   useEffect(() => {
@@ -433,7 +427,6 @@ export default function AwardScreen() {
   const selectAll = useCallback(() => setMany(students.map((s) => s.id)), [students, setMany]);
 
   const selectedCount = orderedSelectedIds.length;
-  const allBlocked = selectedCount > 0 && orderedSelectedIds.every((id) => !canAwardStudent(id));
 
   return (
     <div ref={containerRef} onKeyDown={onKeyDown} style={{ height: '100%', overflowY: 'auto', padding: '0 0 24px' }}>
@@ -480,7 +473,7 @@ export default function AwardScreen() {
                   key={team.id}
                   team={team}
                   membersCount={team.memberIds.length}
-                  disabled={!activeQuest || team.memberIds.every((memberId) => !canAwardStudent(memberId))}
+                  disabled={!activeQuest || team.memberIds.length === 0}
                   onAward={awardGroup}
                 />
               ))}
@@ -506,9 +499,8 @@ export default function AwardScreen() {
             <button
               type="button"
               onClick={awardSelected}
-              disabled={!activeQuest || selectedCount === 0 || allBlocked}
-              aria-disabled={!activeQuest || selectedCount === 0 || allBlocked}
-              title={!activeQuest || selectedCount === 0 ? undefined : allBlocked ? 'Kurz warten…' : undefined}
+              disabled={!activeQuest || selectedCount === 0}
+              aria-disabled={!activeQuest || selectedCount === 0}
               style={{
                 padding: '10px 18px',
                 borderRadius: 12,
@@ -518,8 +510,8 @@ export default function AwardScreen() {
                 border: 'none',
                 minWidth: 200,
                 cursor:
-                  !activeQuest || selectedCount === 0 || allBlocked ? 'not-allowed' : 'pointer',
-                opacity: !activeQuest || selectedCount === 0 || allBlocked ? 0.6 : 1,
+                  !activeQuest || selectedCount === 0 ? 'not-allowed' : 'pointer',
+                opacity: !activeQuest || selectedCount === 0 ? 0.6 : 1,
               }}
             >
               Allen ausgewählten vergeben
