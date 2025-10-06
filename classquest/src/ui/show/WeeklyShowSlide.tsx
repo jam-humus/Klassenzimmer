@@ -1,10 +1,12 @@
 import React from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '~/app/AppContext';
 import { AvatarView } from '~/ui/avatar/AvatarView';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
 import EvolutionSequence from '~/ui/show/EvolutionSequence';
 import WeeklyClassGoalRocket from '~/ui/show/WeeklyClassGoalRocket';
 import type { WeeklyDelta } from '~/core/show/weekly';
+import { eventBus } from '~/lib/EventBus';
 
 const AVATAR_SIZE = 220;
 
@@ -22,10 +24,13 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
   const student = state.students.find((entry) => entry.id === data.studentId);
   const [phase, setPhase] = React.useState<'intro' | 'xp' | 'level' | 'badges' | 'done'>('intro');
   const [showCurrentStage, setShowCurrentStage] = React.useState(false);
+  const [levelPulseKey, setLevelPulseKey] = React.useState(0);
   const xpGain = Math.max(0, data.xpEnd - data.xpStart);
   const levelGain = Math.max(0, data.levelEnd - data.levelStart);
   const hasNewBadges = data.newBadges.length > 0;
   const evolved = data.avatarStageEnd > data.avatarStageStart;
+  const badgeAnimationBaseDelay = 0.22;
+  const badgeAnimationStagger = 0.14;
   React.useEffect(() => {
     setPhase('intro');
     const timers: number[] = [];
@@ -52,6 +57,29 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
     const timer = window.setTimeout(() => setShowCurrentStage(true), 120);
     return () => window.clearTimeout(timer);
   }, [data.studentId]);
+
+  React.useEffect(() => {
+    if (phase === 'level' && levelGain > 0) {
+      setLevelPulseKey((value) => value + 1);
+    }
+  }, [phase, levelGain, data.studentId]);
+
+  React.useEffect(() => {
+    if (!hasNewBadges || phase !== 'badges' || typeof window === 'undefined') {
+      return;
+    }
+
+    const timers = data.newBadges.map((badge, index) => {
+      const timeoutMs = Math.round((badgeAnimationBaseDelay + index * badgeAnimationStagger) * 1000);
+      return window.setTimeout(() => {
+        eventBus.emit({ type: 'slideshow:badge:flyin', badgeId: badge.id });
+      }, timeoutMs);
+    });
+
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id));
+    };
+  }, [badgeAnimationBaseDelay, badgeAnimationStagger, data.newBadges, hasNewBadges, phase]);
 
   if (!student) {
     return (
@@ -84,37 +112,63 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
       }}
     >
       <h3 style={{ margin: 0, fontSize: 20 }}>Neue Badges</h3>
-      <ul
-        style={{
-          margin: 0,
-          padding: 0,
-          listStyle: 'none',
-          display: 'grid',
-          gap: 12,
-        }}
-      >
-        {data.newBadges.map((badge) => (
-          <li
-            key={badge.id}
+      <AnimatePresence mode="sync">
+        {hasNewBadges && (
+          <motion.ul
+            key={`${data.studentId}-${data.newBadges.length}`}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: badgeAnimationStagger,
+                  delayChildren: badgeAnimationBaseDelay,
+                },
+              },
+            }}
             style={{
-              display: 'flex',
-              alignItems: 'center',
+              margin: 0,
+              padding: 0,
+              listStyle: 'none',
+              display: 'grid',
               gap: 12,
-              padding: '8px 12px',
-              borderRadius: 12,
-              background: 'rgba(15,23,42,0.3)',
             }}
           >
-            <BadgeIcon name={badge.name} iconKey={badge.iconKey} size={48} />
-            <div style={{ display: 'grid', gap: 4 }}>
-              <strong>{badge.name}</strong>
-              <span style={{ fontSize: 12, opacity: 0.8 }}>
-                Verliehen am {new Date(badge.awardedAt).toLocaleDateString('de-DE')}
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
+            {data.newBadges.map((badge, index) => (
+              <motion.li
+                key={badge.id}
+                initial={{ opacity: 0, x: index % 2 === 0 ? -32 : 32, y: -16 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                exit={{ opacity: 0, x: 0, y: 12 }}
+                transition={{
+                  duration: 0.6,
+                  ease: 'easeOut',
+                  delay: badgeAnimationBaseDelay + index * badgeAnimationStagger,
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '8px 12px',
+                  borderRadius: 12,
+                  background: 'rgba(15,23,42,0.3)',
+                }}
+              >
+                <BadgeIcon name={badge.name} iconKey={badge.iconKey} size={48} />
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <strong>{badge.name}</strong>
+                  <span style={{ fontSize: 12, opacity: 0.8 }}>
+                    Verliehen am {new Date(badge.awardedAt).toLocaleDateString('de-DE')}
+                  </span>
+                </div>
+              </motion.li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
     </div>
   );
 
@@ -222,26 +276,63 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
                   {formatNumber(data.xpStart)} → {formatNumber(data.xpEnd)}
                 </span>
               </div>
-              <div
-                style={{
-                  ...metricStyle,
-                  opacity: phase === 'level' || phase === 'badges' || phase === 'done' ? 1 : 0,
-                  transform:
-                    phase === 'level' || phase === 'badges' || phase === 'done'
-                      ? 'translateY(0)'
-                      : 'translateY(12px)',
-                  transition: 'opacity 0.5s ease, transform 0.5s ease',
-                }}
-              >
-                <span style={{ fontSize: 14, opacity: 0.75 }}>Level</span>
-                <strong style={{ fontSize: 28 }}>
-                  {data.levelStart} → {data.levelEnd}
-                </strong>
-                <span style={{ fontSize: 14, opacity: 0.75 }}>
-                  {levelGain > 0 ? `+${levelGain} Level` : 'Stufe gehalten'}
-                </span>
-                {evolved && <span style={{ fontSize: 13, color: '#fde047' }}>Avatar ist eine Stufe aufgestiegen!</span>}
-              </div>
+              <AnimatePresence mode="sync">
+                <motion.div
+                  key={`${data.studentId}-${levelPulseKey}`}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{
+                    opacity: phase === 'level' || phase === 'badges' || phase === 'done' ? 1 : 0,
+                    y: phase === 'level' || phase === 'badges' || phase === 'done' ? 0 : 12,
+                    scale: phase === 'level' && levelGain > 0 ? [1, 1.12, 1] : 1,
+                  }}
+                  exit={{ opacity: 0, y: 12 }}
+                  transition={{
+                    opacity: { duration: 0.5, ease: 'easeOut' },
+                    y: { duration: 0.5, ease: 'easeOut' },
+                    scale:
+                      phase === 'level' && levelGain > 0
+                        ? { duration: 0.8, ease: 'easeInOut' }
+                        : { duration: 0.4, ease: 'easeInOut' },
+                  }}
+                  style={{
+                    ...metricStyle,
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <AnimatePresence>
+                    {phase === 'level' && levelGain > 0 && (
+                      <motion.div
+                        key="level-glow"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: [0, 0.5, 0] }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.8, ease: 'easeInOut' }}
+                        style={{
+                          position: 'absolute',
+                          inset: -6,
+                          borderRadius: 24,
+                          background:
+                            'radial-gradient(circle at center, rgba(250,204,21,0.4), rgba(250,204,21,0) 70%)',
+                          pointerEvents: 'none',
+                        }}
+                      />
+                    )}
+                  </AnimatePresence>
+                  <span style={{ fontSize: 14, opacity: 0.75 }}>Level</span>
+                  <strong style={{ fontSize: 28 }}>
+                    {data.levelStart} → {data.levelEnd}
+                  </strong>
+                  <span style={{ fontSize: 14, opacity: 0.75 }}>
+                    {levelGain > 0 ? `+${levelGain} Level` : 'Stufe gehalten'}
+                  </span>
+                  {evolved && (
+                    <span style={{ fontSize: 13, color: '#fde047' }}>
+                      Avatar ist eine Stufe aufgestiegen!
+                    </span>
+                  )}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
         </div>
