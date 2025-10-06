@@ -3,6 +3,7 @@ import { useApp } from '~/app/AppContext';
 import { AvatarView } from '~/ui/avatar/AvatarView';
 import { BadgeIcon } from '~/ui/components/BadgeIcon';
 import EvolutionSequence from '~/ui/show/EvolutionSequence';
+import WeeklyClassGoalRocket from '~/ui/show/WeeklyClassGoalRocket';
 import type { WeeklyDelta } from '~/core/show/weekly';
 
 const AVATAR_SIZE = 220;
@@ -187,42 +188,60 @@ export default function WeeklyShowSlide({ data, durationMs = 12000 }: WeeklyShow
             </span>
             <h2 style={{ margin: 0, fontSize: 36 }}>{student.alias}</h2>
           </div>
-          <div style={{ display: 'grid', gap: 12 }}>
+          <div
+            style={{
+              display: 'grid',
+              gap: 16,
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              alignItems: 'stretch',
+            }}
+          >
             <div
               style={{
-                ...metricStyle,
                 opacity: phase === 'intro' ? 0 : 1,
                 transform: phase === 'intro' ? 'translateY(12px)' : 'translateY(0)',
                 transition: 'opacity 0.5s ease, transform 0.5s ease',
               }}
             >
-              <span style={{ fontSize: 14, opacity: 0.75 }}>XP</span>
-              <strong style={{ fontSize: 28 }}>
-                {xpGain > 0 ? `+${formatNumber(xpGain)} XP` : 'Keine neuen XP'}
-              </strong>
-              <span style={{ fontSize: 14, opacity: 0.75 }}>
-                {formatNumber(data.xpStart)} → {formatNumber(data.xpEnd)}
-              </span>
+              <WeeklyClassGoalRocket />
             </div>
-            <div
-              style={{
-                ...metricStyle,
-                opacity: phase === 'level' || phase === 'badges' || phase === 'done' ? 1 : 0,
-                transform:
-                  phase === 'level' || phase === 'badges' || phase === 'done'
-                    ? 'translateY(0)'
-                    : 'translateY(12px)',
-                transition: 'opacity 0.5s ease, transform 0.5s ease',
-              }}
-            >
-              <span style={{ fontSize: 14, opacity: 0.75 }}>Level</span>
-              <strong style={{ fontSize: 28 }}>
-                {data.levelStart} → {data.levelEnd}
-              </strong>
-              <span style={{ fontSize: 14, opacity: 0.75 }}>
-                {levelGain > 0 ? `+${levelGain} Level` : 'Stufe gehalten'}
-              </span>
-              {evolved && <span style={{ fontSize: 13, color: '#fde047' }}>Avatar ist eine Stufe aufgestiegen!</span>}
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div
+                style={{
+                  ...metricStyle,
+                  opacity: phase === 'intro' ? 0 : 1,
+                  transform: phase === 'intro' ? 'translateY(12px)' : 'translateY(0)',
+                  transition: 'opacity 0.5s ease, transform 0.5s ease',
+                }}
+              >
+                <span style={{ fontSize: 14, opacity: 0.75 }}>XP</span>
+                <strong style={{ fontSize: 28 }}>
+                  {xpGain > 0 ? `+${formatNumber(xpGain)} XP` : 'Keine neuen XP'}
+                </strong>
+                <span style={{ fontSize: 14, opacity: 0.75 }}>
+                  {formatNumber(data.xpStart)} → {formatNumber(data.xpEnd)}
+                </span>
+              </div>
+              <div
+                style={{
+                  ...metricStyle,
+                  opacity: phase === 'level' || phase === 'badges' || phase === 'done' ? 1 : 0,
+                  transform:
+                    phase === 'level' || phase === 'badges' || phase === 'done'
+                      ? 'translateY(0)'
+                      : 'translateY(12px)',
+                  transition: 'opacity 0.5s ease, transform 0.5s ease',
+                }}
+              >
+                <span style={{ fontSize: 14, opacity: 0.75 }}>Level</span>
+                <strong style={{ fontSize: 28 }}>
+                  {data.levelStart} → {data.levelEnd}
+                </strong>
+                <span style={{ fontSize: 14, opacity: 0.75 }}>
+                  {levelGain > 0 ? `+${levelGain} Level` : 'Stufe gehalten'}
+                </span>
+                {evolved && <span style={{ fontSize: 13, color: '#fde047' }}>Avatar ist eine Stufe aufgestiegen!</span>}
+              </div>
             </div>
           </div>
         </div>
