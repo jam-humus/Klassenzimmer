@@ -3,6 +3,7 @@ import { useApp } from '~/app/AppContext';
 import { AvatarView } from '~/ui/avatar/AvatarView';
 import type { Student } from '~/types/models';
 import { getAvatarStageUrl } from '~/core/show/avatarStageUrl';
+import { ConfettiBurst } from '~/ui/show/ConfettiBurst';
 
 type EvolutionPhase = 'preload' | 'shake' | 'flash' | 'reveal' | 'hold' | 'done';
 
@@ -140,6 +141,7 @@ export default function EvolutionSequence({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   };
 
   const borderRadius = Math.min(size / 2, 24);
@@ -165,6 +167,7 @@ export default function EvolutionSequence({
   }
 
   const revealActive = phase === 'reveal' || phase === 'hold' || phase === 'done';
+  const confettiActive = phase === 'reveal' || phase === 'hold' || phase === 'done';
 
   return (
     <div style={containerStyle}>
@@ -178,13 +181,27 @@ export default function EvolutionSequence({
             bottom: -32,
             left: -32,
             borderRadius: size,
-            background: 'radial-gradient(40% 40% at 50% 50%, rgba(255,220,100,0.28), transparent 60%)',
-            opacity: 0.8,
+            background: 'radial-gradient(40% 40% at 50% 50%, rgba(255,220,100,0.32), transparent 60%)',
+            opacity: phase === 'shake' ? 0.6 : 0.85,
             filter: 'blur(36px)',
             pointerEvents: 'none',
+            transition: 'opacity 300ms ease',
           }}
         />
       )}
+
+      <div
+        aria-hidden="true"
+        className={phase === 'reveal' ? 'evo-glow' : undefined}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius,
+          boxShadow: '0 0 0 0 rgba(255, 204, 102, 0.65)',
+          pointerEvents: 'none',
+          mixBlendMode: 'screen',
+        }}
+      />
 
       {previousUrl && (
         <img
@@ -224,9 +241,13 @@ export default function EvolutionSequence({
           style={{
             ...imageStyle,
             opacity: revealActive ? 1 : 0,
+            transform: revealActive ? undefined : 'scale(0.9)',
+            transformOrigin: '50% 50%',
           }}
         />
       )}
+
+      <ConfettiBurst active={confettiActive} size={size} />
 
       <span className="sr-only" aria-live="polite">
         {phase === 'reveal' && 'Avatar hat sich entwickelt.'}
@@ -248,6 +269,9 @@ export default function EvolutionSequence({
         .evo-shake {
           animation: evoShake 600ms ease-in-out both;
         }
+        .evo-glow {
+          animation: evoGlow 1100ms ease-out both;
+        }
         @keyframes evoFlash {
           0% { opacity: 0; }
           20% { opacity: 1; }
@@ -256,8 +280,19 @@ export default function EvolutionSequence({
         .evo-flash {
           animation: evoFlash 250ms ease-out both;
         }
+        @keyframes evoGlow {
+          0% { box-shadow: 0 0 0 0 rgba(255, 204, 102, 0.0); opacity: 0; }
+          25% { box-shadow: 0 0 18px 6px rgba(255, 204, 102, 0.65); opacity: 1; }
+          80% { box-shadow: 0 0 36px 14px rgba(255, 204, 102, 0.4); opacity: 0.4; }
+          100% { box-shadow: 0 0 48px 16px rgba(255, 204, 102, 0.0); opacity: 0; }
+        }
         .evo-reveal {
-          transition: opacity 800ms ease;
+          animation: evoReveal 800ms cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+        }
+        @keyframes evoReveal {
+          0% { opacity: 0; transform: scale(0.82); filter: drop-shadow(0 0 0 rgba(255, 220, 120, 0)); }
+          50% { opacity: 1; transform: scale(1.08); filter: drop-shadow(0 0 16px rgba(255, 220, 120, 0.45)); }
+          100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 6px rgba(255, 220, 120, 0.3)); }
         }
       `}</style>
     </div>
