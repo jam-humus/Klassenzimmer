@@ -2,18 +2,19 @@ import React from 'react';
 import { useApp } from '~/app/AppContext';
 import { selectClassProgressView } from '~/core/selectors/classProgress';
 import { getObjectURL } from '~/services/blobStore';
-
-const numberFormatter = new Intl.NumberFormat('de-DE');
+import {
+  classProgressNumberFormatter,
+  getFormattedClassProgressCopy,
+} from '~/ui/components/classProgressFormatting';
 
 export function ClassProgressBar() {
   const { state } = useApp();
   const view = selectClassProgressView(state);
   const starLabel = state.settings.classStarsName ?? 'Stern';
   const percent = Math.round(view.pct * 100);
-  const formattedCurrent = numberFormatter.format(view.current);
-  const formattedStep = numberFormatter.format(view.step);
-  const formattedRemaining = numberFormatter.format(view.remaining);
-  const formattedStars = numberFormatter.format(view.stars);
+  const { formattedCurrent, formattedStep, formattedRemaining, announcement } =
+    getFormattedClassProgressCopy(view, starLabel);
+  const formattedStars = classProgressNumberFormatter.format(view.stars);
   const [starIconUrl, setStarIconUrl] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -58,7 +59,7 @@ export function ClassProgressBar() {
         <div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Klassen-XP</h2>
           <p style={{ margin: '6px 0 0', color: 'rgba(15,23,42,0.7)', fontSize: 14 }} aria-live="polite">
-            {formattedCurrent} / {formattedStep} XP – noch {formattedRemaining} XP bis zum nächsten {starLabel}
+            {announcement}
           </p>
         </div>
         <div

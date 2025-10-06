@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useApp } from '~/app/AppContext';
 import { selectClassProgressView } from '~/core/selectors/classProgress';
 import { ClassProgressBar } from '~/ui/components/ClassProgressBar';
+import ClassGoalRocket from '~/ui/components/ClassGoalRocket';
 import '~/ui/screens/dashboard.css';
 
 type DashboardScreenProps = {
@@ -113,9 +114,16 @@ export default function DashboardScreen({ onAddXp, onOpenWeeklyShow }: Dashboard
               XP hinzufügen
             </button>
           </header>
-          <SegmentedXpBar current={classProgress.current} step={classProgress.step} />
-          <StarRow stars={classProgress.stars} />
-          <ClassProgressBar />
+          <div className="dashboard-progress">
+            <div className="dashboard-progress__rocket">
+              <ClassGoalRocket />
+            </div>
+            <div className="dashboard-progress__metrics">
+              <SegmentedXpBar current={classProgress.current} step={classProgress.step} />
+              <StarRow stars={classProgress.stars} />
+              <ClassProgressBar />
+            </div>
+          </div>
         </section>
 
         <section className="dashboard-card" aria-label="Neueste Aktivitäten">

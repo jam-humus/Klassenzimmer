@@ -110,6 +110,25 @@
   gap: 24px;
 }
 
+.dashboard-progress {
+  display: grid;
+  grid-template-columns: minmax(200px, 240px) 1fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.dashboard-progress__rocket {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.dashboard-progress__metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .dashboard-section-head {
   display: flex;
   justify-content: space-between;
@@ -264,6 +283,14 @@
 
   .dashboard-card__count {
     justify-items: start;
+  }
+
+  .dashboard-progress {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-progress__rocket {
+    justify-content: flex-start;
   }
 }
 
