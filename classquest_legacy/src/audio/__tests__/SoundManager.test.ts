@@ -26,7 +26,7 @@ const mocks = vi.hoisted(() => {
 
 const blobStoreMocks = vi.hoisted(() => ({
   getObjectURL: vi.fn(async (id: string) => `blob://${id}`),
-  getBlob: vi.fn(async () => null),
+  getBlob: vi.fn<() => Promise<Blob | null>>(async () => null),
   clearObjectURL: vi.fn(),
 }));
 

@@ -95,7 +95,11 @@ export function ClassProgressBar() {
           }}
         />
       </div>
-      <div style={{ fontSize: 12, color: 'rgba(15,23,42,0.6)' }}>Schrittgröße: {formattedStep} XP</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'rgba(15,23,42,0.65)' }}>
+        <div>Aktueller Fortschritt: {formattedCurrent} XP</div>
+        <div>Noch {formattedRemaining} XP bis zum nächsten Schritt</div>
+        <div>Schrittgröße: {formattedStep} XP</div>
+      </div>
     </section>
   );
 }
