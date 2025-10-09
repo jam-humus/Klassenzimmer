@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.classquest.db
+classquest.db
+
+# Block binary assets
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.webp
+*.mp4
+*.mov
+*.avi
+*.zip
+*.psd
+*.ico
