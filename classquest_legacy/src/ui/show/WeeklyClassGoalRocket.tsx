@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import React from 'react';
+import type { Transition } from 'framer-motion';
 import { useApp } from '~/app/AppContext';
 import { selectClassProgressView } from '~/core/selectors/classProgress';
 import { getFormattedClassProgressCopy } from '~/ui/components/classProgressFormatting';
@@ -13,7 +13,12 @@ const rocketSvg = `
 
 const rocketMask = `url("data:image/svg+xml,${encodeURIComponent(rocketSvg)}")`;
 
-const fillTransition = { type: 'spring', stiffness: 140, damping: 20, mass: 0.6 };
+const fillTransition = {
+  type: 'spring',
+  stiffness: 140,
+  damping: 20,
+  mass: 0.6,
+} satisfies Transition;
 
 export default function WeeklyClassGoalRocket() {
   const { state } = useApp();

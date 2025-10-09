@@ -100,7 +100,7 @@ export function SoundSettingsProvider({ children }: PropsWithChildren): JSX.Elem
     };
 
     let pending: { evt: AppSoundEvent; prio: number } | null = null;
-    let timer: ReturnType<typeof window.setTimeout> | null = null;
+    let timer: number | null = null;
 
     const flush = () => {
       if (!pending) return;

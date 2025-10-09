@@ -258,7 +258,6 @@ class SoundManager {
   }
 
   private async resolveOverride(
-    key: SoundKey,
     override: SoundOverride | string | undefined,
   ): Promise<OverrideConfig | null> {
     const normalized = this.normalizeOverride(override);
@@ -329,7 +328,7 @@ class SoundManager {
     key: SoundKey,
     override: SoundOverride | string | undefined,
   ): Promise<void> {
-    const resolved = await this.resolveOverride(key, override);
+    const resolved = await this.resolveOverride(override);
     const previous = this.overrideConfigs.get(key);
     if (previous?.blobId && previous.blobId !== resolved?.blobId) {
       clearObjectURL(previous.blobId);

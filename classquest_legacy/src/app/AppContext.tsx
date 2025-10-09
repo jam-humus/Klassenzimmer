@@ -75,10 +75,8 @@ const sanitizeSoundOverrides = (
       }
 
       if (value && typeof value === 'object') {
-        const source =
-          typeof (value as { source?: unknown }).source === 'string'
-            ? (value as { source?: string }).source.trim()
-            : '';
+        const rawSource = (value as { source?: unknown }).source;
+        const source = typeof rawSource === 'string' ? rawSource.trim() : '';
         if (!source) {
           return null;
         }
