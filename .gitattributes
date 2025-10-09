@@ -1,1 +1,16 @@
-classquest/public/space/wallpapers/*.jpg text diff=astextplain
+# Recognise SVG assets as text
+*.svg text eol=lf
+
+# Block binary assets from being treated as text
+*.png  -text binary
+*.jpg  -text binary
+*.jpeg -text binary
+*.gif  -text binary
+*.bmp  -text binary
+*.webp -text binary
+*.mp4  -text binary
+*.mov  -text binary
+*.avi  -text binary
+*.zip  -text binary
+*.psd  -text binary
+*.ico  -text binary
