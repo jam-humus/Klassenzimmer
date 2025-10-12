@@ -1,0 +1,13 @@
+{
+  "name": "classquest-desktop",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Compatibility shim for the archived ClassQuest web client. Boots the new PyQt desktop app.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "node ./run-desktop.js",
+    "start": "node ./run-desktop.js",
+    "build": "npm --prefix ../classquest_legacy run build",
+    "test": "npm --prefix ../classquest_legacy test"
+  }
+}
