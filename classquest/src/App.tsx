@@ -40,6 +40,7 @@ import {
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import AccentSelect from '@/components/ui/AccentSelect';
 import { KEYBOARD_TAB_ORDER, type AppTab } from '~/types/navigation';
+import { selectClassProgressView } from '~/core/selectors/classProgress';
 
 type NavItem = {
   id: AppTab;
@@ -47,6 +48,8 @@ type NavItem = {
   aria: string;
   icon: LucideIcon;
 };
+
+const numberFormatter = new Intl.NumberFormat('de-DE');
 
 const PRIMARY_NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', aria: 'Dashboard anzeigen', icon: LayoutDashboard },
@@ -72,6 +75,43 @@ export default function App() {
   const hasManagedData = useMemo(
     () => state.students.length > 0 || state.quests.length > 0 || state.logs.length > 0,
     [state.students, state.quests, state.logs],
+  );
+
+  const classProgress = useMemo(() => selectClassProgressView(state), [state]);
+  const totalStudents = state.students.length;
+  const totalQuests = state.quests.length;
+  const totalXp = useMemo(
+    () => state.students.reduce((sum, student) => sum + student.xp, 0),
+    [state.students],
+  );
+  const activeStudents = useMemo(
+    () => state.students.filter((student) => student.xp > 0).length,
+    [state.students],
+  );
+  const xpToday = useMemo(() => {
+    if (state.logs.length === 0) {
+      return 0;
+    }
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    return state.logs
+      .filter((log) => log.timestamp >= startOfDay.getTime())
+      .reduce((sum, log) => sum + log.xp, 0);
+  }, [state.logs]);
+  const nextStarPercent = useMemo(() => {
+    const { current, step } = classProgress;
+    if (!step) {
+      return 0;
+    }
+    return Math.min(100, Math.round((current / step) * 100));
+  }, [classProgress]);
+  const sidebarStats = useMemo(
+    () => [
+      { label: 'Schüler:innen', value: numberFormatter.format(totalStudents) },
+      { label: 'Quests', value: numberFormatter.format(totalQuests) },
+      { label: 'XP gesamt', value: numberFormatter.format(totalXp) },
+    ],
+    [totalQuests, totalStudents, totalXp],
   );
 
   useEffect(() => {
@@ -217,6 +257,37 @@ export default function App() {
                 );
               })}
             </nav>
+            <section className="sidebar-summary" aria-label="Live-Status der Klasse">
+              <p className="sidebar-summary__eyebrow">Heute</p>
+              <dl className="sidebar-summary__stats">
+                {sidebarStats.map((stat) => (
+                  <div key={stat.label} className="sidebar-summary__stat">
+                    <dt>{stat.label}</dt>
+                    <dd>{stat.value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div
+                className="sidebar-progress"
+                role="img"
+                aria-label={`Fortschritt zum nächsten Stern: ${nextStarPercent}%`}
+              >
+                <div className="sidebar-progress__header">
+                  <div>
+                    <p className="sidebar-progress__label">Nächster Stern</p>
+                    <p className="sidebar-progress__meta">
+                      {numberFormatter.format(classProgress.current)} /
+                      {' '}
+                      {numberFormatter.format(classProgress.step || 0)} XP
+                    </p>
+                  </div>
+                  <span className="sidebar-progress__percent">{nextStarPercent}%</span>
+                </div>
+                <div className="sidebar-progress__bar">
+                  <div className="sidebar-progress__fill" style={{ width: `${nextStarPercent}%` }} />
+                </div>
+              </div>
+            </section>
             <nav className="sidebar-nav sidebar-nav--secondary" aria-label="Weitere Bereiche">
               {SECONDARY_NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
@@ -248,6 +319,16 @@ export default function App() {
                 <div className="topbar-class__name">{state.settings.className || 'ClassQuest'}</div>
                 <div className="topbar-class__meta">Klassenübersicht</div>
               </button>
+              <div className="topbar-insights" aria-live="polite">
+                <div className="topbar-pill">
+                  <span className="topbar-pill__label">Aktiv heute</span>
+                  <span className="topbar-pill__value">{numberFormatter.format(xpToday)} XP</span>
+                </div>
+                <div className="topbar-pill">
+                  <span className="topbar-pill__label">Aktive Schüler:innen</span>
+                  <span className="topbar-pill__value">{numberFormatter.format(activeStudents)}</span>
+                </div>
+              </div>
               <div className="topbar-actions">
                 <button
                   type="button"
