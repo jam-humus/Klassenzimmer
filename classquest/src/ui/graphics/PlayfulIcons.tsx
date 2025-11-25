@@ -8,6 +8,7 @@ export type PlayfulIcon = {
   Svg: () => JSX.Element;
 };
 
+
 const QuestRocket = () => (
   <svg className="playful-icon rocket" viewBox="0 0 160 160" role="img" aria-hidden="true">
     <defs>
@@ -246,3 +247,4 @@ export const playfulIcons: PlayfulIcon[] = [
     Svg: XPComet,
   },
 ];
+

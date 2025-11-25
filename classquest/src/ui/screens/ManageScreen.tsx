@@ -14,6 +14,7 @@ import ManageSnapshots from '~/ui/manage/ManageSnapshots';
 import { SOUND_KEYS, SOUND_LABELS, type SoundKey, type SoundOverride, type SoundOverrides } from '~/audio/types';
 import { audioFormatFromMime } from '~/audio/format';
 import { soundManager } from '~/audio/SoundManager';
+import { PlayfulSticker } from '../graphics/PlayfulIcons';
 
 const questTypes: QuestType[] = ['daily', 'repeatable', 'oneoff'];
 
@@ -1825,26 +1826,35 @@ export default function ManageScreen({ onOpenSeasonReset }: ManageScreenProps = 
       <div
         style={{
           display: 'flex',
-          justifyContent: 'flex-end',
-          gap: 8,
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
           flexWrap: 'wrap',
         }}
       >
-        <button
-          type="button"
-          onClick={toggleAllSections}
-          style={{
-            padding: '6px 12px',
-            borderRadius: 999,
-            border: '1px solid #cbd5f5',
-            background: '#fff',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-          aria-pressed={allSectionsOpen}
-        >
-          {allSectionsOpen ? 'Alle Menüs zuklappen' : 'Alle Menüs aufklappen'}
-        </button>
+        <PlayfulSticker
+          iconId="rainbow-book"
+          label="Bunte Verwaltung für Quests, Gruppen & Sounds"
+          tone="mint"
+          size="small"
+        />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={toggleAllSections}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 999,
+              border: '1px solid #cbd5f5',
+              background: '#fff',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+            aria-pressed={allSectionsOpen}
+          >
+            {allSectionsOpen ? 'Alle Menüs zuklappen' : 'Alle Menüs aufklappen'}
+          </button>
+        </div>
       </div>
       <CollapsibleSection id="manage-weekly" title="Weekly-Show & Snapshots" state={weeklyCollapse}>
         <p style={{ marginTop: 0, marginBottom: 12, fontSize: 14, color: '#475569' }}>

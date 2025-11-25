@@ -4,6 +4,7 @@ import { useApp } from '~/app/AppContext';
 import { useKeydown } from '~/ui/shortcut/KeyScope';
 import { LogItem } from '~/ui/components/LogItem';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { PlayfulSticker } from '../graphics/PlayfulIcons';
 
 function startOfDay(date = new Date()) {
   const start = new Date(date);
@@ -83,6 +84,12 @@ export default function LogScreen() {
     <div>
       <h2>Protokoll</h2>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <PlayfulSticker
+          iconId="rainbow-book"
+          label="Bunte Log-Bubbles für jede Aktion"
+          tone="sunset"
+          size="small"
+        />
         <select
           aria-label="Filter Schüler"
           value={studentFilter}
