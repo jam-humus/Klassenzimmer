@@ -1,0 +1,166 @@
+.playful-icon {
+  width: 120px;
+  height: 120px;
+  display: block;
+  filter: drop-shadow(0 12px 30px rgba(15, 23, 42, 0.18));
+}
+
+.playful-icon .floating {
+  animation: float 6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.playful-icon .twinkle {
+  animation: twinkle 2.4s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.playful-icon .wobble {
+  animation: wobble 1.8s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.playful-icon .flicker {
+  animation: flicker 1.6s ease-in-out infinite;
+}
+
+.playful-icon .comet-tail {
+  animation: trail 3.2s ease-in-out infinite;
+}
+
+.playful-icon .pulse-star {
+  animation: pulse-star 1.4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-6px) scale(1.02);
+  }
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+}
+
+@keyframes twinkle {
+  0% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+}
+
+@keyframes wobble {
+  0% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-4deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes flicker {
+  0% {
+    opacity: 0.8;
+  }
+  40% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes trail {
+  0% {
+    filter: drop-shadow(0 0 0 rgba(34, 211, 238, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.8));
+  }
+  100% {
+    filter: drop-shadow(0 0 0 rgba(34, 211, 238, 0.3));
+  }
+}
+
+@keyframes pulse-star {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+}
+
+.playful-icon-card {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  transition: transform 160ms ease, box-shadow 160ms ease, translate 160ms ease;
+  overflow: hidden;
+}
+
+.playful-icon-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.16), transparent 30%),
+    radial-gradient(circle at 80% 30%, rgba(14, 165, 233, 0.18), transparent 30%);
+  pointer-events: none;
+}
+
+.playful-icon-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14);
+}
+
+.playful-icon-card h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.playful-icon-card p {
+  margin: 0;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.playful-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 640px) {
+  .playful-icon {
+    width: 100px;
+    height: 100px;
+  }
+}
