@@ -4,6 +4,7 @@ import { useKeydown } from '~/ui/shortcut/KeyScope';
 import { LeaderboardRow } from '~/ui/components/LeaderboardRow';
 import { ClassProgressBar } from '~/ui/components/ClassProgressBar';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { PlayfulSticker } from '../graphics/PlayfulIcons';
 
 export default function LeaderboardScreen() {
   const { state } = useApp();
@@ -69,6 +70,12 @@ export default function LeaderboardScreen() {
     <div className="leaderboard-screen" style={{ display: 'grid', gap: 12 }}>
       <ClassProgressBar />
       <div className="leaderboard-controls print-hide" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <PlayfulSticker
+          iconId="trophy-burst"
+          label="Glitzernde Pokale für faire Motivation"
+          tone="gold"
+          size="small"
+        />
         <h2 style={{ margin: 0 }}>Leaderboard</h2>
         <div role="group" aria-label="Sortierung" style={{ display: 'flex', gap: 6 }}>
           <button type="button" onClick={() => setSort('xp')} aria-pressed={sort === 'xp'}>

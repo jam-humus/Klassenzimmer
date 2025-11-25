@@ -28,6 +28,14 @@
   gap: 24px;
 }
 
+.dashboard-card__aside {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+  align-content: start;
+  min-width: 220px;
+}
+
 .dashboard-card__eyebrow {
   margin: 0 0 4px;
   font-size: 0.875rem;
@@ -263,6 +271,11 @@
   }
 
   .dashboard-card__count {
+    justify-items: start;
+  }
+
+  .dashboard-card__aside {
+    width: 100%;
     justify-items: start;
   }
 }

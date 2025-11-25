@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useApp } from '~/app/AppContext';
 import { selectClassProgressView } from '~/core/selectors/classProgress';
 import { ClassProgressBar } from '~/ui/components/ClassProgressBar';
+import { PlayfulSticker } from '../graphics/PlayfulIcons';
 import '~/ui/screens/dashboard.css';
 
 type DashboardScreenProps = {
@@ -87,9 +88,17 @@ export default function DashboardScreen({ onAddXp, onOpenWeeklyShow }: Dashboard
               Noch {remaining} XP bis zum nächsten Stern · Schrittgröße {step} XP
             </p>
           </div>
-          <div className="dashboard-card__count" aria-live="polite">
-            <span className="dashboard-card__count-label">Sterne</span>
-            <span className="dashboard-card__count-value">{numberFormatter.format(classProgress.stars)}</span>
+          <div className="dashboard-card__aside">
+            <PlayfulSticker
+              iconId="quest-rocket"
+              label="Starte mit Raketen-Quests ins nächste Level!"
+              tone="lilac"
+              size="small"
+            />
+            <div className="dashboard-card__count" aria-live="polite">
+              <span className="dashboard-card__count-label">Sterne</span>
+              <span className="dashboard-card__count-value">{numberFormatter.format(classProgress.stars)}</span>
+            </div>
           </div>
         </div>
         <div className="dashboard-card__actions">

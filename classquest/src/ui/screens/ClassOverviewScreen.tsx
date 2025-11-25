@@ -7,6 +7,7 @@ import { AvatarView } from '~/ui/avatar/AvatarView';
 import StudentProfileCardV2 from '~/ui/components/student/StudentProfileCardV2';
 import { getNextStudentId } from '~/ui/student/getNextStudentId';
 import { shouldIgnoreNavigation } from '~/ui/utils/isTextInputLike';
+import { PlayfulSticker } from '../graphics/PlayfulIcons';
 
 const numberFormatter = new Intl.NumberFormat('de-DE');
 
@@ -139,6 +140,14 @@ export default function ClassOverviewScreen() {
   return (
     <div style={containerStyle}>
       <aside style={sidebarStyle}>
+        <div style={{ marginBottom: 12 }}>
+          <PlayfulSticker
+            iconId="rainbow-book"
+            label="Bunte Schüler:innenkarten für den schnellen Überblick"
+            tone="mint"
+            size="small"
+          />
+        </div>
         <h2 style={{ margin: '0 0 16px', fontSize: 18, lineHeight: '1.6', color: '#0f172a' }}>
           Klassenübersicht
         </h2>

@@ -11,6 +11,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Quest, Team } from '~/types/models';
 import { playXpAwardedEffectsCoalesced } from '~/utils/effects';
 import { playLottieOverlay } from '~/ui/anim/playLottie';
+import { PlayfulSticker } from '../graphics/PlayfulIcons';
 
 const TILE_MIN_WIDTH = 240;
 
@@ -457,6 +458,13 @@ export default function AwardScreen() {
         }}
       >
         <div style={{ display: 'grid', gap: 14 }}>
+          <PlayfulSticker
+            iconId="xp-comet"
+            label="Kometen-Spur beim XP-Feuerwerk"
+            tone="sunset"
+            theme="dark"
+            size="small"
+          />
           <ClassProgressBar />
           <div
             role="radiogroup"

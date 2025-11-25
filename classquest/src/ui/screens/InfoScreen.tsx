@@ -1,3 +1,5 @@
+import { playfulIcons } from '../graphics/PlayfulIcons';
+
 export default function InfoScreen() {
   return (
     <div style={{ display: 'grid', gap: 16 }}>
@@ -12,6 +14,23 @@ export default function InfoScreen() {
           In den Einstellungen kannst du Tastaturkürzel deaktivieren. Die Befehlspalette durchsucht Navigation,
           Aktionen, Schüler, Quests und Gruppen, so dass du blitzschnell springen kannst.
         </p>
+      </section>
+      <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
+        <h3>Bunte Icon-Vorschläge</h3>
+        <p style={{ marginTop: 0 }}>
+          Vier spielerische SVGs inklusive Animationen, die du für Quests, XP-Hinweise oder Infobereiche nutzen kannst.
+        </p>
+        <div className="playful-icon-grid">
+          {playfulIcons.map((icon) => (
+            <article key={icon.id} className="playful-icon-card" aria-label={icon.title}>
+              <icon.Svg />
+              <div style={{ display: 'grid', gap: 6 }}>
+                <h4>{icon.title}</h4>
+                <p>{icon.description}</p>
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
       <section style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
         <h3>Tipps</h3>
