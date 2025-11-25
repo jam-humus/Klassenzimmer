@@ -8,36 +8,6 @@ export type PlayfulIcon = {
   Svg: () => JSX.Element;
 };
 
-type StickerTone = 'lilac' | 'gold' | 'mint' | 'sunset';
-type StickerTheme = 'light' | 'dark';
-type StickerSize = 'default' | 'small';
-
-const stickerToneStyles: Record<StickerTone, { lightBg: string; darkBg: string; border: string; shadow: string }> = {
-  lilac: {
-    lightBg: 'linear-gradient(135deg, #ede9fe 0%, #cffafe 100%)',
-    darkBg: 'linear-gradient(135deg, rgba(109, 40, 217, 0.35), rgba(14, 165, 233, 0.3))',
-    border: 'rgba(124, 58, 237, 0.35)',
-    shadow: '0 14px 38px rgba(124, 58, 237, 0.22)',
-  },
-  gold: {
-    lightBg: 'linear-gradient(135deg, #fef9c3 0%, #ffe4e6 100%)',
-    darkBg: 'linear-gradient(135deg, rgba(234, 179, 8, 0.32), rgba(248, 113, 113, 0.28))',
-    border: 'rgba(234, 179, 8, 0.38)',
-    shadow: '0 14px 38px rgba(234, 179, 8, 0.2)',
-  },
-  mint: {
-    lightBg: 'linear-gradient(135deg, #d1fae5 0%, #e0f2fe 100%)',
-    darkBg: 'linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(14, 165, 233, 0.28))',
-    border: 'rgba(16, 185, 129, 0.35)',
-    shadow: '0 14px 38px rgba(16, 185, 129, 0.2)',
-  },
-  sunset: {
-    lightBg: 'linear-gradient(135deg, #fecdd3 0%, #e9d5ff 100%)',
-    darkBg: 'linear-gradient(135deg, rgba(248, 113, 113, 0.35), rgba(236, 72, 153, 0.28))',
-    border: 'rgba(236, 72, 153, 0.35)',
-    shadow: '0 14px 38px rgba(236, 72, 153, 0.22)',
-  },
-};
 
 const QuestRocket = () => (
   <svg className="playful-icon rocket" viewBox="0 0 160 160" role="img" aria-hidden="true">
@@ -278,49 +248,3 @@ export const playfulIcons: PlayfulIcon[] = [
   },
 ];
 
-export function PlayfulSticker({
-  iconId = 'quest-rocket',
-  label,
-  tone = 'lilac',
-  theme = 'light',
-  size = 'default',
-}: {
-  iconId?: PlayfulIcon['id'];
-  label: string;
-  tone?: StickerTone;
-  theme?: StickerTheme;
-  size?: StickerSize;
-}) {
-  const icon = playfulIcons.find((entry) => entry.id === iconId) ?? playfulIcons[0];
-  const Svg = icon.Svg;
-  const palette = stickerToneStyles[tone];
-  const classNames = ['playful-sticker'];
-
-  if (theme === 'dark') {
-    classNames.push('playful-sticker--dark');
-  }
-  if (size === 'small') {
-    classNames.push('playful-sticker--small');
-  }
-
-  return (
-    <div
-      className={classNames.join(' ')}
-      style={{
-        background: theme === 'dark' ? palette.darkBg : palette.lightBg,
-        borderColor: palette.border,
-        boxShadow: palette.shadow,
-      }}
-      role="img"
-      aria-label={label}
-    >
-      <div className="playful-sticker__icon">
-        <Svg />
-      </div>
-      <div className="playful-sticker__text">
-        <span className="playful-sticker__eyebrow">Bunt &amp; spielerisch</span>
-        <span className="playful-sticker__label">{label}</span>
-      </div>
-    </div>
-  );
-}
