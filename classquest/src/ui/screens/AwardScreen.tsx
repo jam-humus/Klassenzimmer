@@ -29,12 +29,16 @@ const GroupChip = React.memo(function GroupChip({ team, membersCount, disabled, 
       disabled={disabled || membersCount === 0}
       style={{
         padding: '8px 14px',
-        borderRadius: 999,
-        border: '1px solid #cbd5f5',
-        background: disabled || membersCount === 0 ? '#f1f5f9' : '#f8fbff',
-        fontWeight: 600,
+        borderRadius: 12,
+        border: '1px solid rgba(148,163,184,0.3)',
+        background:
+          disabled || membersCount === 0
+            ? 'rgba(255,255,255,0.05)'
+            : 'linear-gradient(135deg, rgba(148,163,184,0.18), rgba(59,130,246,0.18))',
+        fontWeight: 700,
+        color: '#e2e8f0',
         cursor: disabled || membersCount === 0 ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.6 : 1,
+        opacity: disabled ? 0.5 : 1,
         display: 'flex',
         alignItems: 'center',
         gap: 8,
@@ -429,14 +433,35 @@ export default function AwardScreen() {
   const selectedCount = orderedSelectedIds.length;
 
   return (
-    <div ref={containerRef} onKeyDown={onKeyDown} style={{ height: '100%', overflowY: 'auto', padding: '0 0 24px' }}>
-      <div style={{ position: 'sticky', top: 0, background: '#f8fafc', padding: '12px 0', zIndex: 1, boxShadow: scrolled ? '0 8px 24px rgba(15, 23, 42, 0.12)' : 'none' }}>
-        <div style={{ display: 'grid', gap: 12 }}>
+    <div
+      ref={containerRef}
+      onKeyDown={onKeyDown}
+      style={{
+        height: '100%',
+        overflowY: 'auto',
+        padding: '0 0 28px',
+        background:
+          'radial-gradient(circle at 20% 20%, rgba(59,130,246,0.08), transparent 30%), radial-gradient(circle at 80% 10%, rgba(56,189,248,0.08), transparent 28%), #070d1c',
+        color: '#e2e8f0',
+      }}
+    >
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          background: 'linear-gradient(180deg, rgba(8,15,30,0.96), rgba(8,15,30,0.9))',
+          padding: '14px 0 16px',
+          zIndex: 1,
+          boxShadow: scrolled ? '0 10px 28px rgba(0,0,0,0.45)' : '0 1px 0 rgba(148,163,184,0.08)',
+          borderBottom: '1px solid rgba(148,163,184,0.16)',
+        }}
+      >
+        <div style={{ display: 'grid', gap: 14 }}>
           <ClassProgressBar />
           <div
             role="radiogroup"
             aria-label="Aktive Quest"
-            style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}
+            style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}
           >
             {quests.length ? (
               quests.map((q) => {
@@ -450,11 +475,15 @@ export default function AwardScreen() {
                     onClick={() => setActiveQuestId(q.id)}
                     style={{
                       padding: '10px 16px',
-                      borderRadius: 999,
-                      border: isActive ? '2px solid var(--color-primary)' : '1px solid #cbd5f5',
-                      background: isActive ? 'rgba(91,141,239,0.12)' : '#fff',
-                      fontWeight: 600,
+                      borderRadius: 14,
+                      border: isActive ? '1px solid rgba(96,165,250,0.8)' : '1px solid rgba(148,163,184,0.25)',
+                      background: isActive
+                        ? 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(56,189,248,0.18))'
+                        : 'rgba(255,255,255,0.06)',
+                      fontWeight: 700,
+                      color: '#e2e8f0',
                       cursor: 'pointer',
+                      boxShadow: isActive ? '0 12px 30px rgba(56,189,248,0.22)' : 'none',
                     }}
                   >
                     +{q.xp} {q.name}
@@ -462,12 +491,12 @@ export default function AwardScreen() {
                 );
               })
             ) : (
-              <em>Keine aktiven Quests</em>
+              <em style={{ color: 'rgba(226,232,240,0.75)' }}>Keine aktiven Quests</em>
             )}
           </div>
           {groups.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>Gruppen:</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(226,232,240,0.85)' }}>Gruppen:</span>
               {groups.map((team) => (
                 <GroupChip
                   key={team.id}
@@ -485,14 +514,28 @@ export default function AwardScreen() {
                 display: 'flex',
                 gap: 8,
                 alignItems: 'center',
-                background: '#dbeafe',
-                padding: '6px 12px',
-                borderRadius: 999,
+                background: 'rgba(59,130,246,0.12)',
+                padding: '8px 12px',
+                borderRadius: 12,
+                border: '1px solid rgba(148,163,184,0.3)',
                 width: 'fit-content',
               }}
             >
               <span>Gefiltert nach Gruppe: <strong>{activeGroup?.name}</strong></span>
-              <button type="button" onClick={() => setGroupFilter(null)} style={{ fontSize: 12 }}>Filter entfernen</button>
+              <button
+                type="button"
+                onClick={() => setGroupFilter(null)}
+                style={{
+                  fontSize: 12,
+                  color: '#e2e8f0',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                }}
+              >
+                Filter entfernen
+              </button>
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -502,27 +545,53 @@ export default function AwardScreen() {
               disabled={!activeQuest || selectedCount === 0}
               aria-disabled={!activeQuest || selectedCount === 0}
               style={{
-                padding: '10px 18px',
-                borderRadius: 12,
-                background: 'var(--color-primary)',
-                color: '#fff',
-                fontWeight: 600,
+                padding: '12px 18px',
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, #38bdf8, #a78bfa)',
+                color: '#0b1224',
+                fontWeight: 800,
                 border: 'none',
-                minWidth: 200,
-                cursor:
-                  !activeQuest || selectedCount === 0 ? 'not-allowed' : 'pointer',
-                opacity: !activeQuest || selectedCount === 0 ? 0.6 : 1,
+                minWidth: 220,
+                cursor: !activeQuest || selectedCount === 0 ? 'not-allowed' : 'pointer',
+                opacity: !activeQuest || selectedCount === 0 ? 0.5 : 1,
+                boxShadow: '0 18px 36px rgba(56,189,248,0.35)',
               }}
             >
               Allen ausgewählten vergeben
             </button>
-            <span aria-live="polite" style={{ fontWeight: 600 }}>
+            <span aria-live="polite" style={{ fontWeight: 700, color: 'rgba(226,232,240,0.85)' }}>
               Ausgewählt: {selectedCount}
             </span>
-            <button type="button" onClick={selectAll} aria-label="Alle Schüler auswählen">
+            <button
+              type="button"
+              onClick={selectAll}
+              aria-label="Alle Schüler auswählen"
+              style={{
+                padding: '8px 14px',
+                borderRadius: 12,
+                border: '1px solid rgba(148,163,184,0.3)',
+                background: 'rgba(255,255,255,0.06)',
+                cursor: 'pointer',
+                fontWeight: 700,
+                color: '#e2e8f0',
+              }}
+            >
               Alle auswählen
             </button>
-            <button type="button" onClick={clear} aria-label="Auswahl leeren">
+            <button
+              type="button"
+              onClick={clear}
+              aria-label="Auswahl leeren"
+              style={{
+                padding: '8px 14px',
+                borderRadius: 12,
+                border: '1px solid rgba(148,163,184,0.3)',
+                background: 'rgba(255,255,255,0.06)',
+                cursor: 'pointer',
+                fontWeight: 700,
+                color: '#e2e8f0',
+              }}
+            >
               Auswahl leeren
             </button>
             <button
@@ -534,14 +603,23 @@ export default function AwardScreen() {
                 window.dispatchEvent(new Event(EVENT_UNDO_PERFORMED));
               }}
               aria-label="Letzte Vergabe rückgängig machen"
+              style={{
+                padding: '8px 14px',
+                borderRadius: 12,
+                border: '1px solid rgba(148,163,184,0.35)',
+                background: 'rgba(255,255,255,0.08)',
+                color: '#e2e8f0',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
             >
               Undo
             </button>
           </div>
           {focusedStudent && (
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>
-                Aktionen für: <span style={{ color: '#0f172a' }}>{focusedStudent.alias}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(226,232,240,0.85)' }}>
+                Aktionen für: <span style={{ color: '#38bdf8' }}>{focusedStudent.alias}</span>
               </span>
               <AwardBadgeButton student={focusedStudent} />
             </div>

@@ -46,28 +46,57 @@ export function ClassProgressBar() {
     <section
       aria-label="Klassenfortschritt"
       style={{
-        padding: '16px',
-        borderRadius: 16,
-        background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(59,130,246,0.08))',
-        border: '1px solid rgba(15,23,42,0.08)',
+        padding: '18px 20px',
+        borderRadius: 20,
+        background:
+          'linear-gradient(135deg, rgba(29,41,81,0.95), rgba(12,21,46,0.95)), radial-gradient(circle at 20% 20%, rgba(96,165,250,0.16), transparent 40%)',
+        border: '1px solid rgba(99, 102, 241, 0.35)',
         display: 'flex',
         flexDirection: 'column',
         gap: 16,
+        boxShadow: '0 18px 50px rgba(2,6,23,0.55)',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Klassen-XP</h2>
-          <p style={{ margin: '6px 0 0', color: 'rgba(15,23,42,0.7)', fontSize: 14 }} aria-live="polite">
-            {announcement}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 14,
+              display: 'grid',
+              placeItems: 'center',
+              background: 'linear-gradient(145deg, rgba(96,165,250,0.35), rgba(56,189,248,0.22))',
+              border: '1px solid rgba(148,163,184,0.35)',
+              boxShadow: '0 10px 30px rgba(14,165,233,0.35)',
+            }}
+          >
+            <StarBadge iconUrl={starIconUrl} />
+          </div>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#e2e8f0' }}>Klassen-XP</h2>
+            <p style={{ margin: '6px 0 0', color: 'rgba(226,232,240,0.85)', fontSize: 14 }} aria-live="polite">
+              {announcement}
+            </p>
+          </div>
         </div>
         <div
-          style={{ display: 'flex', alignItems: 'center', gap: 12 }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '8px 14px',
+            borderRadius: 14,
+            background: 'rgba(148,163,184,0.12)',
+            border: '1px solid rgba(148,163,184,0.25)',
+            color: '#cbd5f5',
+            fontWeight: 700,
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+          }}
           aria-label={`Gesammelte ${starLabel}: ${formattedStars}`}
         >
-          <StarBadge iconUrl={starIconUrl} />
-          <span style={{ fontSize: 28, fontWeight: 700, color: '#047857' }}>{formattedStars}</span>
+          <span style={{ fontSize: 16, opacity: 0.9 }}>{starLabel}</span>
+          <span style={{ fontSize: 26, color: '#a5b4fc' }}>{formattedStars}</span>
         </div>
       </div>
       <div
@@ -80,8 +109,9 @@ export function ClassProgressBar() {
           position: 'relative',
           height: 14,
           borderRadius: 999,
-          background: 'rgba(15,23,42,0.1)',
+          background: 'rgba(148,163,184,0.18)',
           overflow: 'hidden',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
         }}
       >
         <div
@@ -89,13 +119,13 @@ export function ClassProgressBar() {
             width: `${percent}%`,
             height: '100%',
             borderRadius: 999,
-            background: 'linear-gradient(90deg, rgba(16,185,129,1), rgba(5,150,105,0.9))',
-            boxShadow: '0 0 12px rgba(16,185,129,0.45)',
+            background: 'linear-gradient(90deg, #38bdf8, #a78bfa)',
+            boxShadow: '0 0 18px rgba(56,189,248,0.4)',
             transition: 'width 300ms ease',
           }}
         />
       </div>
-      <div style={{ fontSize: 12, color: 'rgba(15,23,42,0.6)' }}>Schrittgröße: {formattedStep} XP</div>
+      <div style={{ fontSize: 12, color: 'rgba(226,232,240,0.75)' }}>Schrittgröße: {formattedStep} XP</div>
     </section>
   );
 }
@@ -108,8 +138,8 @@ function StarBadge({ iconUrl }: { iconUrl: string | null }) {
         alt=""
         aria-hidden
         style={{
-          width: 32,
-          height: 32,
+          width: 28,
+          height: 28,
           objectFit: 'contain',
           filter: 'drop-shadow(0 4px 12px rgba(255,210,107,0.6))',
         }}

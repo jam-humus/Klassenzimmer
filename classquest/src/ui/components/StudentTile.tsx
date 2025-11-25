@@ -112,18 +112,26 @@ const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
       aria-disabled={disabled || undefined}
       aria-label={`Schüler ${alias}, ${xp} XP, Level ${level}${selected ? ', ausgewählt' : ''}${disabled ? '. Quest wählen' : ''}`}
       style={{
-        border: selected ? '2px solid var(--color-primary)' : '1px solid #e2e8f0',
-        borderRadius: 12,
+        border: selected
+          ? '1px solid rgba(96,165,250,0.9)'
+          : '1px solid rgba(148,163,184,0.18)',
+        borderRadius: 18,
         padding: 16,
-        background: '#fff',
+        background: selected
+          ? 'linear-gradient(150deg, rgba(59,130,246,0.18), rgba(99,102,241,0.22))'
+          : 'linear-gradient(145deg, rgba(15,23,42,0.92), rgba(15,23,42,0.86))',
+        color: '#e2e8f0',
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
         minHeight: 150,
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.7 : 1,
-        boxShadow: selected ? '0 0 0 4px rgba(91,141,239,0.15)' : 'none',
-        transition: 'box-shadow 0.15s ease, border 0.15s ease',
+        boxShadow: selected
+          ? '0 16px 40px rgba(56,189,248,0.25)'
+          : '0 12px 30px rgba(2,6,23,0.45)',
+        transition: 'box-shadow 0.15s ease, border 0.15s ease, transform 0.15s ease',
+        transform: evolved ? 'translateY(-2px)' : 'translateY(0)',
       }}
     >
       <div
@@ -149,10 +157,11 @@ const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
           />
           <strong
             style={{
-              fontSize: '1.1rem',
+              fontSize: '1.05rem',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              color: '#f8fafc',
             }}
             title={alias}
           >
@@ -175,7 +184,19 @@ const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
               size={36}
             />
           ))}
-          <span style={{ fontSize: 12, opacity: 0.75, flexShrink: 0 }}>{xp} XP · L{level}</span>
+          <span
+            style={{
+              fontSize: 12,
+              opacity: 0.85,
+              flexShrink: 0,
+              padding: '6px 10px',
+              borderRadius: 12,
+              background: 'rgba(148,163,184,0.14)',
+              border: '1px solid rgba(148,163,184,0.25)',
+            }}
+          >
+            {xp} XP · L{level}
+          </span>
         </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
@@ -192,17 +213,25 @@ const TileInner = React.forwardRef<HTMLDivElement, Props>(function TileBase(
           }}
           aria-pressed={selected}
           style={{
-            padding: '6px 12px',
+            padding: '7px 14px',
             borderRadius: 999,
-            border: '1px solid #cbd5f5',
-            background: selected ? 'rgba(91,141,239,0.15)' : '#f8fbff',
-            fontWeight: 600,
+            border: '1px solid rgba(99,102,241,0.65)',
+            background: selected
+              ? 'linear-gradient(135deg, rgba(59,130,246,0.35), rgba(56,189,248,0.25))'
+              : 'rgba(255,255,255,0.06)',
+            color: '#e2e8f0',
+            fontWeight: 700,
             cursor: 'pointer',
+            boxShadow: selected ? '0 10px 30px rgba(56,189,248,0.25)' : 'none',
           }}
         >
           {selected ? 'Ausgewählt' : 'Auswählen'}
         </button>
-        {disabled ? <span style={{ fontSize: 12, color: '#64748b' }}>Quest wählen</span> : <span style={{ fontSize: 12, color: '#64748b' }}>S = Auswahl</span>}
+        {disabled ? (
+          <span style={{ fontSize: 12, color: 'rgba(226,232,240,0.75)' }}>Quest wählen</span>
+        ) : (
+          <span style={{ fontSize: 12, color: 'rgba(226,232,240,0.75)' }}>S = Auswahl</span>
+        )}
       </div>
     </div>
   );
