@@ -164,3 +164,67 @@
     height: 100px;
   }
 }
+
+.playful-sticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: linear-gradient(135deg, #eef2ff, #f8fafc);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+.playful-sticker__icon {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+}
+
+.playful-sticker__label {
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.playful-sticker--small {
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.playful-sticker--small .playful-sticker__icon {
+  width: 48px;
+  height: 48px;
+}
+
+.playful-sticker--small .playful-sticker__label {
+  font-size: 13px;
+}
+
+.playful-sticker--tone-lilac {
+  background: linear-gradient(135deg, #eef2ff, #f3e8ff);
+  border-color: #c7d2fe;
+}
+
+.playful-sticker--tone-mint {
+  background: linear-gradient(135deg, #ecfeff, #e0f2fe);
+  border-color: #a5f3fc;
+}
+
+.playful-sticker--tone-sunset {
+  background: linear-gradient(135deg, #fff7ed, #fffbeb);
+  border-color: #fed7aa;
+}
+
+.playful-sticker--tone-gold {
+  background: linear-gradient(135deg, #fffbeb, #fef9c3);
+  border-color: #fcd34d;
+}
+
+.playful-sticker .playful-icon {
+  width: 100%;
+  height: 100%;
+}

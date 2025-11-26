@@ -8,6 +8,9 @@ export type PlayfulIcon = {
   Svg: () => JSX.Element;
 };
 
+type StickerTone = 'lilac' | 'mint' | 'sunset' | 'gold';
+type StickerSize = 'small' | 'medium';
+
 
 const QuestRocket = () => (
   <svg className="playful-icon rocket" viewBox="0 0 160 160" role="img" aria-hidden="true">
@@ -247,4 +250,45 @@ export const playfulIcons: PlayfulIcon[] = [
     Svg: XPComet,
   },
 ];
+
+type PlayfulStickerProps = {
+  iconId: PlayfulIcon['id'];
+  label: string;
+  tone?: StickerTone;
+  size?: StickerSize;
+};
+
+const TONE_CLASS_MAP: Record<StickerTone, string> = {
+  lilac: 'playful-sticker--tone-lilac',
+  mint: 'playful-sticker--tone-mint',
+  sunset: 'playful-sticker--tone-sunset',
+  gold: 'playful-sticker--tone-gold',
+};
+
+const SIZE_CLASS_MAP: Record<StickerSize, string> = {
+  small: 'playful-sticker--small',
+  medium: 'playful-sticker--medium',
+};
+
+export function PlayfulSticker({
+  iconId,
+  label,
+  tone = 'lilac',
+  size = 'medium',
+}: PlayfulStickerProps) {
+  const icon = playfulIcons.find((entry) => entry.id === iconId) ?? playfulIcons[0];
+  const IconSvg = icon.Svg;
+
+  const toneClass = TONE_CLASS_MAP[tone] ?? TONE_CLASS_MAP.lilac;
+  const sizeClass = SIZE_CLASS_MAP[size] ?? SIZE_CLASS_MAP.medium;
+
+  return (
+    <div className={`playful-sticker ${toneClass} ${sizeClass}`} role="img" aria-label={label}>
+      <div className="playful-sticker__icon" aria-hidden>
+        <IconSvg />
+      </div>
+      <span className="playful-sticker__label">{label}</span>
+    </div>
+  );
+}
 
