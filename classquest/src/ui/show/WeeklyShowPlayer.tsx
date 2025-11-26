@@ -3,6 +3,7 @@ import { useApp } from '~/app/AppContext';
 import WeeklyShowSlide from '~/ui/show/WeeklyShowSlide';
 import { computeDeltasFromSnapshot, computeWeeklyDeltas, type WeeklyDelta } from '~/core/show/weekly';
 import { listSnapshots, type WeeklySnapshot } from '~/services/weeklyStorage';
+import { useSlideshowSounds } from '~/slideshow/hooks/useSlideshowSounds';
 
 function formatDateLabel(snapshot: WeeklySnapshot): string {
   const created = new Date(snapshot.createdAt);
@@ -32,6 +33,7 @@ const BACKGROUND_STYLE: React.CSSProperties = {
 
 export default function WeeklyShowPlayer() {
   const { state } = useApp();
+  useSlideshowSounds();
   const [order, setOrder] = React.useState<Order>('delta');
   const [onlyChanged, setOnlyChanged] = React.useState(true);
   const [autoPlay, setAutoPlay] = React.useState(true);
