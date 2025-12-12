@@ -16,12 +16,18 @@ from ui.trophy_cabinet import TrophyCabinetTab
 class MainWindow(QMainWindow):
     def __init__(self, store: Optional[DataStore] = None) -> None:
         super().__init__()
-        self.setWindowTitle("ClassQuest – Kinderfreundliches Dashboard")
-        self.resize(1280, 800)
+        self.setWindowTitle("ClassQuest – Abenteuer wie bei Duolingo")
+        self.resize(1400, 900)
+        self.setStyleSheet(
+            """
+            QMainWindow { background: #F4FDF3; }
+            #tabContainer { margin: 12px; }
+            """
+        )
 
         self.store = store or DataStore(Path("classquest.db"))
 
-        self.tabs = QTabWidget()
+        self.tabs = QTabWidget(objectName="tabContainer")
         self.setCentralWidget(self.tabs)
 
         self.students_tab = StudentsTab(self.store)

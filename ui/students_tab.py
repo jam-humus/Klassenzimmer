@@ -18,11 +18,12 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QSizePolicy,
+    QHBoxLayout,
 )
 
 from data.models import Badge, Student
 from data.store import DataStore
-from ui.theme import FONT_SIZES, button_style, make_font
+from ui.theme import COLOR_PALETTE, FONT_SIZES, button_style, card_style, make_font
 from ui.vector_assets import AVATAR_SVG, BADGE_SVGS
 
 
@@ -75,9 +76,10 @@ class BadgeGallery(QWidget):
             self._layout.addWidget(card, row, col)
 
 
-class StudentDetail(QWidget):
+class StudentDetail(QFrame):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
+        self.setStyleSheet(card_style(COLOR_PALETTE["mint"].name()))
         splitter = QSplitter(Qt.Horizontal, self)
         splitter.setChildrenCollapsible(False)
         splitter.setHandleWidth(12)
@@ -91,8 +93,15 @@ class StudentDetail(QWidget):
         info_layout.setSpacing(16)
         info_layout.setContentsMargins(24, 24, 24, 24)
 
+        title_row = QHBoxLayout()
+        title_row.setSpacing(12)
         self.name_label = QLabel("Schüler:in")
-        self.name_label.setFont(make_font(28, bold=True))
+        self.name_label.setFont(make_font(30, bold=True))
+        cheer_label = QLabel("🌟")
+        cheer_label.setFont(make_font(30))
+        title_row.addWidget(self.name_label)
+        title_row.addWidget(cheer_label)
+        title_row.addStretch(1)
 
         self.level_label = QLabel("Level 1")
         self.level_label.setFont(make_font(FONT_SIZES["heading"], bold=True))
@@ -103,13 +112,14 @@ class StudentDetail(QWidget):
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setTextVisible(True)
-        self.progress.setFormat("Fortschritt zum nächsten Level: %p%")
+        self.progress.setFormat("Abenteuer zum nächsten Level: %p%")
         self.progress.setStyleSheet(
-            "QProgressBar { border-radius: 16px; height: 36px; font-size: 16px; }"
-            "QProgressBar::chunk { background-color: #10B981; border-radius: 16px; }"
+            "QProgressBar { border-radius: 16px; height: 36px; font-size: 16px;"
+            " background: #E2F8CE; padding: 4px; }"
+            "QProgressBar::chunk { background-color: #58CC02; border-radius: 12px; }"
         )
 
-        info_layout.addWidget(self.name_label)
+        info_layout.addLayout(title_row)
         info_layout.addWidget(self.level_label)
         info_layout.addWidget(self.xp_label)
         info_layout.addWidget(self.progress)
@@ -119,7 +129,12 @@ class StudentDetail(QWidget):
         info_layout.addWidget(badge_header)
 
         self.badge_gallery = BadgeGallery()
-        info_layout.addWidget(self.badge_gallery)
+        badge_wrapper = QFrame()
+        badge_wrapper.setStyleSheet(card_style(COLOR_PALETTE["sky"].name()))
+        badge_layout = QVBoxLayout(badge_wrapper)
+        badge_layout.setContentsMargins(12, 12, 12, 12)
+        badge_layout.addWidget(self.badge_gallery)
+        info_layout.addWidget(badge_wrapper)
         info_layout.addStretch(1)
 
         splitter.addWidget(self.info_panel)
@@ -129,6 +144,10 @@ class StudentDetail(QWidget):
 
         layout = QVBoxLayout(self)
         layout.addWidget(splitter)
+
+        helper = QLabel("Tipp: Vergib Belohnungen, um neue Orden aufzuschalten!")
+        helper.setFont(make_font(FONT_SIZES["caption"], bold=True))
+        layout.addWidget(helper, alignment=Qt.AlignRight)
 
     def update_student(self, student: Student) -> None:
         self.name_label.setText(student.display_name)
@@ -157,17 +176,35 @@ class StudentsTab(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
+        layout.setSpacing(18)
 
+        hero = QFrame()
+        hero.setStyleSheet(card_style(COLOR_PALETTE["primary"].name()))
+        hero_layout = QHBoxLayout(hero)
+        hero_layout.setSpacing(12)
+        hero_title = QLabel("🌈 Abenteuer-Klasse")
+        hero_title.setFont(make_font(FONT_SIZES["heading"], bold=True))
+        hero_sub = QLabel("Wähle ein Kind aus und begleite es durch Level, Orden und XP!")
+        hero_sub.setFont(make_font(FONT_SIZES["body"]))
+        hero_layout.addWidget(hero_title)
+        hero_layout.addWidget(hero_sub)
+        hero_layout.addStretch(1)
+        layout.addWidget(hero)
+
+        list_frame = QFrame()
+        list_frame.setStyleSheet(card_style(COLOR_PALETTE["sky"].name()))
+        list_layout = QVBoxLayout(list_frame)
+        list_layout.setContentsMargins(12, 12, 12, 12)
         header = QLabel("Schüler:innen")
-        header.setFont(make_font(FONT_SIZES["heading"], bold=True))
-        layout.addWidget(header)
+        header.setFont(make_font(FONT_SIZES["subheading"], bold=True))
+        list_layout.addWidget(header)
 
         self.student_list = QListWidget()
         self.student_list.setSpacing(12)
-        self.student_list.setFixedHeight(140)
+        self.student_list.setFixedHeight(180)
         self.student_list.itemSelectionChanged.connect(self._on_selection_changed)
-        layout.addWidget(self.student_list)
+        list_layout.addWidget(self.student_list)
+        layout.addWidget(list_frame)
 
         self.detail = StudentDetail()
         layout.addWidget(self.detail, stretch=1)
