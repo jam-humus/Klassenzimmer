@@ -5,6 +5,7 @@ from typing import List
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
+    QFrame,
     QGridLayout,
     QLabel,
     QListWidget,
@@ -14,11 +15,12 @@ from PyQt5.QtWidgets import (
     QSplitter,
     QVBoxLayout,
     QWidget,
+    QHBoxLayout,
 )
 
 from data.models import Reward
 from data.store import DataStore
-from ui.theme import FONT_SIZES, button_style, make_font
+from ui.theme import COLOR_PALETTE, FONT_SIZES, button_style, card_style, make_font
 
 
 class RewardsTab(QWidget):
@@ -28,19 +30,30 @@ class RewardsTab(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
+        layout.setSpacing(18)
 
-        header = QLabel("Belohnungen")
-        header.setFont(make_font(FONT_SIZES["heading"], bold=True))
-        layout.addWidget(header)
+        hero = QFrame()
+        hero.setStyleSheet(card_style(COLOR_PALETTE["primary"].name()))
+        hero_layout = QHBoxLayout(hero)
+        hero_layout.setSpacing(12)
+        hero_title = QLabel("🏅 Belohnungen & Jubel")
+        hero_title.setFont(make_font(FONT_SIZES["heading"], bold=True))
+        hero_sub = QLabel("Vergib XP in fröhlichen Farben – genau wie im Lieblings-Lernspiel!")
+        hero_sub.setFont(make_font(FONT_SIZES["body"]))
+        hero_layout.addWidget(hero_title)
+        hero_layout.addWidget(hero_sub)
+        hero_layout.addStretch(1)
+        layout.addWidget(hero)
 
         splitter = QSplitter(Qt.Horizontal)
         splitter.setChildrenCollapsible(False)
         layout.addWidget(splitter, stretch=1)
 
-        left_container = QWidget()
+        left_container = QFrame()
+        left_container.setStyleSheet(card_style(COLOR_PALETTE["sky"].name()))
         left_layout = QVBoxLayout(left_container)
         left_layout.setSpacing(12)
+        left_layout.setContentsMargins(16, 16, 16, 16)
 
         left_label = QLabel("Wähle mehrere Schüler:innen")
         left_label.setFont(make_font(FONT_SIZES["body"], bold=True))
@@ -48,13 +61,16 @@ class RewardsTab(QWidget):
 
         self.student_list = QListWidget()
         self.student_list.setSelectionMode(QListWidget.MultiSelection)
+        self.student_list.setFixedHeight(300)
         left_layout.addWidget(self.student_list)
 
         splitter.addWidget(left_container)
 
-        right_container = QWidget()
+        right_container = QFrame()
+        right_container.setStyleSheet(card_style(COLOR_PALETTE["secondary"].name()))
         right_layout = QVBoxLayout(right_container)
         right_layout.setSpacing(24)
+        right_layout.setContentsMargins(16, 16, 16, 16)
 
         right_label = QLabel("XP vergeben")
         right_label.setFont(make_font(FONT_SIZES["body"], bold=True))

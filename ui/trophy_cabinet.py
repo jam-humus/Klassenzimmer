@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import (
 
 from data.models import Badge
 from data.store import DataStore
-from ui.theme import FONT_SIZES, make_font
+from ui.theme import COLOR_PALETTE, FONT_SIZES, card_style, make_font
 
 
 class BadgeDetailDialog(QDialog):
@@ -61,10 +61,7 @@ class TrophyCard(QFrame):
         super().__init__(parent)
         self.badge = badge
         self.setFrameShape(QFrame.StyledPanel)
-        self.setStyleSheet(
-            "QFrame { background: #FFFFFF; border-radius: 24px; border: 4px solid #DBEAFE; }"
-            "QFrame:hover { border-color: #3B82F6; }"
-        )
+        self.setStyleSheet(card_style(COLOR_PALETTE["secondary"].name()))
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
@@ -99,11 +96,19 @@ class TrophyCabinetTab(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
+        layout.setSpacing(18)
 
-        header = QLabel("Trophäenschrank")
-        header.setFont(make_font(FONT_SIZES["heading"], bold=True))
-        layout.addWidget(header)
+        hero = QFrame()
+        hero.setStyleSheet(card_style(COLOR_PALETTE["primary"].name()))
+        hero_layout = QVBoxLayout(hero)
+        hero_layout.setSpacing(6)
+        hero_title = QLabel("🏆 Glitzernder Trophäenschrank")
+        hero_title.setFont(make_font(FONT_SIZES["heading"], bold=True))
+        hero_sub = QLabel("Tippe auf einen Orden, um mehr zu erfahren – sammel sie alle!")
+        hero_sub.setFont(make_font(FONT_SIZES["body"]))
+        hero_layout.addWidget(hero_title)
+        hero_layout.addWidget(hero_sub)
+        layout.addWidget(hero)
 
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
